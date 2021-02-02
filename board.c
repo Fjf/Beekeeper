@@ -16,6 +16,7 @@ struct board *init_board() {
     struct board *board = calloc(1, sizeof(struct board));
     board->turn = 0;
     board->move_location_tracker = 0;
+    board->n_stacked = 0;
 
     board->player1.ants_left = N_ANTS;
     board->player1.beetles_left = N_BEETLES;

@@ -74,6 +74,8 @@ struct board {
     struct player player1;
     struct player player2;
 
+    int n_stacked;
+
     int move_location_tracker;
     struct move_location move_locations[BOARD_SIZE * BOARD_SIZE * sizeof(struct move_location)];
 };

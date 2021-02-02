@@ -152,7 +152,8 @@ int sum_hive_tiles(struct board *board) {
             board->player2.ants_left +
             board->player2.queens_left +
             board->player2.grasshoppers_left +
-            board->player2.beetles_left);
+            board->player2.beetles_left) -
+            board->n_stacked;
 }
 
 void generate_directional_grasshopper_moves(struct board* board, int orig_y, int orig_x, int x_incr, int y_incr) {
@@ -369,7 +370,6 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
             int frontier_point = frontier[--frontier_p];
             int x = frontier_point % BOARD_SIZE;
             int y = frontier_point / BOARD_SIZE;
-            printf("Checking frontier point %d, %d\n", x, y);
             int* points = get_points_around(y, x);
 
             // Iterate all points surrounding this frontier.
@@ -421,13 +421,15 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
 }
 
 
-void generate_free_moves(struct board *board) {
+void generate_free_moves(struct board *board, int player_bit) {
     int n_hive_tiles = sum_hive_tiles(board) - 1;
 
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
             struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
             if (tile->type == NONE) continue;
+            // Only move your own tiles
+            if ((tile->type & COLOR_MASK) != player_bit) continue;
 
             // Store the tile type for later use
             int tile_type = tile->type;
@@ -455,18 +457,16 @@ void generate_free_moves(struct board *board) {
             if (valid) {
                 // If this tile can be removed without breaking the hive, add it to the valid moves list.
                 if ((tile->type & TILE_MASK) == W_GRASSHOPPER) {
-//                    generate_grasshopper_moves(board, y, x);
+                    generate_grasshopper_moves(board, y, x);
                 } else if ((tile->type & TILE_MASK) == W_BEETLE) {
-//                    generate_beetle_moves(board, y, x);
+                    generate_beetle_moves(board, y, x);
                 } else if ((tile->type & TILE_MASK) == W_ANT) {
-//                    generate_ant_moves(board, y, x);
+                    generate_ant_moves(board, y, x);
                 } else if ((tile->type & TILE_MASK) == W_QUEEN) {
-//                    generate_queen_moves(board, y, x);
+                    generate_queen_moves(board, y, x);
                 } else if ((tile->type & TILE_MASK) == W_SPIDER) {
-                    printf("Generating spider moves\n");
                     generate_spider_moves(board, y, x);
                 }
-//                add_move(board, orig_y * BOARD_SIZE + orig_x, tile->type, orig_y * BOARD_SIZE + orig_x);
             }
 
         }

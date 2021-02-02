@@ -40,6 +40,7 @@ void do_turn(struct board *board, int move_location_index, struct player *player
             struct tile* tile = board->tiles[previous_location].next;
             memcpy(&board->tiles[previous_location], tile, sizeof(struct tile));
             free(tile);
+            board->n_stacked--;
         }
     }
 
@@ -49,6 +50,7 @@ void do_turn(struct board *board, int move_location_index, struct player *player
         struct tile* tile = malloc(sizeof(struct tile));
         memcpy(tile, &board->tiles[idx], sizeof(struct tile));
         board->tiles[idx].next = tile;
+        board->n_stacked++;
     }
 
     // Do this move.
@@ -58,6 +60,15 @@ void do_turn(struct board *board, int move_location_index, struct player *player
 
     translate_board(board);
 }
+
+void print_player(struct player* player) {
+    printf("Beetles: %d\n", player->beetles_left);
+    printf("Spiders: %d\n", player->spiders_left);
+    printf("Grasshoppers: %d\n", player->grasshoppers_left);
+    printf("Queens: %d\n", player->queens_left);
+    printf("Ants: %d\n", player->ants_left);
+}
+
 
 void test_beetle(struct board *board) {
     add_move(board, BOARD_SIZE + 1, W_BEETLE, -1);
@@ -92,9 +103,9 @@ int main() {
     struct board *board = init_board();
     struct player *player;
     int player_bit;
-    for (int i = 0; i < 22; i++) {
-        printf("Move %d\n", i);
-        // Select player based on turn.
+
+    int sum_moves = 0;
+    for (int i = 0; i < 50000; i++) {
         if (board->turn % 2 == 0) {
             player = &board->player1;
             player_bit = 0;
@@ -114,17 +125,23 @@ int main() {
         if (player->queens_left > 0)
             generate_placing_moves(board, W_QUEEN | player_bit);
 
+        generate_free_moves(board, player_bit);
 
-        printf("Generated placing moves\n");
+        // Your move drops if theres no valid moves left.
+//        printf("Generated %d moves\n", board->move_location_tracker);
+//        print_board(board);
+        sum_moves += board->move_location_tracker;
+        if (board->move_location_tracker == 0) {
+//            printf("No valid moves for player %d\n", (board->turn % 2) + 1);
+            board->turn++;
+            continue;
+        }
         int selected = rand() % board->move_location_tracker;
+
         do_turn(board, selected, player);
-        print_board(board);
     }
 
-    generate_free_moves(board);
-
-    print_board(board);
-//    test_beetle(board);
+    printf("Avg. moves per turn: %.5f\n", ((float) sum_moves) / 50000);
 
 
     free(board);
