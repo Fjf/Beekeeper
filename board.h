@@ -44,6 +44,7 @@ struct tile_stack {
 
 struct tile {
     int type;
+    struct tile* next;
 };
 
 struct player {
@@ -64,7 +65,7 @@ struct player {
  */
 
 // Add a padding around the board to simplify edge conditions
-#define BOARD_SIZE ((N_TILES * 2) + 2)
+#define BOARD_SIZE ((N_TILES * 2) + 4)
 struct board {
     struct tile tiles[BOARD_SIZE * BOARD_SIZE * sizeof(struct tile)];
     char turn;  // Use this to derive whose turn it is
@@ -72,8 +73,6 @@ struct board {
 
     struct player player1;
     struct player player2;
-
-    struct tile_stack tile_stack[N_BEETLES * 2 * sizeof(struct tile_stack)];
 
     int move_location_tracker;
     struct move_location move_locations[BOARD_SIZE * BOARD_SIZE * sizeof(struct move_location)];

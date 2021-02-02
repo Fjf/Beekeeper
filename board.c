@@ -13,7 +13,7 @@
  * Initialize the board.
  */
 struct board *init_board() {
-    struct board *board = malloc(sizeof(struct board));
+    struct board *board = calloc(1, sizeof(struct board));
     board->turn = 0;
     board->move_location_tracker = 0;
 
@@ -29,7 +29,7 @@ struct board *init_board() {
 }
 
 /*
- * Translates the board to 1,1 coordinate space
+ * Translates the board to 2,2 coordinate space
  */
 void translate_board(struct board *board) {
     int min_x = BOARD_SIZE;
@@ -52,9 +52,9 @@ void translate_board(struct board *board) {
     // Copy data into temp array
     void *temp = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(struct tile));
 
-    memcpy(temp + (BOARD_SIZE + 1) * sizeof(struct tile),
+    memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
            ((void*)&board->tiles) + offset * sizeof(struct tile),
-           (size - (BOARD_SIZE + 1)) * sizeof(struct tile)
+           (size - (2 * BOARD_SIZE + 2)) * sizeof(struct tile)
     );
 
     memset(&board->tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
