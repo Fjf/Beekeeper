@@ -352,52 +352,58 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
     int tile_type = board->tiles[orig_y * BOARD_SIZE + orig_x].type;
     board->tiles[orig_y * BOARD_SIZE + orig_x].type = NONE;
 
-    int *spider_move_tracker = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
-    int n_spider_moves = 0;
+    int* valid_moves = calloc(sizeof(int), BOARD_SIZE * BOARD_SIZE);
+    int valid_moves_tracker = 0;
+
+    // Frontier to track multiple points.
     int *frontier = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
-    int *next_frontier = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
     int frontier_p = 0; // Frontier pointer.
+    int *next_frontier = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
     int next_frontier_p = 0; // Next frontier pointer.
-    int index = orig_y * BOARD_SIZE + orig_x;
 
-    spider_move_tracker[n_spider_moves++] = index;
-    frontier[frontier_p++] = index;
+    frontier[frontier_p++] = orig_y * BOARD_SIZE + orig_x;
 
-    for (int iterations = 0; iterations < 3; iterations++) {
-        while (frontier_p != 0) {
-            int i = frontier[--frontier_p];
-            int y = i / BOARD_SIZE;
-            int x = i % BOARD_SIZE;
+    for (int iteration = 0; iteration < 3; iteration++) {
+        while (frontier_p > 0) {
+            // Get a point on the frontier
+            int frontier_point = frontier[--frontier_p];
+            int x = frontier_point % BOARD_SIZE;
+            int y = frontier_point / BOARD_SIZE;
+            printf("Checking frontier point %d, %d\n", x, y);
+            int* points = get_points_around(y, x);
 
-            int *points = get_points_around(y, x);
-            for (int n = 0; n < 6; n++) {
-                int point = points[n];
-                if (point < 0 || point >= BOARD_SIZE * BOARD_SIZE) continue;
+            // Iterate all points surrounding this frontier.
+            // Generate a list containing all valid moves from the frontier onward.
+            for (int p = 0; p < 6; p++) {
+                int point = points[p];
+                if (board->tiles[point].type == NONE) continue;
+                int xx = point % BOARD_SIZE;
+                int yy = point / BOARD_SIZE;
 
-                // Ants cannot stack.
-                if (board->tiles[point].type != NONE) continue;
+                if (!tile_fits(board, x, y, xx, yy)) continue;
 
-                // Skip this tile if it has no neighbours
-                // Connected hive requirement.
-                if (!has_neighbour(board, point)) continue;
+                // For all neighbours, if the neighbours neighbours == my neighbours -> valid move.
+                int* neighbour_points = get_points_around(yy, xx);
+                for (int i = 0; i < 6; i++) {
+                    if (board->tiles[neighbour_points[i]].type != NONE) continue;
+                    for (int j = 0; j < 6; j++) {
+                        if (neighbour_points[i] == points[j]) {
+                            if (!tile_fits(board, x, y, points[j] % BOARD_SIZE, points[j] / BOARD_SIZE)) continue;
 
-                int new_x = point % BOARD_SIZE;
-                int new_y = point / BOARD_SIZE;
-                if (!tile_fits(board, x, y, new_x, new_y)) continue;
-
-                // If a unique tile is added, increment the tracker.
-                int added = add_if_unique(spider_move_tracker, n_spider_moves, points[n]);
-
-                if (added) {
-                    n_spider_moves++;
-                    next_frontier[next_frontier_p++] = points[n];
+                            // If a unique tile is added, increment the tracker.
+                            int added = add_if_unique(valid_moves, valid_moves_tracker, neighbour_points[i]);
+                            if (added) {
+                                valid_moves_tracker++;
+                                next_frontier[next_frontier_p++] = neighbour_points[i];
+                            }
+                        }
+                    }
                 }
+                free(neighbour_points);
             }
             free(points);
-
         }
-
-        // Swap buffers at the end of each iteration
+        // Swap two frontiers.
         int* temp = frontier;
         frontier = next_frontier;
         next_frontier = temp;
@@ -406,13 +412,12 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
     }
     board->tiles[orig_y * BOARD_SIZE + orig_x].type = tile_type;
 
-    // Generate moves based on the last frontier
     for (int i = 0; i < frontier_p; i++) {
         add_move(board, frontier[i], tile_type, orig_y * BOARD_SIZE + orig_x);
     }
-    free(spider_move_tracker);
-    free(next_frontier);
+    free(valid_moves);
     free(frontier);
+    free(next_frontier);
 }
 
 
