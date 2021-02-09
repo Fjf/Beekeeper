@@ -1,10 +1,7 @@
-//
-// Created by duncan on 01-02-21.
-//
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "moves.h"
 #include "board.h"
 
@@ -21,15 +18,13 @@ void add_move(struct board *board, int location, int type, int previous_location
 /*
  * Returns an array containing array indices around a given x,y coordinate.
  */
-int *get_points_around(int y, int x) {
-    int *points = malloc(6 * sizeof(int));
+void get_points_around(int y, int x, int* points) {
     points[0] = (y - 1) * BOARD_SIZE + (x + 0);
     points[1] = (y - 1) * BOARD_SIZE + (x - 1);
     points[2] = (y + 0) * BOARD_SIZE + (x - 1);
     points[3] = (y + 0) * BOARD_SIZE + (x + 1);
     points[4] = (y + 1) * BOARD_SIZE + (x + 0);
     points[5] = (y + 1) * BOARD_SIZE + (x + 1);
-    return points;
 }
 
 /*
@@ -38,19 +33,24 @@ int *get_points_around(int y, int x) {
 void generate_placing_moves(struct board *board, int type) {
     int color = type & COLOR_MASK;
 
+//    int initial_position = (BOARD_SIZE / 2) * BOARD_SIZE + BOARD_SIZE / 2;
+    int initial_position = (BOARD_SIZE * 2) + 2;
     if (board->turn == 0) {
-        return add_move(board, BOARD_SIZE + 1, type, -1);
+        return add_move(board, initial_position, type, -1);
     }
     if (board->turn == 1) {
-        return add_move(board, BOARD_SIZE + 2, type, -1);
+        return add_move(board, initial_position + 1, type, -1);
     }
+
+    int* points = malloc(6 * sizeof(int));
+    int* neighbour_points = malloc(6 * sizeof(int));
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
             // Skip empty tiles
             if (board->tiles[y * BOARD_SIZE + x].type == NONE) continue;
 
             // Get points around this point
-            int *points = get_points_around(y, x);
+            get_points_around(y, x, points);
             for (int p = 0; p < 6; p++) {
                 int index = points[p];
                 // Check if its empty
@@ -61,7 +61,7 @@ void generate_placing_moves(struct board *board, int type) {
                 int invalid = 0;
                 int yy = index / BOARD_SIZE;
                 int xx = index % BOARD_SIZE;
-                int *neighbour_points = get_points_around(yy, xx);
+                get_points_around(yy, xx, neighbour_points);
                 for (int np = 0; np < 6; np++) {
                     int np_index = neighbour_points[np];
                     if (np_index < 0 || np_index >= BOARD_SIZE * BOARD_SIZE) continue;
@@ -74,7 +74,6 @@ void generate_placing_moves(struct board *board, int type) {
                         break;
                     }
                 }
-                free(neighbour_points);
 
                 // If any neighbour of this point is another colour, check another point.
                 if (invalid) continue;
@@ -91,9 +90,10 @@ void generate_placing_moves(struct board *board, int type) {
                     add_move(board, index, type, -1);
                 }
             }
-            free(points);
         }
     }
+    free(neighbour_points);
+    free(points);
 }
 
 int add_if_unique(int *array, int n, int value) {
@@ -114,13 +114,13 @@ int count_connected(struct board *board, int index) {
     connected[n_connected++] = index;
     frontier[frontier_p++] = index;
 
+    int* points = malloc(6 * sizeof(int));
     while (frontier_p != 0) {
         int i = frontier[--frontier_p];
         int y = i / BOARD_SIZE;
         int x = i % BOARD_SIZE;
 
-        int *points = get_points_around(y, x);
-
+        get_points_around(y, x, points);
         for (int n = 0; n < 6; n++) {
             // Skip this tile if theres nothing on it
             if (board->tiles[points[n]].type == NONE) continue;
@@ -133,9 +133,8 @@ int count_connected(struct board *board, int index) {
                 frontier[frontier_p++] = points[n];
             }
         }
-
-        free(points);
     }
+    free(points);
     free(frontier);
     free(connected);
     return n_connected;
@@ -190,7 +189,10 @@ void generate_beetle_moves(struct board* board, int y, int x) {
     int tile_type = board->tiles[y * BOARD_SIZE + x].type;
     board->tiles[y * BOARD_SIZE + x].type = NONE;
 
-    int* points = get_points_around(y, x);
+
+    int* points = malloc(6 * sizeof(int));
+    int* neighbours = malloc(6 * sizeof(int));
+    get_points_around(y, x, points);
     for (int p = 0; p < 6; p++) {
         int point = points[p];
 
@@ -201,7 +203,7 @@ void generate_beetle_moves(struct board* board, int y, int x) {
 
         // Check if placing the beetle on this position is valid (not creating 2 hives).
         int is_connected = 0;
-        int* neighbours = get_points_around(yy, xx);
+        get_points_around(yy, xx, neighbours);
         for (int n = 0; n < 6; n++) {
             int neighbour = neighbours[n];
 
@@ -210,12 +212,12 @@ void generate_beetle_moves(struct board* board, int y, int x) {
                 break;
             }
         }
-        free(neighbours);
 
         if (is_connected) {
             add_move(board, point, tile_type, y * BOARD_SIZE + x);
         }
     }
+    free(neighbours);
     free(points);
 
     board->tiles[y * BOARD_SIZE + x].type = tile_type;
@@ -224,13 +226,17 @@ void generate_beetle_moves(struct board* board, int y, int x) {
 bool has_neighbour(struct board* board, int location) {
     int x = location % BOARD_SIZE;
     int y = location / BOARD_SIZE;
-    int* points = get_points_around(y, x);
+    int* points = malloc(6 * sizeof(int));
+    get_points_around(y, x, points);
     for (int i = 0; i < 6 ; i++) {
         if (points[i] < 0 || points[i] >= BOARD_SIZE * BOARD_SIZE) continue;
 
-        if (board->tiles[points[i]].type != NONE)
+        if (board->tiles[points[i]].type != NONE) {
+            free(points);
             return true;
+        }
     }
+    free(points);
     return false;
 }
 
@@ -279,12 +285,13 @@ void generate_ant_moves(struct board* board, int orig_y, int orig_x) {
     ant_move_buffer[n_ant_moves++] = index;
     frontier[frontier_p++] = index;
 
+    int* points = malloc(6 * sizeof(int));
     while (frontier_p != 0) {
         int i = frontier[--frontier_p];
         int y = i / BOARD_SIZE;
         int x = i % BOARD_SIZE;
 
-        int *points = get_points_around(y, x);
+        get_points_around(y, x, points);
         for (int n = 0; n < 6; n++) {
             int point = points[n];
             if (point < 0 || point >= BOARD_SIZE * BOARD_SIZE) continue;
@@ -308,8 +315,8 @@ void generate_ant_moves(struct board* board, int orig_y, int orig_x) {
                 frontier[frontier_p++] = points[n];
             }
         }
-        free(points);
     }
+    free(points);
     board->tiles[orig_y * BOARD_SIZE + orig_x].type = tile_type;
 
     // Generate moves based on these valid ant moves.
@@ -327,7 +334,8 @@ void generate_queen_moves(struct board* board, int y, int x) {
     int tile_type = board->tiles[y * BOARD_SIZE + x].type;
     board->tiles[y * BOARD_SIZE + x].type = NONE;
 
-    int* points = get_points_around(y, x);
+    int* points = malloc(6 * sizeof(int));
+    get_points_around(y, x, points);
     for (int i = 0; i < 6; i++) {
         int point = points[i];
 
@@ -345,6 +353,7 @@ void generate_queen_moves(struct board* board, int y, int x) {
         add_move(board, point, tile_type, y * BOARD_SIZE + x);
     }
 
+    free(points);
     board->tiles[y * BOARD_SIZE + x].type = tile_type;
 }
 
@@ -364,13 +373,16 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
 
     frontier[frontier_p++] = orig_y * BOARD_SIZE + orig_x;
 
+    int* points = malloc(6 * sizeof(int));
+    int* neighbour_points = malloc(6 * sizeof(int));
+
     for (int iteration = 0; iteration < 3; iteration++) {
         while (frontier_p > 0) {
             // Get a point on the frontier
             int frontier_point = frontier[--frontier_p];
             int x = frontier_point % BOARD_SIZE;
             int y = frontier_point / BOARD_SIZE;
-            int* points = get_points_around(y, x);
+            get_points_around(y, x, points);
 
             // Iterate all points surrounding this frontier.
             // Generate a list containing all valid moves from the frontier onward.
@@ -383,7 +395,7 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
                 if (!tile_fits(board, x, y, xx, yy)) continue;
 
                 // For all neighbours, if the neighbours neighbours == my neighbours -> valid move.
-                int* neighbour_points = get_points_around(yy, xx);
+                get_points_around(yy, xx, neighbour_points);
                 for (int i = 0; i < 6; i++) {
                     if (board->tiles[neighbour_points[i]].type != NONE) continue;
                     for (int j = 0; j < 6; j++) {
@@ -399,9 +411,7 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
                         }
                     }
                 }
-                free(neighbour_points);
             }
-            free(points);
         }
         // Swap two frontiers.
         int* temp = frontier;
@@ -410,6 +420,8 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
         frontier_p = next_frontier_p;
         next_frontier_p = 0;
     }
+    free(neighbour_points);
+    free(points);
     board->tiles[orig_y * BOARD_SIZE + orig_x].type = tile_type;
 
     for (int i = 0; i < frontier_p; i++) {
@@ -422,8 +434,17 @@ void generate_spider_moves(struct board* board, int orig_y, int orig_x) {
 
 
 void generate_free_moves(struct board *board, int player_bit) {
-    int n_hive_tiles = sum_hive_tiles(board) - 1;
+#ifdef DEBUG
+    struct timespec start, end, start2, end2;
+    double g_time, b_time, q_time, s_time, a_time;
+    g_time = b_time = q_time = s_time = a_time = 0;
+    unsigned int g_n, b_n, q_n, s_n, a_n;
+    g_n = b_n = q_n = s_n = a_n = 0;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
+#endif
 
+    int n_hive_tiles = sum_hive_tiles(board) - 1;
+    int* points = malloc(6 * sizeof(int));
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
             struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
@@ -437,7 +458,7 @@ void generate_free_moves(struct board *board, int player_bit) {
 
             // Check if the points around this point consist of a single spanning tree.
             int valid = 1;
-            int *points = get_points_around(y, x);
+            get_points_around(y, x, points);
             for (int p = 1; p < 6; p++) {
                 int index = points[p];
 
@@ -447,28 +468,68 @@ void generate_free_moves(struct board *board, int player_bit) {
                 int connect_count = count_connected(board, index);
                 if (connect_count != n_hive_tiles) {
                     valid = 0;
-                    break;
                 }
+                break;
             }
 
             // Restore original tile value.
             tile->type = tile_type;
 
             if (valid) {
+#ifdef DEBUG
+                clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start2);
+#endif
                 // If this tile can be removed without breaking the hive, add it to the valid moves list.
-                if ((tile->type & TILE_MASK) == W_GRASSHOPPER) {
+                if ((tile->type & TILE_MASK) == L_GRASSHOPPER) {
                     generate_grasshopper_moves(board, y, x);
-                } else if ((tile->type & TILE_MASK) == W_BEETLE) {
+#ifdef DEBUG
+                    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end2);
+                    g_time += to_usec(end2) - to_usec(start2);
+                    g_n++;
+#endif
+                } else if ((tile->type & TILE_MASK) == L_BEETLE) {
                     generate_beetle_moves(board, y, x);
-                } else if ((tile->type & TILE_MASK) == W_ANT) {
+#ifdef DEBUG
+                    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end2);
+                    b_time += to_usec(end2) - to_usec(start2);
+                    b_n++;
+#endif
+                } else if ((tile->type & TILE_MASK) == L_ANT) {
                     generate_ant_moves(board, y, x);
-                } else if ((tile->type & TILE_MASK) == W_QUEEN) {
+#ifdef DEBUG
+                    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end2);
+                    a_time += to_usec(end2) - to_usec(start2);
+                    a_n++;
+#endif
+                } else if ((tile->type & TILE_MASK) == L_QUEEN) {
                     generate_queen_moves(board, y, x);
-                } else if ((tile->type & TILE_MASK) == W_SPIDER) {
+#ifdef DEBUG
+                    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end2);
+                    q_time += to_usec(end2) - to_usec(start2);
+                    q_n++;
+#endif
+                } else if ((tile->type & TILE_MASK) == L_SPIDER) {
                     generate_spider_moves(board, y, x);
+#ifdef DEBUG
+                    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end2);
+                    s_time += to_usec(end2) - to_usec(start2);
+                    s_n++;
+#endif
                 }
             }
-
         }
     }
+
+    free(points);
+#ifdef DEBUG
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
+    double tot_time = to_usec(end) - to_usec(start);
+    printf("----------------------------------\n");
+    printf("Total us: %.5f\n", tot_time);
+    printf("\tAvg. Spider us: %.5f (%d)\n", s_time/s_n, s_n);
+    printf("\tAvg. Ant us: %.5f (%d)\n", a_time/a_n, a_n);
+    printf("\tAvg. Grasshopper us: %.5f (%d)\n", g_time/g_n, g_n);
+    printf("\tAvg. Beetle us: %.5f (%d)\n", b_time/b_n, b_n);
+    printf("\tAvg. Queen us: %.5f (%d)\n", q_time/q_n, q_n);
+#endif
 }

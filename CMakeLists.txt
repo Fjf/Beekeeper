@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.13)  # CMake version check
-project(simple_example)               # Create project "simple_example"
+project(hive)               # Create project "simple_example"
 set(CMAKE_CXX_STANDARD 14)            # Enable c++14 standard
+set(CMAKE_C_FLAGS "-o3")
 
 # Add main.cpp file of project root directory as source file
-set(SOURCE_FILES main.c moves.c moves.h board.c board.h )
+set(SOURCE_FILES main.c moves.c moves.h board.c board.h pn_tree.c pn_tree.h list.c list.h)
 
 # Add executable target with source files listed in SOURCE_FILES variable
-add_executable(thehive ${SOURCE_FILES})
+add_executable(hive ${SOURCE_FILES})
