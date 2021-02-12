@@ -11,10 +11,10 @@
 void node_init(struct pn_node* node, int type) {
     list_init(&node->children);
     list_init(&node->node);
-    node->proven = PN_NODE_UNDECIDED;
     node->node_type = type;
-    node->to_disprove = 1 << 30;
-    node->to_prove = 1 << 30;
+    node->to_disprove = PN_INF;
+    node->to_prove = PN_INF;
+    node->expanded = false;
 }
 
 
@@ -32,7 +32,7 @@ void _pn_print(struct pn_node* root, int depth) {
     for (int i = 0; i < depth; i++) {
         printf("- ");
     }
-    printf("%p\n", root);
+    printf("%p (%u, %u)\n", root, root->to_prove, root->to_disprove);
     while (head != root->children.head) {
         struct pn_node* child = container_of(head, struct pn_node, node);
         _pn_print(child, depth+1);
@@ -41,11 +41,12 @@ void _pn_print(struct pn_node* root, int depth) {
     }
 }
 void pn_print(struct pn_node* root) {
-    printf("Tree structure for %p\n", root);
     _pn_print(root, 0);
 }
 
-void pn_free_children(struct pn_node* root) {
+
+void pn_free(struct pn_node* root) {
+    // Free children
     struct list* head = root->children.next;
     while (head != root->children.head) {
         struct pn_node* child = container_of(head, struct pn_node, node);
@@ -56,10 +57,7 @@ void pn_free_children(struct pn_node* root) {
 
         head = temp;
     }
-}
 
-void pn_free(struct pn_node* root) {
-    pn_free_children(root);
     free(root->board);
     list_remove(&root->node);
     free(root);

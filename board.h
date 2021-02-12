@@ -45,21 +45,21 @@ struct move_location {
 };
 
 struct tile_stack {
-    int type;
+    unsigned char type;
     int location;
-    int z;
+    unsigned char z;
 };
 
 struct tile {
-    int type;
+    unsigned char type;
 };
 
 struct player {
-    int beetles_left;
-    int grasshoppers_left;
-    int queens_left;
-    int ants_left;
-    int spiders_left;
+    unsigned char beetles_left;
+    unsigned char grasshoppers_left;
+    unsigned char queens_left;
+    unsigned char ants_left;
+    unsigned char spiders_left;
 };
 
 /*
@@ -78,8 +78,7 @@ struct board {
     struct tile tiles[BOARD_SIZE * BOARD_SIZE * sizeof(struct tile)];
     int turn;  // Use this to derive whose turn it is
 
-    struct player player1;
-    struct player player2;
+    struct player players[2];
 
     int queen1_position;
     int queen2_position;
@@ -88,7 +87,6 @@ struct board {
     struct tile_stack stack[TILE_STACK_SIZE];
 
     int move_location_tracker;
-    struct move_location move_locations[BOARD_SIZE * BOARD_SIZE * sizeof(struct move_location)];
 };
 
 void print_board(struct board* board);

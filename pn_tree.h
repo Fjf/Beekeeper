@@ -7,20 +7,17 @@
 
 #include "board.h"
 
-#define PN_NODE_UNDECIDED 0
-#define PN_NODE_PROVED 1
-#define PN_NODE_DISPROVED -1
-
 #define PN_TYPE_AND 0
 #define PN_TYPE_OR 1
+#define PN_INF (1 << 31)
 
 struct pn_node {
     struct list children;
     struct list node;
-    int proven;
-    int to_prove;
-    int to_disprove;
+    unsigned int to_prove;
+    unsigned int to_disprove;
     int node_type;
+    bool expanded;
     struct board* board;
 };
 

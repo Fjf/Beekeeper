@@ -22,15 +22,15 @@ struct board *init_board() {
     board->queen1_position = -1;
     board->queen2_position = -1;
 
-    board->player1.ants_left = N_ANTS;
-    board->player1.beetles_left = N_BEETLES;
-    board->player1.queens_left = N_QUEENS;
-    board->player1.grasshoppers_left = N_GRASSHOPPERS;
-    board->player1.spiders_left = N_SPIDERS;
+    for (int i = 0; i < 2; i++) {
+        board->players[i].ants_left = N_ANTS;
+        board->players[i].beetles_left = N_BEETLES;
+        board->players[i].queens_left = N_QUEENS;
+        board->players[i].grasshoppers_left = N_GRASSHOPPERS;
+        board->players[i].spiders_left = N_SPIDERS;
+    }
 
     memset(&board->stack, -1, TILE_STACK_SIZE * sizeof(struct tile_stack));
-
-    memcpy(&board->player2, &board->player1, sizeof(struct player));
 
     return board;
 }
@@ -240,19 +240,7 @@ void print_board(struct board *board) {
 
             struct tile tile = board->tiles[y * BOARD_SIZE + x];
 
-            char pre_move = 0;
-            if (board->move_location_tracker != 0) {
-                for (int n = 0; n < board->move_location_tracker; n++) {
-                    if (board->move_locations[n].location == y * BOARD_SIZE + x) {
-                        pre_move = 1;
-                        break;
-                    }
-                }
-            }
-
-            if (pre_move) {
-                printf(".");
-            } else if (tile.type == NONE) {
+            if (tile.type == NONE) {
                 printf(" ");
             } else if (tile.type == L_ANT) {
                 printf("A");
