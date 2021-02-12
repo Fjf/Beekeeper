@@ -21,7 +21,7 @@
 #define COLOR_MASK (1 << COLOR_SHIFT)
 #define TILE_MASK ((1 << COLOR_SHIFT) - 1)
 
-#define NONE 0
+#define EMPTY 0
 #define L_ANT 1
 #define L_GRASSHOPPER 2
 #define L_BEETLE 3

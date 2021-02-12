@@ -5,6 +5,8 @@
 #ifndef HIVE_LIST_H
 #define HIVE_LIST_H
 
+#define list_foreach(node, head) for ((head) = (node)->children.next; (head) != (node)->children.head; (head) = (head)->next)
+
 #include <stddef.h>
 #include "stdbool.h"
 
@@ -20,6 +22,7 @@ struct list {
 
 void list_init(struct list* list);
 void list_add(struct list* list, struct list* entry);
+bool list_empty(struct list* list);
 bool list_remove_object(struct list* list);
 void list_remove(struct list* entry);
 

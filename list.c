@@ -30,3 +30,7 @@ void list_remove(struct list* entry) {
     entry->prev = entry;
     entry->next = entry;
 }
+
+bool list_empty(struct list *list) {
+    return list->next == list && list->prev == list;
+}

@@ -44,7 +44,7 @@ void translate_board(struct board *board) {
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < min_x; x++) {
             struct tile tile = board->tiles[y * BOARD_SIZE + x];
-            if (tile.type == NONE) continue;
+            if (tile.type == EMPTY) continue;
 
             // Set min_y to the first non-empty tile row
             if (min_y == BOARD_SIZE) min_y = y;
@@ -87,7 +87,7 @@ void translate_board(struct board *board) {
 //
 //    for (int y = 0; y < BOARD_SIZE; y++) {
 //        for (int x = 0; x < BOARD_SIZE; x++) {
-//            if (board->tiles[y * BOARD_SIZE + x].type != NONE) {
+//            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
 //                min_y = y;
 //                break;
 //            }
@@ -96,7 +96,7 @@ void translate_board(struct board *board) {
 //    }
 //    for (int y = BOARD_SIZE - 1; y >= 0; y--) {
 //        for (int x = 0; x < BOARD_SIZE; x++) {
-//            if (board->tiles[y * BOARD_SIZE + x].type != NONE) {
+//            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
 //                max_y = y;
 //                break;
 //            }
@@ -105,7 +105,7 @@ void translate_board(struct board *board) {
 //    }
 //    for (int x = 0; x < BOARD_SIZE; x++) {
 //        for (int y = 0; y < BOARD_SIZE; y++) {
-//            if (board->tiles[y * BOARD_SIZE + x].type != NONE) {
+//            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
 //                min_x = x;
 //                break;
 //            }
@@ -114,7 +114,7 @@ void translate_board(struct board *board) {
 //    }
 //    for (int x = BOARD_SIZE - 1; x >= 0; x--) {
 //        for (int y = 0; y < BOARD_SIZE; y++) {
-//            if (board->tiles[y * BOARD_SIZE + x].type != NONE) {
+//            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
 //                max_x = x;
 //                break;
 //            }
@@ -178,7 +178,7 @@ bool is_surrounded(struct board* board, int y, int x) {
     int* points = malloc(6 * sizeof(int));
     get_points_around(y, x, points);
     for (p = 0; p < 6; p++) {
-        if (board->tiles[points[p]].type == NONE) {
+        if (board->tiles[points[p]].type == EMPTY) {
             break;
         }
     }
@@ -240,7 +240,7 @@ void print_board(struct board *board) {
 
             struct tile tile = board->tiles[y * BOARD_SIZE + x];
 
-            if (tile.type == NONE) {
+            if (tile.type == EMPTY) {
                 printf(" ");
             } else if (tile.type == L_ANT) {
                 printf("A");

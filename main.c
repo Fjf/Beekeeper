@@ -3,8 +3,9 @@
 #include <time.h>
 #include "board.h"
 #include "moves.h"
-#include "pn_tree.h"
-#include "pns.h"
+#include "pns/pn_tree.h"
+#include "mm/mm.h"
+#include "pns/pns.h"
 #include "list.h"
 
 
@@ -19,6 +20,13 @@
  *    5  -    5   -   0
  */
 
+/*
+ * Winrate minimax vs random (evaluation takes into account n-tiles surrounding queen
+ *                            and whether or not it won)
+ *   MM  -  draws - random
+ *    10  -    0   -   0
+ */
+
 int main() {
     srand(time(NULL));
 
@@ -29,8 +37,8 @@ int main() {
 
     int n_moves = 100;
 
-    struct pn_node *tree = malloc(sizeof(struct pn_node));
-    node_init(tree, PN_TYPE_OR);
+    struct node *tree = malloc(sizeof(struct node));
+    pn_init(tree, PN_TYPE_OR);
     tree->board = board;
 
     for (int i = 0; i < n_moves; i++) {
@@ -38,11 +46,13 @@ int main() {
         int player = tree->board->turn % 2;
         if (player == 0) {
             // Player 1
-            do_pn_tree_move(&tree);
+            minimax(&tree);
         } else {
             // Player 2
             do_pn_random_move(&tree);
         }
+
+        print_board(tree->board);
 
         int won = finished_board(tree->board);
         if (won) {
