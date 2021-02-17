@@ -2,7 +2,7 @@
 // Created by duncan on 12-02-21.
 //
 
-#define BEST_FIRST
+//#define BEST_FIRST
 
 #include <math.h>
 #include <stdio.h>
@@ -29,6 +29,9 @@ bool mm_evaluate(struct node* node) {
         return true;
     }
 
+
+    int n_encountered = 0;
+    int to_encounter = sum_hive_tiles(node->board);
     for (int x = 0; x < BOARD_SIZE; x++) {
         for (int y = 0; y < BOARD_SIZE; y++) {
             unsigned char tile = node->board->tiles[y * BOARD_SIZE + x].type;
@@ -37,22 +40,25 @@ bool mm_evaluate(struct node* node) {
             if (node->board->tiles[y * BOARD_SIZE + x].free) {
 //            if (can_move(node->board, x, y)) {
                 float inc = 5.f;
-                if ((tile & TILE_MASK) == L_SPIDER) {
-                    inc = 2.f;
-                } else if ((tile & TILE_MASK) == L_ANT) {
-                    inc = 5.f;
-                } else if ((tile & TILE_MASK) == L_GRASSHOPPER) {
-                    inc = 4.f;
-                } else if ((tile & TILE_MASK) == L_BEETLE) {
-                    inc = 2.f;
-                }
+//                if ((tile & TILE_MASK) == L_SPIDER) {
+//                    inc = 2.f;
+//                } else if ((tile & TILE_MASK) == L_ANT) {
+//                    inc = 5.f;
+//                } else if ((tile & TILE_MASK) == L_GRASSHOPPER) {
+//                    inc = 4.f;
+//                } else if ((tile & TILE_MASK) == L_BEETLE) {
+//                    inc = 2.f;
+//                }
                 if ((tile & COLOR_MASK) == LIGHT) {
                     value += inc;
                 } else {
                     value -= inc;
                 }
             }
+            n_encountered++;
+            if (n_encountered == to_encounter) break;
         }
+        if (n_encountered == to_encounter) break;
     }
 
     if (node->board->queen1_position != -1) {
@@ -187,7 +193,7 @@ void minimax(struct node** proot) {
     int depth = 2;
     int player = root->board->turn % 2;
 
-    time_t end_time = time(NULL) + 50; // 5 seconds per move max
+    time_t end_time = time(NULL) + 5; // 5 seconds per move max
 
     n_evaluated = 0;
     time_t cur_time;
@@ -200,7 +206,6 @@ void minimax(struct node** proot) {
         mm(root, player, depth, -INFINITY, INFINITY);
 
         depth += 1;
-        break;
     }
 
     printf("Evaluated %d nodes\n", n_evaluated);

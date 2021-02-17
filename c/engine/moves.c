@@ -218,6 +218,9 @@ void generate_placing_moves(struct node *node, int type) {
     }
 
     int points[6], neighbour_points[6];
+
+    int n_encountered = 0;
+    int to_encounter = sum_hive_tiles(node->board);
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
             // Skip empty tiles
@@ -255,7 +258,11 @@ void generate_placing_moves(struct node *node, int type) {
                 // TODO: Check for board state duplicates
                 add_child(node, point, type, -1);
             }
+
+            n_encountered++;
+            if (n_encountered == to_encounter) break;
         }
+        if (n_encountered == to_encounter) break;
     }
 }
 
@@ -269,15 +276,15 @@ int add_if_unique(int *array, int n, int value) {
 
 
 int count_connected(struct board *board, int index) {
-    int *connected = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
+    int connected[N_TILES * 2];
     int n_connected = 0;
-    int *frontier = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
+    int frontier[N_TILES * 2];
     int frontier_p = 0; // Frontier pointer.
 
     connected[n_connected++] = index;
     frontier[frontier_p++] = index;
 
-    int *points = malloc(6 * sizeof(int));
+    int points[6];
     while (frontier_p != 0) {
         int i = frontier[--frontier_p];
         int y = i / BOARD_SIZE;
@@ -297,9 +304,6 @@ int count_connected(struct board *board, int index) {
             }
         }
     }
-    free(points);
-    free(frontier);
-    free(connected);
     return n_connected;
 }
 

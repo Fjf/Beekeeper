@@ -13,11 +13,12 @@
 #define TIMING_END 1
 
 
-#define timing(name, type) { \
-    struct timespec t;       \
-    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t); \
-    fprintf(timing_out, "%s|%s|%d|%f\n", __func__, name, type, to_usec(t)); \
-}
+//#define timing(name, type) { \
+//    struct timespec t;       \
+//    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t); \
+//    fprintf(timing_out, "%s|%s|%d|%f\n", __func__, name, type, to_usec(t)); \
+//}
+#define timing(name, type)
 
 FILE *timing_out;
 
