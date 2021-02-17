@@ -51,21 +51,4 @@ void pn_print(struct node* root) {
 }
 
 
-void pn_free(struct node* root) {
-    // Free children
-    struct list* head = root->children.next;
-    while (head != root->children.head) {
-        struct node* child = container_of(head, struct node, node);
-        struct list* temp = head->next;
 
-        list_remove(head);
-        pn_free(child);
-
-        head = temp;
-    }
-
-    free(root->data);
-    free(root->board);
-    list_remove(&root->node);
-    free(root);
-}

@@ -22,6 +22,7 @@ struct list {
 
 void list_init(struct list* list);
 void list_add(struct list* list, struct list* entry);
+void list_insert_after(struct list* entry, struct list* new);
 bool list_empty(struct list* list);
 bool list_remove_object(struct list* list);
 void list_remove(struct list* entry);

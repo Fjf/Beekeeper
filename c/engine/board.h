@@ -7,6 +7,7 @@
 
 // Amount of tiles available per player.
 #include "list.h"
+#include "moves.h"
 
 #define N_ANTS 3
 #define N_GRASSHOPPERS 3
@@ -15,11 +16,28 @@
 #define N_QUEENS 1
 #define N_TILES (N_ANTS+N_GRASSHOPPERS+N_BEETLES+N_SPIDERS+N_QUEENS)
 
+
+
+/*
+ * Tile format (8 bits);
+ * [ NN C TTTTT ]
+ *
+ * N = Number
+ * C = Colour
+ * T = Tile
+ *
+ * Number is 1-3, to define what the iteration is of the tile.
+ * Colour is 0-1, specifying light or dark.
+ * Tile is one of the 5 possible tiles as specified above.
+ */
+
 #define COLOR_SHIFT 5
+#define NUMBER_SHIFT 6
 #define LIGHT (0 << COLOR_SHIFT)
 #define DARK (1 << COLOR_SHIFT)
 #define COLOR_MASK (1 << COLOR_SHIFT)
 #define TILE_MASK ((1 << COLOR_SHIFT) - 1)
+#define NUMBER_MASK (3 << NUMBER_SHIFT)
 
 #define EMPTY 0
 #define L_ANT 1
@@ -51,6 +69,7 @@ struct tile_stack {
 };
 
 struct tile {
+    bool free;
     unsigned char type;
 };
 
@@ -74,6 +93,8 @@ struct player {
 // Add a padding around the board to simplify edge conditions
 #define BOARD_PADDING 2
 #define BOARD_SIZE ((N_TILES * 2) + BOARD_PADDING * 2)
+
+
 struct board {
     struct tile tiles[BOARD_SIZE * BOARD_SIZE * sizeof(struct tile)];
     int turn;  // Use this to derive whose turn it is
@@ -87,6 +108,7 @@ struct board {
     struct tile_stack stack[TILE_STACK_SIZE];
 
     int move_location_tracker;
+    bool done;
 };
 
 void print_board(struct board* board);

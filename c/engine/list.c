@@ -24,6 +24,15 @@ void list_add(struct list* list, struct list* entry) {
     list->prev = entry;
 }
 
+void list_insert_after(struct list* entry, struct list* new) {
+    new->prev = entry;
+    new->next = entry->next;
+    new->head = entry->head;
+
+    entry->next->prev = new;
+    entry->next = new;
+}
+
 void list_remove(struct list* entry) {
     entry->prev->next = entry->next;
     entry->next->prev = entry->prev;

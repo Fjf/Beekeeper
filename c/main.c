@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "board.h"
-#include "moves.h"
+#include <string.h>
+#include "engine/board.h"
+#include "engine/moves.h"
 #include "pns/pn_tree.h"
 #include "mm/mm.h"
 #include "pns/pns.h"
-#include "list.h"
+#include "engine/list.h"
+#include "timing/timing.h"
 
 
 /* winrate: PN vs random (fixed depth PN no disproof)
@@ -27,29 +29,62 @@
  *    10  -    0   -   0
  */
 
+void manual(struct node** proot) {
+    struct node* root = *proot;
+    struct list* head;
+
+    generate_children(root, 1, time(NULL) + 10);
+
+    char move[20], cmove[20];
+
+    while (true) {
+        printf("Type a move:\n");
+        fgets(move, 20, stdin);
+
+        printf("%s", move);
+
+        list_foreach(root, head) {
+            struct node *child = container_of(head, struct node, node);
+            string_move(child, cmove);
+
+            int res = strcmp(move, cmove);
+            if (res == 0) {
+                list_remove(&child->node);
+                node_free(root);
+                *proot = child;
+                return;
+            }
+        }
+        printf("That is not a valid move!\nPick one from:\n");
+        list_foreach(root, head) {
+            struct node *child = container_of(head, struct node, node);
+            string_move(child, cmove);
+            printf("%s", cmove);
+        }
+    }
+}
+
 int main() {
     srand(time(NULL));
-
-    struct board *board = init_board();
 
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
 
-    int n_moves = 100;
+    initialize_timer("out.txt");
+    int n_moves = 10;
 
-    struct node *tree = malloc(sizeof(struct node));
-    pn_init(tree, PN_TYPE_OR);
-    tree->board = board;
+    struct node* tree = game_init();
 
     for (int i = 0; i < n_moves; i++) {
-        printf("At move %d\n", tree->board->turn);
         int player = tree->board->turn % 2;
         if (player == 0) {
             // Player 1
+//            manual(&tree);
             minimax(&tree);
         } else {
             // Player 2
-            do_pn_random_move(&tree);
+//            manual(&tree);
+            minimax(&tree);
         }
 
         print_board(tree->board);
@@ -64,7 +99,7 @@ int main() {
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     printf("msec: %.5f\n", (to_usec(end) - to_usec(start)) / 1e3);
 
-    print_board(tree->board);
+    finalize_timer();
 
     free(tree->board);
     return 0;

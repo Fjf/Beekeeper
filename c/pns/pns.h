@@ -7,8 +7,8 @@
 
 #include <time.h>
 #include "pn_tree.h"
-#include "../list.h"
-#include "../moves.h"
+#include "../engine/list.h"
+#include "../engine/moves.h"
 
 
 struct node *select_most_proving_node(struct node *root);

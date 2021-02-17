@@ -39,7 +39,7 @@ void do_pn_random_move(struct node **proot) {
 
     list_remove(head);
 
-    pn_free(root);
+    node_free(root);
     struct node *new = container_of(head, struct node, node);
 
     *proot = new;
@@ -232,7 +232,7 @@ void do_pn_tree_move(struct node **proot) {
     // Remove this node from the root, and free the root.
     list_remove(&best->node);
 
-    pn_free(root);
+    node_free(root);
 
     // Overwrite the node.
     *proot = best;

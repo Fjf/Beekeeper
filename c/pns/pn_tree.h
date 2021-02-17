@@ -5,9 +5,9 @@
 #ifndef HIVE_PN_TREE_H
 #define HIVE_PN_TREE_H
 
-#include "../board.h"
-#include "../list.h"
-#include "../node.h"
+#include "../engine/board.h"
+#include "../engine/list.h"
+#include "../engine/node.h"
 
 #define PN_TYPE_AND 0
 #define PN_TYPE_OR 1
@@ -23,7 +23,6 @@ struct pn_data {
 void pn_init(struct node* root, int type);
 void pn_free_children(struct node* root);
 struct node* pn_add_child(struct node* node, struct board* board);
-void pn_free(struct node* root);
 void pn_print(struct node* root);
 
 #endif //HIVE_PN_TREE_H
