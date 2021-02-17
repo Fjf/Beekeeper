@@ -7,6 +7,22 @@
 #include "../timing/timing.h"
 
 
+int sum_hive_tiles(struct board *board) {
+    return N_TILES * 2 - (
+            board->players[0].queens_left +
+            board->players[0].grasshoppers_left +
+            board->players[0].beetles_left +
+            board->players[0].ants_left +
+            board->players[0].spiders_left +
+            board->players[1].spiders_left +
+            board->players[1].ants_left +
+            board->players[1].queens_left +
+            board->players[1].grasshoppers_left +
+            board->players[1].beetles_left) -
+           board->n_stacked;
+}
+
+
 struct tile_stack *get_from_stack(struct board *board, int location, bool pop) {
     /*
      * Returns the highest tile in the stack, or NULL if no tile is found.
@@ -37,34 +53,38 @@ struct tile_stack *get_from_stack(struct board *board, int location, bool pop) {
 void update_can_move(struct board* board, int location, int previous_location) {
     timing("update_can_move", TIMING_START);
     // Newly placed tiles are always free to move
-//    board->tiles[location].free = true;
-//    if (previous_location != -1 && board->tiles[previous_location].type == EMPTY) {
-//        board->tiles[previous_location].free = false;
-//    }
-//
-//    int x = location % BOARD_SIZE;
-//    int y = location / BOARD_SIZE;
-//    int points[6];
-//    get_points_around(y, x, points);
-//    for (int i = 0; i < 6; i++) {
-//        int px = points[i] % BOARD_SIZE;
-//        int py = points[i] / BOARD_SIZE;
-//
-//        if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
-//
-//        // For all neighbours, update whether or not they can move.
-//        board->tiles[py * BOARD_SIZE + px].free = can_move(board, py, px);
-//    }
+    board->tiles[location].free = true;
+    if (previous_location != -1 && board->tiles[previous_location].type == EMPTY) {
+        board->tiles[previous_location].free = false;
+    }
 
-    for (int x = 0; x < BOARD_SIZE; x++) {
-        for (int y = 0; y < BOARD_SIZE; y++) {
+    int x = location % BOARD_SIZE;
+    int y = location / BOARD_SIZE;
+    int points[6];
+    get_points_around(y, x, points);
+    for (int i = 0; i < 6; i++) {
+        int px = points[i] % BOARD_SIZE;
+        int py = points[i] / BOARD_SIZE;
+
+        if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
+
+        // For all neighbours, update whether or not they can move.
+        board->tiles[py * BOARD_SIZE + px].free = can_move(board, px, py);
+    }
+
+    int n_updated = 0;
+    int to_update = sum_hive_tiles(board);
+    for (x = 0; x < BOARD_SIZE; x++) {
+        for (y = 0; y < BOARD_SIZE; y++) {
             // Dont check empty tiles, or tiles which could already move before this.
             if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
-//            if (board->tiles[y * BOARD_SIZE + x].free) continue;
+            if (board->tiles[y * BOARD_SIZE + x].free) continue;
+            n_updated++;
 
-            bool cm = can_move(board, y, x);
-            board->tiles[y * BOARD_SIZE + x].free = cm;
+            board->tiles[y * BOARD_SIZE + x].free = can_move(board, x, y);
+            if (n_updated == to_update) break;
         }
+        if (n_updated == to_update) break;
     }
     timing("update_can_move", TIMING_END);
 }
@@ -137,6 +157,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
     board->turn++;
 
     // After this move, update the board move-checks
+    // NOTE: This is only beneficial when not a lot needs to be checked
     update_can_move(board, location, previous_location);
 
     // After this move, ensure this board is centered.
@@ -282,20 +303,6 @@ int count_connected(struct board *board, int index) {
     return n_connected;
 }
 
-int sum_hive_tiles(struct board *board) {
-    return N_TILES * 2 - (
-            board->players[0].queens_left +
-            board->players[0].grasshoppers_left +
-            board->players[0].beetles_left +
-            board->players[0].ants_left +
-            board->players[0].spiders_left +
-            board->players[1].spiders_left +
-            board->players[1].ants_left +
-            board->players[1].queens_left +
-            board->players[1].grasshoppers_left +
-            board->players[1].beetles_left) -
-           board->n_stacked;
-}
 
 void generate_directional_grasshopper_moves(struct node *node, int orig_y, int orig_x, int x_incr, int y_incr) {
     struct board *board = node->board;
@@ -649,8 +656,8 @@ void generate_free_moves(struct node *node, int player_bit) {
             // Only move your own tiles
             if ((tile->type & COLOR_MASK) != player_bit) continue;
 
-//            bool valid = tile->free;
-            bool valid = can_move(board, x, y);
+            bool valid = tile->free;
+//            bool valid = can_move(board, x, y);
 
             if (valid) {
 #ifdef DEBUG

@@ -65,7 +65,7 @@ void manual(struct node** proot) {
 }
 
 int main() {
-    srand(time(NULL));
+//    srand(time(NULL));
 
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);

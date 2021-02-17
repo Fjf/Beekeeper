@@ -12,6 +12,7 @@
 
 
 bool mm_evaluate(struct node* node) {
+    timing("mm_evaluate", TIMING_START);
     struct mm_data* data = node->data;
     double value = 0. + (float)(rand() % 100) / 100;
     int points[6];
@@ -28,30 +29,31 @@ bool mm_evaluate(struct node* node) {
         return true;
     }
 
-//    for (int x = 0; x < BOARD_SIZE; x++) {
-//        for (int y = 0; y < BOARD_SIZE; y++) {
-//            unsigned char tile = node->board->tiles[y * BOARD_SIZE + x].type;
-//            if (tile == EMPTY) continue;
-//
+    for (int x = 0; x < BOARD_SIZE; x++) {
+        for (int y = 0; y < BOARD_SIZE; y++) {
+            unsigned char tile = node->board->tiles[y * BOARD_SIZE + x].type;
+            if (tile == EMPTY) continue;
+
+            if (node->board->tiles[y * BOARD_SIZE + x].free) {
 //            if (can_move(node->board, x, y)) {
-//                float inc = 5.f;
-//                if ((tile & TILE_MASK) == L_SPIDER) {
-//                    inc = 2.f;
-//                } else if ((tile & TILE_MASK) == L_ANT) {
-//                    inc = 5.f;
-//                } else if ((tile & TILE_MASK) == L_GRASSHOPPER) {
-//                    inc = 4.f;
-//                } else if ((tile & TILE_MASK) == L_BEETLE) {
-//                    inc = 2.f;
-//                }
-//                if ((tile & COLOR_MASK) == LIGHT) {
-//                    value += inc;
-//                } else {
-//                    value -= inc;
-//                }
-//            }
-//        }
-//    }
+                float inc = 5.f;
+                if ((tile & TILE_MASK) == L_SPIDER) {
+                    inc = 2.f;
+                } else if ((tile & TILE_MASK) == L_ANT) {
+                    inc = 5.f;
+                } else if ((tile & TILE_MASK) == L_GRASSHOPPER) {
+                    inc = 4.f;
+                } else if ((tile & TILE_MASK) == L_BEETLE) {
+                    inc = 2.f;
+                }
+                if ((tile & COLOR_MASK) == LIGHT) {
+                    value += inc;
+                } else {
+                    value -= inc;
+                }
+            }
+        }
+    }
 
     if (node->board->queen1_position != -1) {
         int x1 = node->board->queen1_position % BOARD_SIZE;
@@ -77,6 +79,7 @@ bool mm_evaluate(struct node* node) {
 
     data->mm_value = value;
     data->mm_evaluated = true;
+    timing("mm_evaluate", TIMING_END);
     return false;
 }
 
@@ -184,7 +187,7 @@ void minimax(struct node** proot) {
     int depth = 2;
     int player = root->board->turn % 2;
 
-    time_t end_time = time(NULL) + 5; // 5 seconds per move max
+    time_t end_time = time(NULL) + 50; // 5 seconds per move max
 
     n_evaluated = 0;
     time_t cur_time;
@@ -197,6 +200,7 @@ void minimax(struct node** proot) {
         mm(root, player, depth, -INFINITY, INFINITY);
 
         depth += 1;
+        break;
     }
 
     printf("Evaluated %d nodes\n", n_evaluated);

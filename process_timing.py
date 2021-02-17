@@ -30,35 +30,40 @@ def print_time_tree(timing: Timing, depth=0, max_depth=2):
 def print_time_sum(timing: dict, root=None):
     if not root:
         for name, time in timing.items():
-            print("%s %.5f% of total time" % (name, time))
+            print("%s %.5f" % (name, time))
     else:
         rtime = timing[root]
         for name, time in timing.items():
-            print("%s %.5f" % (name, (time/rtime) * 100))
+            print("%s %.5f percent of total time (%.5f)" % (name, (time / rtime) * 100, time / 1e6))
 
 
 def main():
-    cur_func = Timing("__all__", 0)
-    timing_sums = defaultdict(float)
+    files = ["c/out.txt", "c/out2.txt"]
 
-    with open("c/out.txt", "r") as f:
-        lines = f.readlines()
+    for file in files:
+        cur_func = Timing("__all__", 0)
+        timing_sums = defaultdict(float)
 
-    for line in lines:
-        func, name, end, time = line.split("|")
+        with open(file, "r") as fp:
+            lines = fp.readlines()
 
-        if end == '0':
-            child = Timing(name, float(time))
-            cur_func.add_child(child)
-            cur_func = child
-        else:
-            cur_func.finish(float(time))
-            timing_sums[cur_func.name] += cur_func.time
-            cur_func = cur_func.parent
-            # cur_func.children.pop()  # Temporary remove child
+        for line in lines:
+            func, name, end, time = line.split("|")
 
-    # print_time_tree(cur_func)
-    print_time_sum(timing_sums, root="minimax")
+            if end == '0':
+                child = Timing(name, float(time))
+                cur_func.add_child(child)
+                cur_func = child
+            else:
+                cur_func.finish(float(time))
+                timing_sums[cur_func.name] += cur_func.time
+                cur_func = cur_func.parent
+                # cur_func.children.pop()  # Temporary remove child
+
+        # print_time_tree(cur_func)
+        print("Result for %s" % file)
+        print_time_sum(timing_sums, root="minimax")
+
 
 if __name__ == "__main__":
     main()
