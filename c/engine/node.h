@@ -8,6 +8,9 @@
 
 #include "list.h"
 
+unsigned long long max_nodes;
+unsigned long long n_nodes;
+
 struct move {
     unsigned char tile;
     unsigned char next_to;

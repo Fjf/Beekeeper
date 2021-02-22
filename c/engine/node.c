@@ -12,6 +12,8 @@ void node_init(struct node* node, void* data) {
     list_init(&node->children);
     list_init(&node->node);
     node->data = data;
+
+    n_nodes++;
 }
 
 
@@ -39,14 +41,14 @@ void node_free(struct node* root) {
     free(root->board);
     list_remove(&root->node);
     free(root);
+
+    n_nodes--;
 }
 
 
 struct node* game_init() {
     struct board *board = init_board();
-    struct node *tree = malloc(sizeof(struct node));
-
-    mm_init(tree);
+    struct node* tree = mm_init();
     tree->board = board;
     return tree;
 }

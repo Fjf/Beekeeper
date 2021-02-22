@@ -5,7 +5,9 @@
 #ifndef HIVE_LIST_H
 #define HIVE_LIST_H
 
-#define list_foreach(node, head) for ((head) = (node)->children.next; (head) != (node)->children.head; (head) = (head)->next)
+#define node_foreach(h, n) for ((n) = (h)->children.next; (n) != (h)->children.head; (n) = (n)->next)
+#define node_foreach_safe(h, n, nn) for ((n) = (h)->children.next, (nn) = (n)->next; (n) != (h)->children.head; (n) = (nn), (nn) = (n)->next)
+#define list_foreach(h, n) for ((n) = (h)->next; (n) != (h)->head; (n) = (n)->next)
 
 #include <stddef.h>
 #include "stdbool.h"

@@ -19,7 +19,7 @@ int sum_hive_tiles(struct board *board) {
             board->players[1].queens_left +
             board->players[1].grasshoppers_left +
             board->players[1].beetles_left) -
-           board->n_stacked;
+            board->n_stacked;
 }
 
 
@@ -50,47 +50,66 @@ struct tile_stack *get_from_stack(struct board *board, int location, bool pop) {
     return highest_tile;
 }
 
-void update_can_move(struct board* board, int location, int previous_location) {
+void full_update(struct board* board) {
+    int n_updated = 0;
+    int to_update = sum_hive_tiles(board);
+    for (int x = 0; x < BOARD_SIZE; x++) {
+        if (n_updated == to_update) break;
+        for (int y = 0; y < BOARD_SIZE; y++) {
+            if (n_updated == to_update) break;
+            // Dont check empty tiles, or tiles which could already move before this.
+            if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
+
+            n_updated++;
+            if (!board->tiles[y * BOARD_SIZE + x].free) continue;
+
+            board->tiles[y * BOARD_SIZE + x].free = can_move(board, x, y);
+        }
+    }
+}
+
+void update_can_move(struct board *board, int location, int previous_location) {
     timing("update_can_move", TIMING_START);
     // Newly placed tiles are always free to move
     board->tiles[location].free = true;
-    if (previous_location != -1 && board->tiles[previous_location].type == EMPTY) {
-        board->tiles[previous_location].free = false;
+
+    int points[6];
+
+    if (previous_location != -1) {
+        // If the previous tile is not empty, this tile is not necessarily free.
+        if (board->tiles[previous_location].type == EMPTY)
+            board->tiles[previous_location].free = false;
+
+        // Check around previous location
+        get_points_around(previous_location / BOARD_SIZE, previous_location % BOARD_SIZE, points);
+        for (int i = 0; i < 6; i++) {
+            int px = points[i] % BOARD_SIZE;
+            int py = points[i] / BOARD_SIZE;
+            if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
+
+            // For all neighbours, update whether or not they can move.
+            board->tiles[py * BOARD_SIZE + px].free = can_move(board, px, py);
+        }
     }
 
-    int x = location % BOARD_SIZE;
-    int y = location / BOARD_SIZE;
-    int points[6];
-    get_points_around(y, x, points);
+    get_points_around(location / BOARD_SIZE, location % BOARD_SIZE, points);
     for (int i = 0; i < 6; i++) {
         int px = points[i] % BOARD_SIZE;
         int py = points[i] / BOARD_SIZE;
-
         if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
 
         // For all neighbours, update whether or not they can move.
         board->tiles[py * BOARD_SIZE + px].free = can_move(board, px, py);
     }
 
-    int n_updated = 0;
-    int to_update = sum_hive_tiles(board);
-    for (x = 0; x < BOARD_SIZE; x++) {
-        for (y = 0; y < BOARD_SIZE; y++) {
-            // Dont check empty tiles, or tiles which could already move before this.
-            if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
-            if (board->tiles[y * BOARD_SIZE + x].free) continue;
-            n_updated++;
 
-            board->tiles[y * BOARD_SIZE + x].free = can_move(board, x, y);
-            if (n_updated == to_update) break;
-        }
-        if (n_updated == to_update) break;
-    }
+    full_update(board);
+
     timing("update_can_move", TIMING_END);
 }
 
 /*
- * Adds a potential move to the tracker inside the board struct.
+ * Adds all available moves to a node as children.
  */
 void add_child(struct node *node, int location, int type, int previous_location) {
     struct tile_stack *ts;
@@ -205,6 +224,12 @@ void get_points_around(int y, int x, int *points) {
  * Generates the placing moves, only allowed to place next to allied tiles.
  */
 void generate_placing_moves(struct node *node, int type) {
+    /*
+     * Returns:
+     *   - 0: No errors occurred.
+     *   - 1: Out of memory error.
+     */
+
     int color = type & COLOR_MASK;
 
     struct board *board = node->board;
@@ -222,10 +247,14 @@ void generate_placing_moves(struct node *node, int type) {
     int n_encountered = 0;
     int to_encounter = sum_hive_tiles(node->board);
     for (int y = 0; y < BOARD_SIZE; y++) {
+        if (n_encountered == to_encounter) break;
         for (int x = 0; x < BOARD_SIZE; x++) {
+            if (n_encountered == to_encounter) break;
+
             // Skip empty tiles
             if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
 
+            n_encountered++;
             // Get points around this point
             get_points_around(y, x, points);
             for (int p = 0; p < 6; p++) {
@@ -258,11 +287,7 @@ void generate_placing_moves(struct node *node, int type) {
                 // TODO: Check for board state duplicates
                 add_child(node, point, type, -1);
             }
-
-            n_encountered++;
-            if (n_encountered == to_encounter) break;
         }
-        if (n_encountered == to_encounter) break;
     }
 }
 
@@ -457,7 +482,7 @@ void generate_queen_moves(struct node *node, int y, int x) {
 
     // If this tile is on top of something, get that tile.
     // Only do this because the beetle calls this function, so it saves programming effort
-    struct tile_stack* temp = get_from_stack(node->board, y * BOARD_SIZE + x, false);
+    struct tile_stack *temp = get_from_stack(node->board, y * BOARD_SIZE + x, false);
     if (temp == NULL) {
         board->tiles[y * BOARD_SIZE + x].type = EMPTY;
     } else {
@@ -509,7 +534,7 @@ void generate_beetle_moves(struct node *node, int y, int x) {
     int tile_type = board->tiles[y * BOARD_SIZE + x].type;
 
     // If this tile is on top of something, get that tile.
-    struct tile_stack* temp = get_from_stack(node->board, y * BOARD_SIZE + x, false);
+    struct tile_stack *temp = get_from_stack(node->board, y * BOARD_SIZE + x, false);
     if (temp == NULL) {
         // If you are not on top of something, you can move like a queen, or on top of something.
         generate_queen_moves(node, y, x);
@@ -606,7 +631,7 @@ void generate_spider_moves(struct node *node, int orig_y, int orig_x) {
     free(next_frontier);
 }
 
-bool can_move(struct board* board, int x, int y) {
+bool can_move(struct board *board, int x, int y) {
     timing("can_move", TIMING_START);
 
     struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
@@ -617,7 +642,8 @@ bool can_move(struct board* board, int x, int y) {
 
     // Store the tile type for later use
     int tile_type = tile->type;
-    tile->type = EMPTY;
+    struct tile_stack* ts = get_from_stack(board, y * BOARD_SIZE + x, false);
+    tile->type = ts == NULL ? EMPTY : ts->type;
 
     // Check if the points around this point consist of a single spanning tree.
     bool valid = true;
@@ -723,7 +749,13 @@ void generate_free_moves(struct node *node, int player_bit) {
 
 
 void generate_moves(struct node *node) {
-//    timing("generate_moves", TIMING_START);
+    /*
+     * Returns:
+     *   - 0: No errors occurred.
+     *   - 1: Out of memory error.
+     */
+
+    int err;
 
     int player_idx = node->board->turn % 2;
     int player_bit = player_idx << COLOR_SHIFT;
@@ -737,9 +769,7 @@ void generate_moves(struct node *node) {
 
     // By move 4 for each player, the queen has to be placed.
     if (move == 3 && player->queens_left == 1) {
-        generate_placing_moves(node, L_QUEEN | player_bit);
-//        timing("generate_moves", TIMING_END);
-        return;
+        return generate_placing_moves(node, L_QUEEN | player_bit);
     }
 
     if (player->spiders_left > 0)

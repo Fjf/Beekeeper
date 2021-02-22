@@ -70,7 +70,9 @@ void translate_board(struct board *board) {
     }
 
     // Copy data into temp array
-    void *temp = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(struct tile));
+    struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
+    void* temp = &t;
+//    void *temp = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(struct tile));
 
     memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
            ((void*)&board->tiles) + offset * sizeof(struct tile),
@@ -81,7 +83,7 @@ void translate_board(struct board *board) {
     // Copy data back into main array after clearing data.
     memcpy(&board->tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
 
-    free(temp);
+//    free(temp);
 }
 
 bool is_surrounded(struct board* board, int y, int x) {
@@ -177,7 +179,7 @@ void print_board(struct board *board) {
 
             // Add number after tile
             if (n > 0) {
-                printf("%d", tile.free);
+                printf("%d", n);
             } else {
                 printf(" ");
             }

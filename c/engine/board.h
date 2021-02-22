@@ -56,15 +56,10 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-struct move_location {
-    int move;
-    int location;
-    int previous_location;
-};
 
 struct tile_stack {
     unsigned char type;
-    int location;
+    short location;
     unsigned char z;
 };
 
@@ -96,20 +91,29 @@ struct player {
 
 
 struct board {
-    struct tile tiles[BOARD_SIZE * BOARD_SIZE * sizeof(struct tile)];
+    struct tile tiles[BOARD_SIZE * BOARD_SIZE];
     int turn;  // Use this to derive whose turn it is
 
     struct player players[2];
 
-    int queen1_position;
-    int queen2_position;
+    short queen1_position;
+    short queen2_position;
 
-    int n_stacked;
+    char n_stacked;
     struct tile_stack stack[TILE_STACK_SIZE];
 
     int move_location_tracker;
     bool done;
 };
+
+struct board_history_entry {
+    struct tile tiles[BOARD_SIZE * BOARD_SIZE];
+    char repeats;
+    struct tile_stack stack[TILE_STACK_SIZE];
+    struct list node;
+};
+
+struct list board_history;
 
 void print_board(struct board* board);
 

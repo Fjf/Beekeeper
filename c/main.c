@@ -9,6 +9,12 @@
 #include "pns/pns.h"
 #include "engine/list.h"
 #include "timing/timing.h"
+#include "mm/evaluation.h"
+
+#define KB (1024ull)
+#define MB (1024ull * KB)
+#define GB (1024ull * MB)
+#define MAX_MEMORY (500ull * MB)
 
 
 /* winrate: PN vs random (fixed depth PN no disproof)
@@ -43,7 +49,7 @@ void manual(struct node** proot) {
 
         printf("%s", move);
 
-        list_foreach(root, head) {
+        node_foreach(root, head) {
             struct node *child = container_of(head, struct node, node);
             string_move(child, cmove);
 
@@ -56,7 +62,7 @@ void manual(struct node** proot) {
             }
         }
         printf("That is not a valid move!\nPick one from:\n");
-        list_foreach(root, head) {
+        node_foreach(root, head) {
             struct node *child = container_of(head, struct node, node);
             string_move(child, cmove);
             printf("%s", cmove);
@@ -65,7 +71,19 @@ void manual(struct node** proot) {
 }
 
 int main() {
-//    srand(time(NULL));
+    srand(time(NULL));
+
+    // Compute max amount of nodes available in memory.
+    max_nodes = MAX_MEMORY / (sizeof(struct board) + sizeof(struct node) + sizeof(struct mm_data));
+    n_nodes = 0;
+    printf("Can hold %llu nodes in memory.\n", max_nodes);
+
+    // Set the evaluation function
+    mm_evaluate = mm_evaluate_linqueen;
+
+    // Initialize board history list to identify repeats.
+    list_init(&board_history);
+
 
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
@@ -94,6 +112,17 @@ int main() {
             printf("Player %d won in move %d\n", won, tree->board->turn);
             break;
         }
+
+        // Copy node except for children
+        // Doing this forces recomputation of tree every iteration.
+//        struct node* copy = mm_init();
+//        memcpy(&copy->move, &tree->move, sizeof(struct move));
+//        copy->board = init_board();
+//        memcpy(copy->board, tree->board, sizeof(struct board));
+//        memcpy(copy->data, tree->data, sizeof(struct mm_data));
+//
+//        node_free(tree);
+//        tree = copy;
     }
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
