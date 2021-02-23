@@ -14,7 +14,7 @@
 
 double mm(struct node *node, int player, double alpha, double beta, int depth, int initial_depth, time_t end_time) {
     struct mm_data *data = node->data;
-    if (depth == 0 || node->board->done) {
+    if (depth == 0 || node->board->done || list_empty(&node->children)) {
         return data->mm_value;
     }
 
@@ -26,13 +26,11 @@ double mm(struct node *node, int player, double alpha, double beta, int depth, i
             struct node *child = container_of(head, struct node, node);
 
             // Generate children for this child then compute value.
-            bool cont = generate_children(child, 1, end_time);
-            if (cont) {
-                double value = mm(child, 1, alpha, beta, depth - 1, initial_depth, end_time);
+            generate_children(child, end_time);
+            double value = mm(child, 1, alpha, beta, depth - 1, initial_depth, end_time);
 
-                best = MAX(best, value);
-                alpha = MAX(best, alpha);
-            }
+            best = MAX(best, value);
+            alpha = MAX(best, alpha);
             if (beta <= alpha) break;
         }
     } else { // Player 1 minimizes
@@ -41,14 +39,11 @@ double mm(struct node *node, int player, double alpha, double beta, int depth, i
         node_foreach_safe(node, head, hold) {
             struct node *child = container_of(head, struct node, node);
 
-            bool cont = generate_children(child, 1, end_time);
-            if (cont) {
-                double value = mm(child, 0, alpha, beta, depth - 1, initial_depth, end_time);
+            generate_children(child, end_time);
+            double value = mm(child, 0, alpha, beta, depth - 1, initial_depth, end_time);
 
-                best = MIN(best, value);
-                beta = MIN(best, beta);
-            }
-
+            best = MIN(best, value);
+            beta = MIN(best, beta);
             if (beta <= alpha) break;
         }
     }
@@ -72,11 +67,13 @@ struct node *mm_init() {
     return root;
 }
 
+int n_evaluated = 0;
 struct node *mm_add_child(struct node *node, struct board *board) {
     struct node *child = mm_init();
     child->board = board;
 
     bool done = mm_evaluate(child);
+    n_evaluated++;
     if (done) child->board->done = true;
 
 #ifdef BEST_FIRST
@@ -99,14 +96,12 @@ struct node *mm_add_child(struct node *node, struct board *board) {
     return child;
 }
 
-int n_evaluated = 0;
 
-bool generate_children(struct node *root, int depth, time_t end_time) {
+bool generate_children(struct node *root, time_t end_time) {
     /*
      * Returns false if no more children should be generated after this.
      * E.g., memory is full, or time is spent.
      */
-    n_evaluated++;
 
     // Ensure timely finishing
     if (time(NULL) > end_time) return false;
@@ -121,23 +116,9 @@ bool generate_children(struct node *root, int depth, time_t end_time) {
         return false;
     }
 
-    if (depth == 0) return true;
-
     // Only generate more nodes if you have no nodes yet
     if (list_empty(&root->children)) {
         generate_moves(root);
-    }
-
-    struct list *head;
-    node_foreach(root, head) {
-        struct node *child = container_of(head, struct node, node);
-
-        // Dont continue generating children if there is no more memory.
-        if (max_nodes - n_nodes < 1000) {
-            return false;
-        }
-
-        generate_children(child, depth - 1, end_time);
     }
     return true;
 }
@@ -183,7 +164,7 @@ void minimax(struct node **proot) {
     timing("minimax", TIMING_START);
 
     struct node *root = *proot;
-    int depth = 2;
+    int depth = 3;
     int player = root->board->turn % 2;
 
     struct timespec start, end;
@@ -191,7 +172,13 @@ void minimax(struct node **proot) {
 
     time_t end_time = time(NULL) + 5; // 5 seconds per move max
 
+    printf("At turn %d\n", root->board->turn);
     // Generating level 1 children.
+    generate_children(root, end_time);
+
+    struct list* node;
+    int n = 0;
+    node_foreach(root, node) { n++; }
 
     n_evaluated = 0;
     time_t cur_time;
@@ -199,10 +186,12 @@ void minimax(struct node **proot) {
         cur_time = time(NULL);
         if (cur_time > end_time) break;
 
-        printf("Generating to depth %d\n", depth);
-        generate_children(root, 1, end_time);
-        double best = mm(root, player, -INFINITY, INFINITY, depth, depth, end_time);
-        printf("Best: %.5f\n", best);
+        printf("Evaluating depth %d\n", depth);
+
+        double value = mm(root, player, -INFINITY, INFINITY, depth, depth, end_time);
+
+        // Break on forced terminal state.
+        if (value == MM_INFINITY || value == -MM_INFINITY) break;
         depth += 1;
     }
 
@@ -214,6 +203,7 @@ void minimax(struct node **proot) {
     double best_value = player == 0 ? -INFINITY : INFINITY;
     struct node *best = NULL;
     struct board_history_entry *bhe = malloc(sizeof(struct board_history_entry));
+
     node_foreach(root, head) {
         struct node *child = container_of(head, struct node, node);
         struct mm_data *data = child->data;
@@ -230,9 +220,8 @@ void minimax(struct node **proot) {
             best = child;
         }
     }
+    printf("Evaluated %d children and best is %.5f\n", n, best_value);
 
-    printf("MM value of %.5f\n", best_value);
-    printf("Using %llu/%llu nodes\n", n_nodes, max_nodes);
     if (best == NULL) {
         root->board->turn++;
     } else {
@@ -250,7 +239,6 @@ void minimax(struct node **proot) {
 
         *proot = best;
     }
-    printf("Using %llu/%llu nodes\n", n_nodes, max_nodes);
 
 
     timing("minimax", TIMING_END);

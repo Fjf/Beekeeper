@@ -39,7 +39,7 @@ void manual(struct node** proot) {
     struct node* root = *proot;
     struct list* head;
 
-    generate_children(root, 1, time(NULL) + 10);
+    generate_children(root, time(NULL) + 10);
 
     char move[20], cmove[20];
 
@@ -79,7 +79,7 @@ int main() {
     printf("Can hold %llu nodes in memory.\n", max_nodes);
 
     // Set the evaluation function
-    mm_evaluate = mm_evaluate_linqueen;
+    mm_evaluate = mm_evaluate_expqueen;
 
     // Initialize board history list to identify repeats.
     list_init(&board_history);
@@ -89,7 +89,7 @@ int main() {
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
 
     initialize_timer("out.txt");
-    int n_moves = 10;
+    int n_moves = 500;
 
     struct node* tree = game_init();
 
@@ -98,10 +98,12 @@ int main() {
         if (player == 0) {
             // Player 1
 //            manual(&tree);
+            mm_evaluate = mm_evaluate_expqueen;
             minimax(&tree);
         } else {
             // Player 2
 //            manual(&tree);
+            mm_evaluate = mm_evaluate_linqueen;
             minimax(&tree);
         }
 
@@ -115,14 +117,14 @@ int main() {
 
         // Copy node except for children
         // Doing this forces recomputation of tree every iteration.
-//        struct node* copy = mm_init();
-//        memcpy(&copy->move, &tree->move, sizeof(struct move));
-//        copy->board = init_board();
-//        memcpy(copy->board, tree->board, sizeof(struct board));
-//        memcpy(copy->data, tree->data, sizeof(struct mm_data));
-//
-//        node_free(tree);
-//        tree = copy;
+        struct node* copy = mm_init();
+        memcpy(&copy->move, &tree->move, sizeof(struct move));
+        copy->board = init_board();
+        memcpy(copy->board, tree->board, sizeof(struct board));
+        memcpy(copy->data, tree->data, sizeof(struct mm_data));
+
+        node_free(tree);
+        tree = copy;
     }
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);

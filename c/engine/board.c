@@ -36,29 +36,49 @@ struct board *init_board() {
     return board;
 }
 
-/*
- * Translates the board to 2,2 coordinate space
- */
-void translate_board(struct board *board) {
-    int min_x = BOARD_SIZE;
-    int min_y = BOARD_SIZE;
-    for (int y = 0; y < BOARD_SIZE; y++) {
-        for (int x = 0; x < min_x; x++) {
-            struct tile tile = board->tiles[y * BOARD_SIZE + x];
-            if (tile.type == EMPTY) continue;
+void get_min_x_y(struct board* board, int* min_x, int* min_y) {
+    *min_x = *min_y = BOARD_SIZE;
+    for (int y = 1; y < BOARD_SIZE; y++) {
+        for (int x = 1; x < *min_x; x++) {
+            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
+            if (tile->type == EMPTY) continue;
 
             // Set min_y to the first non-empty tile row
-            if (min_y == BOARD_SIZE) min_y = y;
+            if (*min_y == BOARD_SIZE) *min_y = y;
 
-            if (min_x > x) min_x = x;
+            if (x < *min_x) *min_x = x;
         }
     }
+}
 
-    int offset = min_y * BOARD_SIZE + min_x;
-    int size = (BOARD_SIZE * BOARD_SIZE - offset);
+void get_max_x_y(struct board* board, int* max_x, int* max_y) {
+    *max_x = *max_y = 0;
+    for (int y = BOARD_SIZE - 1; y >= 0; y--) {
+        for (int x = BOARD_SIZE - 1; x >= *max_x; x--) {
+            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
+            if (tile->type == EMPTY) continue;
+
+            // Set min_y to the first non-empty tile row
+            if (*max_y == 0) *max_y = y;
+
+            if (x > *max_x) *max_x = x;
+        }
+    }
+}
+
+/*
+ * Translates the board to the center coordinate space
+ */
+void translate_board(struct board *board) {
+    int offset = board->min_y * BOARD_SIZE + board->min_x;
+    int moffset = board->max_y * BOARD_SIZE + board->max_x;
+    int size = (moffset - offset) + 1;
+
+    int to_x = (BOARD_SIZE / 2) - (board->max_x - board->min_x) / 2;
+    int to_y = (BOARD_SIZE / 2) - (board->max_y - board->min_y) / 2;
 
     // Move all the tile tracking structs the same amount as the rest of the board.
-    int translate_offset = (2 * BOARD_SIZE + 2) - offset;
+    int translate_offset = (to_y * BOARD_SIZE + to_x) - offset;
     if (board->queen1_position != -1)
         board->queen1_position += translate_offset;
     if (board->queen2_position != -1)
@@ -72,18 +92,23 @@ void translate_board(struct board *board) {
     // Copy data into temp array
     struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
     void* temp = &t;
-//    void *temp = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(struct tile));
 
-    memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
+    memcpy(temp + (to_y * BOARD_SIZE + to_x) * sizeof(struct tile),
            ((void*)&board->tiles) + offset * sizeof(struct tile),
-           (size - (2 * BOARD_SIZE + 2)) * sizeof(struct tile)
+           (size) * sizeof(struct tile)
     );
 
     memset(&board->tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
     // Copy data back into main array after clearing data.
     memcpy(&board->tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
 
-//    free(temp);
+    int xdiff = to_x - board->min_x;
+    int ydiff = to_y - board->min_y;
+
+    board->min_x += xdiff;
+    board->max_x += xdiff;
+    board->min_y += ydiff;
+    board->max_y += ydiff;
 }
 
 bool is_surrounded(struct board* board, int y, int x) {
@@ -104,15 +129,17 @@ bool is_surrounded(struct board* board, int y, int x) {
  * Checks if the board is in a finished position
  * Meaning; either one of the two queens is completely surrounded.
  * Returns 1 if player 1 won, 2 if player 2 won, 0 if nobody won yet.
+ * Or 3 if its a draw by force (both queens surrounded).
  */
 int finished_board(struct board *board) {
     int x, y;
+    int res = 0;
     if (board->queen1_position != -1) {
         // Check queen 1
         x = board->queen1_position % BOARD_SIZE;
         y = board->queen1_position / BOARD_SIZE;
         if (is_surrounded(board, y, x)) {
-            return 2;
+            res = 2;
         }
     }
 
@@ -121,10 +148,13 @@ int finished_board(struct board *board) {
         x = board->queen2_position % BOARD_SIZE;
         y = board->queen2_position / BOARD_SIZE;
         if (is_surrounded(board, y, x)) {
-            return 1;
+            if (res == 0)
+                res = 1;
+            else
+                res = 3;
         }
     }
-    return 0;
+    return res;
 }
 
 /*
@@ -179,7 +209,7 @@ void print_board(struct board *board) {
 
             // Add number after tile
             if (n > 0) {
-                printf("%d", n);
+                printf("%d", tile.free);
             } else {
                 printf(" ");
             }

@@ -59,7 +59,7 @@
 
 struct tile_stack {
     unsigned char type;
-    short location;
+    int location;
     unsigned char z;
 };
 
@@ -96,8 +96,11 @@ struct board {
 
     struct player players[2];
 
-    short queen1_position;
-    short queen2_position;
+    int queen1_position;
+    int queen2_position;
+
+    int min_x, min_y;
+    int max_x, max_y;
 
     char n_stacked;
     struct tile_stack stack[TILE_STACK_SIZE];
@@ -119,6 +122,8 @@ void print_board(struct board* board);
 
 struct board* init_board();
 
+void get_min_x_y(struct board* board, int* min_x, int* min_y);
+void get_max_x_y(struct board* board, int* max_x, int* max_y);
 void translate_board(struct board* board);
 int finished_board(struct board* board);
 
