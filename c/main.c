@@ -71,7 +71,12 @@ void manual(struct node** proot) {
 }
 
 int main() {
+#ifdef TESTING
+    srand(0);
+    printf("Running test case (forced depth of 3, no randomization)\n");
+#else
     srand(time(NULL));
+#endif
 
     // Compute max amount of nodes available in memory.
     max_nodes = MAX_MEMORY / (sizeof(struct board) + sizeof(struct node) + sizeof(struct mm_data));
@@ -83,13 +88,18 @@ int main() {
 
     // Initialize board history list to identify repeats.
     list_init(&board_history);
-
+    initialize_points_around();
 
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
 
     initialize_timer("out.txt");
-    int n_moves = 500;
+
+#ifdef TESTING
+    int n_moves = 10;
+#else
+    int n_moves = 100;
+#endif
 
     struct node* tree = game_init();
 

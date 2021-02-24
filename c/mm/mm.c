@@ -4,6 +4,13 @@
 
 //#define BEST_FIRST
 
+// Without best first msec: 23203.12500
+// With best first msec: 39859.37500
+
+// With CENTERED flag: ~20000 msec
+
+// With beetle movement checking bugfix: msec: 21937.50000
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -125,10 +132,11 @@ bool generate_children(struct node *root, time_t end_time) {
 
 int get_n_repeats(struct board_history_entry *bhe) {
     struct list *node;
+    size_t size = sizeof(struct tile) * BOARD_SIZE * BOARD_SIZE + sizeof(struct tile_stack) * TILE_STACK_SIZE;
     list_foreach(&board_history, node) {
         struct board_history_entry *entry = container_of(node, struct board_history_entry, node);
-
-        if (memcmp(bhe, entry, sizeof(struct board_history_entry)) == 0) {
+        if (memcmp(bhe, entry, size) == 0) {
+            printf("Found board match!\n");
             // Match found
             return entry->repeats;
         }
@@ -139,10 +147,11 @@ int get_n_repeats(struct board_history_entry *bhe) {
 
 int add_bhe(struct board_history_entry *bhe) {
     struct list *node;
+    size_t size = sizeof(struct tile) * BOARD_SIZE * BOARD_SIZE + sizeof(struct tile_stack) * TILE_STACK_SIZE;
     list_foreach(&board_history, node) {
         struct board_history_entry *entry = container_of(node, struct board_history_entry, node);
 
-        if (memcmp(bhe, entry, sizeof(struct board_history_entry)) == 0) {
+        if (memcmp(bhe, entry, size) == 0) {
             // Match found, early return.
             entry->repeats++;
             return entry->repeats;
@@ -170,7 +179,13 @@ void minimax(struct node **proot) {
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
 
-    time_t end_time = time(NULL) + 5; // 5 seconds per move max
+#ifdef TESTING
+    unsigned int time_to_move = 10000000;
+#else
+    unsigned int time_to_move = 20;
+#endif
+
+    time_t end_time = time(NULL) + time_to_move;
 
     printf("At turn %d\n", root->board->turn);
     // Generating level 1 children.
@@ -191,26 +206,30 @@ void minimax(struct node **proot) {
         double value = mm(root, player, -INFINITY, INFINITY, depth, depth, end_time);
 
         // Break on forced terminal state.
-        if (value == MM_INFINITY || value == -MM_INFINITY) break;
+        if (value > MM_INFINITY - 200 || value < -MM_INFINITY + 200) break;
         depth += 1;
+#ifdef TESTING
+        break;
+#endif
     }
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     double sec = (double) (to_usec(end) - to_usec(start)) / 1e6;
-    printf("Evaluated %d nodes (%.5f nps)\n", n_evaluated, n_evaluated / sec);
+    printf("Evaluated %d nodes (%.5f knodes/s)\n", n_evaluated, (n_evaluated / sec) / 1000);
 
     struct list *head;
     double best_value = player == 0 ? -INFINITY : INFINITY;
     struct node *best = NULL;
+    struct board_history_entry tmp;
     struct board_history_entry *bhe = malloc(sizeof(struct board_history_entry));
-
     node_foreach(root, head) {
         struct node *child = container_of(head, struct node, node);
         struct mm_data *data = child->data;
 
-        initialize_bhe(bhe, child->board);
-        if (get_n_repeats(bhe) == 2) {
-            // Doing this move would result in 3x repeating move.
+        initialize_bhe(&tmp, child->board);
+        int rep = get_n_repeats(&tmp);
+        if (rep == 1) {
+            // Doing this move would result in 2x repeating move, possibly letting your opponent draw.
             data->mm_value = 0;
         }
 
@@ -218,6 +237,7 @@ void minimax(struct node **proot) {
             || (player == 1 && best_value > data->mm_value)) {
             best_value = data->mm_value;
             best = child;
+            initialize_bhe(bhe, child->board);
         }
     }
     printf("Evaluated %d children and best is %.5f\n", n, best_value);

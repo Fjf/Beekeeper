@@ -5,8 +5,8 @@
 #ifndef HIVE_TIMING_H
 #define HIVE_TIMING_H
 
-#include <bits/types/time_t.h>
-#include <bits/types/FILE.h>
+//#include <bits/types/time_t.h>
+//#include <bits/types/FILE.h>
 #include <stdio.h>
 
 #define TIMING_START 0

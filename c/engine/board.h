@@ -111,8 +111,8 @@ struct board {
 
 struct board_history_entry {
     struct tile tiles[BOARD_SIZE * BOARD_SIZE];
-    char repeats;
     struct tile_stack stack[TILE_STACK_SIZE];
+    char repeats;
     struct list node;
 };
 
@@ -125,6 +125,7 @@ struct board* init_board();
 void get_min_x_y(struct board* board, int* min_x, int* min_y);
 void get_max_x_y(struct board* board, int* max_x, int* max_y);
 void translate_board(struct board* board);
+void translate_board_22(struct board* board);
 int finished_board(struct board* board);
 
 #endif //THEHIVE_BOARD_H

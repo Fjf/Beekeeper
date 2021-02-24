@@ -17,7 +17,8 @@
 }
 
 int sum_hive_tiles(struct board *board);
-void get_points_around(int y, int x, int* points);
+int* get_points_around(int y, int x);
+void initialize_points_around();
 void add_child(struct node *node, int location, int type, int previous_location);
 void generate_placing_moves(struct node *node, int type);
 void generate_free_moves(struct node* node, int player_bit);

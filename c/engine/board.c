@@ -111,10 +111,61 @@ void translate_board(struct board *board) {
     board->max_y += ydiff;
 }
 
+
+/*
+ * Translates the board to 2,2 coordinate space
+ */
+void translate_board_22(struct board *board) {
+    int min_x = BOARD_SIZE;
+    int min_y = BOARD_SIZE;
+    for (int y = 0; y < BOARD_SIZE; y++) {
+        for (int x = 0; x < min_x; x++) {
+            struct tile tile = board->tiles[y * BOARD_SIZE + x];
+            if (tile.type == EMPTY) continue;
+
+            // Set min_y to the first non-empty tile row
+            if (min_y == BOARD_SIZE) min_y = y;
+
+            if (min_x > x) min_x = x;
+        }
+    }
+
+    int offset = min_y * BOARD_SIZE + min_x;
+    int size = (BOARD_SIZE * BOARD_SIZE - offset);
+
+    // Move all the tile tracking structs the same amount as the rest of the board.
+    int translate_offset = (2 * BOARD_SIZE + 2) - offset;
+    if (board->queen1_position != -1)
+        board->queen1_position += translate_offset;
+    if (board->queen2_position != -1)
+        board->queen2_position += translate_offset;
+    for (int i = 0; i < TILE_STACK_SIZE; i++) {
+        if (board->stack[i].location != -1) {
+            board->stack[i].location += translate_offset;
+        }
+    }
+
+    // Copy data into temp array
+    struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
+    void* temp = &t;
+//    void *temp = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(struct tile));
+
+    memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
+           ((void*)&board->tiles) + offset * sizeof(struct tile),
+           (size - (2 * BOARD_SIZE + 2)) * sizeof(struct tile)
+    );
+
+    memset(&board->tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
+    // Copy data back into main array after clearing data.
+    memcpy(&board->tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
+
+//    free(temp);
+}
+
+
 bool is_surrounded(struct board* board, int y, int x) {
     int p;
-    int points[6];
-    get_points_around(y, x, points);
+    int* points = get_points_around(y, x);
     for (p = 0; p < 6; p++) {
         if (board->tiles[points[p]].type == EMPTY) {
             break;
