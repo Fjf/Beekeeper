@@ -1,10 +1,9 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <assert.h>
-#include "moves.h"
-#include "../timing/timing.h"
+#include <iostream>
+#include "moves.hpp"
 
 
 int sum_hive_tiles(struct board *board) {
@@ -23,13 +22,32 @@ int sum_hive_tiles(struct board *board) {
 }
 
 
+int to_tile_index(unsigned char tile) {
+    int color = (tile & COLOR_MASK) >> COLOR_SHIFT;
+    int sum = color * N_TILES;
+    int type = tile & TILE_MASK;
+    int n    = ((tile & NUMBER_MASK) >> NUMBER_SHIFT) - 1;
+
+    if (type == L_ANT) return sum + n;
+    sum += N_ANTS;
+    if (type == L_GRASSHOPPER) return sum + n;
+    sum += N_GRASSHOPPERS;
+    if (type == L_BEETLE) return sum + n;
+    sum += N_BEETLES;
+    if (type == L_SPIDER) return sum + n;
+    sum += N_SPIDERS;
+    // It must be a queen.
+    return sum + n;
+}
+
+
 struct tile_stack *get_from_stack(struct board *board, int location, bool pop) {
     /*
      * Returns the highest tile in the stack, or NULL if no tile is found.
      * If pop is true, the tile will be removed from the stack.
      * Otherwise, just the tile will be returned.
      */
-    struct tile_stack *highest_tile = NULL;
+    struct tile_stack *highest_tile = nullptr;
     int highest_idx = -1;
     for (int i = 0; i < TILE_STACK_SIZE; i++) {
         if (board->stack[i].location == location
@@ -38,8 +56,8 @@ struct tile_stack *get_from_stack(struct board *board, int location, bool pop) {
             highest_tile = &board->stack[i];
         }
     }
-    if (highest_tile == NULL) {
-        return NULL;
+    if (highest_tile == nullptr) {
+        return nullptr;
     }
 
     if (pop) {
@@ -71,55 +89,113 @@ void full_update(struct board *board) {
 
             n_updated++;
             bool canmove = true;
-            if (get_from_stack(board, y * BOARD_SIZE + x, false) == NULL)
+            if (get_from_stack(board, y * BOARD_SIZE + x, false) == nullptr)
                 canmove = can_move(board, x, y);
             board->tiles[y * BOARD_SIZE + x].free = canmove;
         }
     }
 }
 
-void update_can_move(struct board *board, int location, int previous_location) {
-    timing("update_can_move", TIMING_START);
-    // Newly placed tiles are always free to move
-    board->tiles[location].free = true;
+void update_adjacency_matrix(struct board* board, int location, int previous_location) {
+    int x, y;
+    int* pts;
+    int adj_mat_idx = to_tile_index(board->tiles[location].type);
 
-    int n_onb = 0;
     if (previous_location != -1) {
-        // If the previous tile is not empty, this tile is not necessarily free.
-        if (board->tiles[previous_location].type == EMPTY)
-            board->tiles[previous_location].free = false;
+        int pre_mat_idx = -1;
+        if (board->tiles[previous_location].type != EMPTY) {
+            // If the previous location is not empty, fix this in the adjacency matrix.
+            pre_mat_idx = to_tile_index(board->tiles[previous_location].type);
+        }
 
-        // Check around previous location
-        int *points = get_points_around(previous_location / BOARD_SIZE, previous_location % BOARD_SIZE);
-        for (int i = 0; i < 6; i++) {
-            int px = points[i] % BOARD_SIZE;
-            int py = points[i] / BOARD_SIZE;
-            if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
+        // Go over previous location, and remove this tile from the adjacency matrix.
+        x = previous_location % BOARD_SIZE;
+        y = previous_location / BOARD_SIZE;
+        pts = get_points_around(y, x);
+        for (int p = 0; p < 6; p++) {
+            if (pts[p] == location) continue;
+            int type = board->tiles[pts[p]].type;
+            if (type == EMPTY) continue;
+            int old_neighbour_adj = to_tile_index(type);
 
-            n_onb++;
-            // For all neighbours, update whether or not they can move.
-            board->tiles[py * BOARD_SIZE + px].free = can_move(board, px, py);
+            // Set old neighbour to not connected
+            board->laplacian_matrix(adj_mat_idx, old_neighbour_adj) = 0;
+            board->laplacian_matrix(old_neighbour_adj, adj_mat_idx) = 0;
+
+            // n,n index is the n-connected neighbours, so subtract 1.
+            board->laplacian_matrix(adj_mat_idx, adj_mat_idx)--;
+            board->laplacian_matrix(old_neighbour_adj, old_neighbour_adj)--;
+
+            if (pre_mat_idx != -1) {
+                // Set old location new tile to connected
+                board->laplacian_matrix(pre_mat_idx, old_neighbour_adj) = -1;
+                board->laplacian_matrix(old_neighbour_adj, pre_mat_idx) = -1;
+
+                // n,n index is the n-connected neighbours, so subtract 1.
+                board->laplacian_matrix(pre_mat_idx,pre_mat_idx)++;
+                board->laplacian_matrix(old_neighbour_adj, old_neighbour_adj)++;
+            }
         }
     }
 
-    int *points = get_points_around(location / BOARD_SIZE, location % BOARD_SIZE);
-    int n_nb = 0;
-    for (int i = 0; i < 6; i++) {
-        int px = points[i] % BOARD_SIZE;
-        int py = points[i] / BOARD_SIZE;
-        if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
 
-        n_nb++;
-        // For all neighbours, update whether or not they can move.
-        board->tiles[py * BOARD_SIZE + px].free = can_move(board, px, py);
+    x = location % BOARD_SIZE;
+    y = location / BOARD_SIZE;
+    pts = get_points_around(y, x);
+    for (int p = 0; p < 6; p++) {
+        int type = board->tiles[pts[p]].type;
+        if (type == EMPTY) continue;
+        int new_neighbour_adj = to_tile_index(type);
+
+        // Set old neighbour to not connected
+        board->laplacian_matrix(adj_mat_idx, new_neighbour_adj) = -1;
+        board->laplacian_matrix(new_neighbour_adj, adj_mat_idx) = -1;
+
+        // n,n index is the n-connected neighbours, so subtract 1.
+        board->laplacian_matrix(adj_mat_idx, adj_mat_idx)++;
+        board->laplacian_matrix(new_neighbour_adj, new_neighbour_adj)++;
+
     }
+}
 
-    // You can only generate cycles when you have more than 1 neighbour.
-    // You can only break cycles when you had more than 1 neighbour.
-    if (n_nb > 1 || n_onb > 1)
-        full_update(board);
+void update_can_move(struct board *board, int location, int previous_location) {
+    // Newly placed tiles are always free to move
+    int col[N_TILES * 2];
+    int row[N_TILES * 2];
+    for (int y = board->min_y; y < board->max_y + 1; y++) {
+        for (int x = board->min_x; x < board->max_x + 1; x++) {
+            if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
 
-    timing("update_can_move", TIMING_END);
+            int idx = to_tile_index(board->tiles[y * BOARD_SIZE + x].type);
+
+            // Store backup
+            for (int i = 0; i < N_TILES * 2; i++) {
+                col[i] = board->laplacian_matrix(i, idx);
+
+                if (i == idx) continue;
+                if (col[i] != 0) board->laplacian_matrix(i, i)--;
+            }
+            board->laplacian_matrix.row(idx).setZero();
+            board->laplacian_matrix.col(idx).setZero();
+
+
+            Eigen::FullPivLU<LapMatrix> lu(board->laplacian_matrix);
+            auto A_null_space = lu.kernel();
+
+            int sum = A_null_space.colwise().sum().maxCoeff();
+
+            board->tiles[y * BOARD_SIZE + x].free = (sum == sum_hive_tiles(board) - 1);
+
+            // Restore backup
+            for (int i = 0; i < N_TILES * 2; i++) {
+                board->laplacian_matrix(i, idx) = col[i];
+                board->laplacian_matrix(idx, i) = col[i];
+
+                if (i == idx) continue;
+                if (col[i] != 0) board->laplacian_matrix(i, i)++;
+            }
+        }
+    }
 }
 
 /*
@@ -129,7 +205,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
     struct tile_stack *ts;
 
     // Create new board
-    struct board *board = malloc(sizeof(struct board));
+    auto* board = static_cast<struct board *>(malloc(sizeof(struct board)));
     memcpy(board, node->board, sizeof(struct board));
 
     // Track how many tiles are on the board.
@@ -156,7 +232,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
         }
     } else {
         ts = get_from_stack(board, previous_location, true);
-        board->tiles[previous_location].type = (ts == NULL ? EMPTY : ts->type);
+        board->tiles[previous_location].type = (ts == nullptr ? EMPTY : ts->type);
     }
 
     // If this move is on top of an existing tile, store this tile in the stack
@@ -189,9 +265,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
     board->move_location_tracker = -1;
     board->turn++;
 
-    // After this move, update the board move-checks
-    // NOTE: This is only beneficial when not a lot needs to be checked
-    update_can_move(board, location, previous_location);
+    update_adjacency_matrix(board, location, previous_location);
 
     // Set min and max tile positions to speedup translation.
     int x = location % BOARD_SIZE;
@@ -223,6 +297,11 @@ void add_child(struct node *node, int location, int type, int previous_location)
 #else
     translate_board_22(board);
 #endif
+
+    // After this move, update the board move-checks
+    // NOTE: This is only beneficial when not a lot needs to be checked
+    update_can_move(board, location, previous_location);
+
 
     struct node *child = mm_add_child(node, board);
 
@@ -363,7 +442,7 @@ int add_if_unique(int *array, int n, int value) {
 
 
 int count_connected(struct board *board, int index) {
-    bool is_connected[BOARD_SIZE * BOARD_SIZE] = {0};
+    bool is_connected[BOARD_SIZE * BOARD_SIZE] = {false};
     int n_connected = 1;
     int frontier[N_TILES * 2];
     int frontier_p = 0; // Frontier pointer.
@@ -382,19 +461,16 @@ int count_connected(struct board *board, int index) {
             if (board->tiles[points[n]].type == EMPTY) continue;
 
             // If a unique tile is added, increment the tracker.
-
             if (!is_connected[points[n]]) {
                 // If it was not yet connected, add a connected tile.
                 frontier[frontier_p++] = points[n];
                 n_connected += 1;
                 is_connected[points[n]] = true;
             }
-
         }
     }
     return n_connected;
 }
-
 
 void generate_directional_grasshopper_moves(struct node *node, int orig_y, int orig_x, int x_incr, int y_incr) {
     struct board *board = node->board;
@@ -479,9 +555,9 @@ void generate_ant_moves(struct node *node, int orig_y, int orig_x) {
     int tile_type = board->tiles[orig_y * BOARD_SIZE + orig_x].type;
     board->tiles[orig_y * BOARD_SIZE + orig_x].type = EMPTY;
 
-    int *ant_move_buffer = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
+    int *ant_move_buffer = static_cast<int *>(calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int)));
     int n_ant_moves = 0;
-    int *frontier = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
+    int *frontier = static_cast<int *>(calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int)));
     int frontier_p = 0; // Frontier pointer.
     int index = orig_y * BOARD_SIZE + orig_x;
 
@@ -622,13 +698,13 @@ void generate_spider_moves(struct node *node, int orig_y, int orig_x) {
     int tile_type = board->tiles[orig_y * BOARD_SIZE + orig_x].type;
     board->tiles[orig_y * BOARD_SIZE + orig_x].type = EMPTY;
 
-    int *valid_moves = calloc(sizeof(int), BOARD_SIZE * BOARD_SIZE);
+    int *valid_moves = static_cast<int *>(calloc(sizeof(int), BOARD_SIZE * BOARD_SIZE));
     int valid_moves_tracker = 0;
 
     // Frontier to track multiple points.
-    int *frontier = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
+    int *frontier = static_cast<int *>(calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int)));
     int frontier_p = 0; // Frontier pointer.
-    int *next_frontier = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int));
+    int *next_frontier = static_cast<int *>(calloc(BOARD_SIZE * BOARD_SIZE, sizeof(int)));
     int next_frontier_p = 0; // Next frontier pointer.
 
     frontier[frontier_p++] = orig_y * BOARD_SIZE + orig_x;
@@ -688,7 +764,6 @@ void generate_spider_moves(struct node *node, int orig_y, int orig_x) {
 }
 
 bool can_move(struct board *board, int x, int y) {
-    timing("can_move", TIMING_START);
 
     struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
 
@@ -717,7 +792,6 @@ bool can_move(struct board *board, int x, int y) {
 
     // Restore original tile value.
     tile->type = tile_type;
-    timing("can_move", TIMING_END);
     return valid;
 }
 
@@ -801,5 +875,4 @@ void generate_moves(struct node *node) {
     if (player->queens_left == 0)
         generate_free_moves(node, player_bit);
 
-//    timing("generate_moves", TIMING_END);
 }

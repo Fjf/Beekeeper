@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "pns.h"
+#include "pns.hpp"
 
 
 void do_pn_random_move(struct node **proot) {
@@ -40,15 +40,15 @@ void do_pn_random_move(struct node **proot) {
     list_remove(head);
 
     node_free(root);
-    struct node *new = container_of(head, struct node, node);
+    struct node *new_root = container_of(head, struct node, node);
 
-    *proot = new;
+    *proot = new_root;
 }
 
 
 void set_proof_numbers(struct node *root, int original_player_bit) {
     // This node has children
-    struct pn_data* data = root->data;
+    struct pn_data* data = static_cast<pn_data *>(root->data);
     if (data->expanded) {
         // Update values as a combination of its children
         if (data->node_type == PN_TYPE_AND) {
@@ -57,7 +57,7 @@ void set_proof_numbers(struct node *root, int original_player_bit) {
 
             for (struct list *head = root->children.next; head != root->children.head; head = head->next) {
                 struct node *child = container_of(head, struct node, node);
-                struct pn_data* child_data = child->data;
+                struct pn_data* child_data = static_cast<pn_data *>(child->data);
                 data->to_prove += child_data->to_prove;
                 data->to_disprove = MIN(data->to_disprove, child_data->to_disprove);
             }
@@ -67,7 +67,7 @@ void set_proof_numbers(struct node *root, int original_player_bit) {
 
             for (struct list *head = root->children.next; head != root->children.head; head = head->next) {
                 struct node *child = container_of(head, struct node, node);
-                struct pn_data* child_data = child->data;
+                struct pn_data* child_data = static_cast<pn_data *>(child->data);
                 data->to_disprove += child_data->to_disprove;
                 data->to_prove = MIN(data->to_prove, child_data->to_prove);
             }
@@ -98,7 +98,7 @@ void set_proof_numbers(struct node *root, int original_player_bit) {
 int initialize_node(struct node *root, int original_player_bit) {
     generate_moves(root);
 
-    struct pn_data* data = root->data;
+    struct pn_data* data = static_cast<pn_data *>(root->data);
     data->expanded = true;
 
     // If there are no moves available, increment turn and pass on to next player
@@ -107,7 +107,7 @@ int initialize_node(struct node *root, int original_player_bit) {
         root->board->move_location_tracker = 1;
 
         // Clone board and add as child (no moves equals this node results in the same board)
-        struct board *board = malloc(sizeof(struct board));
+        struct board *board = static_cast<struct board *>(malloc(sizeof(struct board)));
         if (!board) return -1;
         memcpy(board, root->board, sizeof(struct board));
 
@@ -117,7 +117,7 @@ int initialize_node(struct node *root, int original_player_bit) {
 
     for (struct list *head = root->children.next; head != root->children.head; head = head->next) {
         struct node *child = container_of(head, struct node, node);
-        struct pn_data* child_data = child->data;
+        struct pn_data* child_data = static_cast<pn_data *>(child->data);
         set_proof_numbers(child, original_player_bit);
 
         // Break if this occurs
@@ -131,7 +131,7 @@ int initialize_node(struct node *root, int original_player_bit) {
 
 struct node *update_ancestors(struct node *node, struct node *root, int original_player_bit) {
     while (true) {
-        struct pn_data* data = node->data;
+        struct pn_data* data = static_cast<pn_data *>(node->data);
         unsigned int original_prove = data->to_prove;
         unsigned int original_disprove = data->to_disprove;
 
@@ -153,12 +153,12 @@ struct node *select_most_proving_node(struct node *root) {
     struct node *MPN = NULL;
     unsigned int best = PN_INF;
 
-    struct pn_data* data = root->data;
+    struct pn_data* data = static_cast<pn_data *>(root->data);
     while (data->expanded) {
         best = PN_INF;
         for (struct list *head = root->children.next; head != root->children.head; head = head->next) {
             struct node *child = container_of(head, struct node, node);
-            struct pn_data* child_data = child->data;
+            struct pn_data* child_data = static_cast<pn_data *>(child->data);
 
             // Select the best node based on OR or AND type node.
             unsigned int c_value = (data->node_type == PN_TYPE_OR) ? child_data->to_prove : child_data->to_disprove;
@@ -168,7 +168,7 @@ struct node *select_most_proving_node(struct node *root) {
             }
         }
         root = MPN;
-        data = root->data;
+        data = static_cast<pn_data *>(root->data);
     }
     return MPN;
 }
@@ -181,7 +181,7 @@ void PNS(struct node *root, int original_player_bit, time_t end_time) {
     // Stop when you exceed max depth or max time
     struct node *current = root;
     struct node *mpn;
-    struct pn_data* data = root->data;
+    struct pn_data* data = static_cast<pn_data *>(root->data);
     while (data->to_prove != 0 && data->to_disprove != 0) {
         time_t cur_time = time(NULL);
         if (cur_time > end_time) {
@@ -217,7 +217,7 @@ void do_pn_tree_move(struct node **proot) {
     unsigned int best_prove = PN_INF;
     while (head != root->children.head) {
         struct node *child = container_of(head, struct node, node);
-        struct pn_data* data = child->data;
+        struct pn_data* data = static_cast<pn_data *>(child->data);
         if (data->to_prove < best_prove) {
             best_prove = data->to_prove;
             best = child;

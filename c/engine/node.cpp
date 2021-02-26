@@ -4,8 +4,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "node.h"
-#include "board.h"
+#include "node.hpp"
+#include "board.hpp"
+
+
+unsigned long long max_nodes;
+unsigned long long n_nodes;
 
 
 void node_init(struct node* node, void* data) {

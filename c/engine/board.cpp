@@ -2,13 +2,13 @@
 // Created by duncan on 01-02-21.
 //
 
-#include "board.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
+#include "board.hpp"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 
-
+struct list board_history;
 unsigned int pboardsize = BOARD_SIZE;
 unsigned int ptilestacksize = TILE_STACK_SIZE;
 
@@ -16,7 +16,7 @@ unsigned int ptilestacksize = TILE_STACK_SIZE;
  * Initialize the board.
  */
 struct board *init_board() {
-    struct board *board = calloc(1, sizeof(struct board));
+    auto *board = (struct board*)calloc(1, sizeof(struct board));
     board->turn = 0;
     board->move_location_tracker = -1;
     board->n_stacked = 0;
@@ -34,6 +34,11 @@ struct board *init_board() {
     memset(&board->stack, -1, TILE_STACK_SIZE * sizeof(struct tile_stack));
 
     return board;
+}
+
+
+void print_adj_matrix(struct board* board) {
+    std::cout << board->laplacian_matrix << std::endl;
 }
 
 void get_min_x_y(struct board* board, int* min_x, int* min_y) {
@@ -91,10 +96,10 @@ void translate_board(struct board *board) {
 
     // Copy data into temp array
     struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
-    void* temp = &t;
+    char* temp = reinterpret_cast<char *>(&t);
 
     memcpy(temp + (to_y * BOARD_SIZE + to_x) * sizeof(struct tile),
-           ((void*)&board->tiles) + offset * sizeof(struct tile),
+           ((char*)&board->tiles) + offset * sizeof(struct tile),
            (size) * sizeof(struct tile)
     );
 
@@ -147,11 +152,11 @@ void translate_board_22(struct board *board) {
 
     // Copy data into temp array
     struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
-    void* temp = &t;
+    char* temp = reinterpret_cast<char *>(&t);
 //    void *temp = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(struct tile));
 
     memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
-           ((void*)&board->tiles) + offset * sizeof(struct tile),
+           ((char*)&board->tiles) + offset * sizeof(struct tile),
            (size - (2 * BOARD_SIZE + 2)) * sizeof(struct tile)
     );
 

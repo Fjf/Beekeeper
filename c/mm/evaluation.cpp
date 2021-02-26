@@ -2,14 +2,11 @@
 // Created by duncan on 18-02-21.
 //
 
-#include <stdlib.h>
-#include <board.h>
-#include <math.h>
-#include "evaluation.h"
-#include "../timing/timing.h"
+#include <board.hpp>
+#include "evaluation.hpp"
 
 
-
+bool (*mm_evaluate)(struct node*) = nullptr;
 
 
 double unused_tiles(struct node* node) {
@@ -22,8 +19,7 @@ double unused_tiles(struct node* node) {
 }
 
 bool mm_evaluate_expqueen(struct node* node) {
-    timing("mm_evaluate", TIMING_START);
-    struct mm_data* data = node->data;
+    auto* data = static_cast<mm_data *>(node->data);
 
 #ifdef TESTING
     double value = 0.;
@@ -112,13 +108,11 @@ bool mm_evaluate_expqueen(struct node* node) {
 
     data->mm_value = value;
     data->mm_evaluated = true;
-    timing("mm_evaluate", TIMING_END);
     return false;
 }
 
 bool mm_evaluate_linqueen(struct node* node) {
-    timing("mm_evaluate", TIMING_START);
-    struct mm_data* data = node->data;
+    struct mm_data* data = static_cast<mm_data *>(node->data);
 
 #ifdef TESTING
     double value = 0.;
@@ -203,6 +197,5 @@ bool mm_evaluate_linqueen(struct node* node) {
 
     data->mm_value = value;
     data->mm_evaluated = true;
-    timing("mm_evaluate", TIMING_END);
     return false;
 }

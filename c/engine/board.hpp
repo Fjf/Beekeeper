@@ -6,8 +6,8 @@
 #define THEHIVE_BOARD_H
 
 // Amount of tiles available per player.
-#include "list.h"
-#include "moves.h"
+#include "list.hpp"
+#include "moves.hpp"
 
 #define N_ANTS 3
 #define N_GRASSHOPPERS 3
@@ -89,7 +89,10 @@ struct player {
 #define BOARD_PADDING 2
 #define BOARD_SIZE ((N_TILES * 2) + BOARD_PADDING * 2)
 
+#include <Eigen/Dense>
 
+typedef Eigen::Matrix<float, 22, 22> LapMatrix;
+typedef Eigen::Matrix<std::complex<float>, 22, 1> LapEigen;
 struct board {
     struct tile tiles[BOARD_SIZE * BOARD_SIZE];
     int turn;  // Use this to derive whose turn it is
@@ -105,6 +108,8 @@ struct board {
     char n_stacked;
     struct tile_stack stack[TILE_STACK_SIZE];
 
+    LapMatrix laplacian_matrix;
+
     int move_location_tracker;
     bool done;
 };
@@ -116,16 +121,16 @@ struct board_history_entry {
     struct list node;
 };
 
-struct list board_history;
+extern struct list board_history;
 
-void print_board(struct board* board);
+extern void print_board(struct board* board);
+extern struct board* init_board();
 
-struct board* init_board();
-
-void get_min_x_y(struct board* board, int* min_x, int* min_y);
-void get_max_x_y(struct board* board, int* max_x, int* max_y);
-void translate_board(struct board* board);
-void translate_board_22(struct board* board);
-int finished_board(struct board* board);
+extern void get_min_x_y(struct board* board, int* min_x, int* min_y);
+extern void get_max_x_y(struct board* board, int* max_x, int* max_y);
+extern void translate_board(struct board* board);
+extern void translate_board_22(struct board* board);
+extern int finished_board(struct board* board);
+extern void print_adj_matrix(struct board* board);
 
 #endif //THEHIVE_BOARD_H

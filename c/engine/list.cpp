@@ -2,16 +2,12 @@
 // Created by duncan on 04-02-21.
 //
 
-#include <stdlib.h>
-#include <stdbool.h>
-#include "list.h"
+#include "list.hpp"
 
-
-
-void list_init(struct list* new) {
-    new->prev = new;
-    new->next = new;
-    new->head = new;
+void list_init(struct list* new_entry) {
+    new_entry->prev = new_entry;
+    new_entry->next = new_entry;
+    new_entry->head = new_entry;
 }
 
 void list_add(struct list* list, struct list* entry) {
@@ -24,13 +20,13 @@ void list_add(struct list* list, struct list* entry) {
     list->prev = entry;
 }
 
-void list_insert_after(struct list* entry, struct list* new) {
-    new->prev = entry;
-    new->next = entry->next;
-    new->head = entry->head;
+void list_insert_after(struct list* entry, struct list* new_entry) {
+    new_entry->prev = entry;
+    new_entry->next = entry->next;
+    new_entry->head = entry->head;
 
-    entry->next->prev = new;
-    entry->next = new;
+    entry->next->prev = new_entry;
+    entry->next = new_entry;
 }
 
 void list_remove(struct list* entry) {

@@ -2,12 +2,12 @@
 // Created by duncan on 04-02-21.
 //
 
-#ifndef HIVE_PN_TREE_H
-#define HIVE_PN_TREE_H
+#ifndef HIVE_PN_TREE_HPP
+#define HIVE_PN_TREE_HPP
 
-#include "../engine/board.h"
-#include "../engine/list.h"
-#include "../engine/node.h"
+#include "../engine/board.hpp"
+#include "../engine/list.hpp"
+#include "../engine/node.hpp"
 
 #define PN_TYPE_AND 0
 #define PN_TYPE_OR 1
@@ -25,4 +25,4 @@ void pn_free_children(struct node* root);
 struct node* pn_add_child(struct node* node, struct board* board);
 void pn_print(struct node* root);
 
-#endif //HIVE_PN_TREE_H
+#endif //HIVE_PN_TREE_HPP

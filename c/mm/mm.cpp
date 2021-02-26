@@ -11,16 +11,15 @@
 
 // With beetle movement checking bugfix: msec: 21937.50000
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "mm.h"
-#include "../timing/timing.h"
-#include "evaluation.h"
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include "mm.hpp"
+#include "evaluation.hpp"
 
 double mm(struct node *node, int player, double alpha, double beta, int depth, int initial_depth, time_t end_time) {
-    struct mm_data *data = node->data;
+    struct mm_data *data = static_cast<mm_data *>(node->data);
     if (depth == 0 || node->board->done || list_empty(&node->children)) {
         return data->mm_value;
     }
@@ -64,8 +63,8 @@ double mm(struct node *node, int player, double alpha, double beta, int depth, i
 }
 
 struct node *mm_init() {
-    struct node *root = malloc(sizeof(struct node));
-    struct mm_data *data = malloc(sizeof(struct mm_data));
+    struct node *root = static_cast<node *>(malloc(sizeof(struct node)));
+    struct mm_data *data = static_cast<mm_data *>(malloc(sizeof(struct mm_data)));
 
     data->mm_evaluated = false;
     data->mm_value = 0.;
@@ -75,6 +74,7 @@ struct node *mm_init() {
 }
 
 int n_evaluated = 0;
+
 struct node *mm_add_child(struct node *node, struct board *board) {
     struct node *child = mm_init();
     child->board = board;
@@ -170,10 +170,9 @@ void initialize_bhe(struct board_history_entry *bhe, struct board *board) {
 }
 
 void minimax(struct node **proot) {
-    timing("minimax", TIMING_START);
 
     struct node *root = *proot;
-    int depth = 3;
+    int depth = 2;
     int player = root->board->turn % 2;
 
     struct timespec start, end;
@@ -182,7 +181,7 @@ void minimax(struct node **proot) {
 #ifdef TESTING
     unsigned int time_to_move = 10000000;
 #else
-    unsigned int time_to_move = 20;
+    unsigned int time_to_move = 1;
 #endif
 
     time_t end_time = time(NULL) + time_to_move;
@@ -191,7 +190,7 @@ void minimax(struct node **proot) {
     // Generating level 1 children.
     generate_children(root, end_time);
 
-    struct list* node;
+    struct list *node;
     int n = 0;
     node_foreach(root, node) { n++; }
 
@@ -221,10 +220,10 @@ void minimax(struct node **proot) {
     double best_value = player == 0 ? -INFINITY : INFINITY;
     struct node *best = NULL;
     struct board_history_entry tmp;
-    struct board_history_entry *bhe = malloc(sizeof(struct board_history_entry));
+    struct board_history_entry *bhe = static_cast<board_history_entry *>(malloc(sizeof(struct board_history_entry)));
     node_foreach(root, head) {
         struct node *child = container_of(head, struct node, node);
-        struct mm_data *data = child->data;
+        struct mm_data *data = static_cast<mm_data *>(child->data);
 
         initialize_bhe(&tmp, child->board);
         int rep = get_n_repeats(&tmp);
@@ -242,7 +241,7 @@ void minimax(struct node **proot) {
     }
     printf("Evaluated %d children and best is %.5f\n", n, best_value);
 
-    if (best == NULL) {
+    if (best == nullptr) {
         root->board->turn++;
     } else {
         int repeats = add_bhe(bhe);
@@ -259,7 +258,4 @@ void minimax(struct node **proot) {
 
         *proot = best;
     }
-
-
-    timing("minimax", TIMING_END);
 }

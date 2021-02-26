@@ -4,10 +4,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "pn_tree.h"
+#include "pn_tree.hpp"
 
 void pn_init(struct node* root, int type) {
-    struct pn_data* data = malloc(sizeof(struct pn_data));
+    auto* data = static_cast<pn_data *>(malloc(sizeof(struct pn_data)));
 
     data->node_type = type;
     data->to_disprove = PN_INF;
@@ -18,10 +18,10 @@ void pn_init(struct node* root, int type) {
 }
 
 struct node* pn_add_child(struct node* node, struct board* board) {
-    struct pn_data* data = node->data;
+    auto* data = static_cast<pn_data *>(node->data);
 
     // Initialize child
-    struct node* child = malloc(sizeof(struct node));
+    auto* child = static_cast<struct node *>(malloc(sizeof(struct node)));
     pn_init(child, data->node_type ^ 1);
     child->board = board;
 
@@ -33,7 +33,7 @@ struct node* pn_add_child(struct node* node, struct board* board) {
 
 void pn_print_2(struct node* root, int depth) {
     struct list* head = root->children.next;
-    struct pn_data* data = root->data;
+    auto* data = static_cast<pn_data *>(root->data);
 
     for (int i = 0; i < depth; i++) {
         printf("- ");

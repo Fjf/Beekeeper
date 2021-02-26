@@ -1,26 +1,25 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
-#include "engine/board.h"
-#include "engine/moves.h"
-#include "pns/pn_tree.h"
-#include "mm/mm.h"
-#include "pns/pns.h"
-#include "engine/list.h"
-#include "timing/timing.h"
-#include "mm/evaluation.h"
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+#include <cstring>
+
+#include <iostream>
+
+#include "engine/board.hpp"
+#include "engine/moves.hpp"
+#include "engine/list.hpp"
+#include "mm/mm.hpp"
+#include "mm/evaluation.hpp"
 
 #define KB (1024ull)
 #define MB (1024ull * KB)
 #define GB (1024ull * MB)
 #define MAX_MEMORY (500ull * MB)
-
-
 /* winrate: PN vs random (fixed depth PN no disproof)
  *  PN  -  draws  - random
  *   5  -    3    -   2
  */
+
 
 /*
  * winrate PN  vs random (including non-proof and dynamic depth search)
@@ -35,9 +34,9 @@
  *    10  -    0   -   0
  */
 
-void manual(struct node** proot) {
-    struct node* root = *proot;
-    struct list* head;
+void manual(struct node **proot) {
+    struct node *root = *proot;
+    struct list *head;
 
     generate_children(root, time(NULL) + 10);
 
@@ -93,15 +92,13 @@ int main() {
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
 
-    initialize_timer("out.txt");
-
 #ifdef TESTING
     int n_moves = 10;
 #else
     int n_moves = 100;
 #endif
 
-    struct node* tree = game_init();
+    struct node *tree = game_init();
 
     for (int i = 0; i < n_moves; i++) {
         int player = tree->board->turn % 2;
@@ -118,6 +115,7 @@ int main() {
         }
 
         print_board(tree->board);
+        print_adj_matrix(tree->board);
 
         int won = finished_board(tree->board);
         if (won) {
@@ -127,7 +125,7 @@ int main() {
 
         // Copy node except for children
         // Doing this forces recomputation of tree every iteration.
-        struct node* copy = mm_init();
+        struct node *copy = mm_init();
         memcpy(&copy->move, &tree->move, sizeof(struct move));
         copy->board = init_board();
         memcpy(copy->board, tree->board, sizeof(struct board));
@@ -139,8 +137,6 @@ int main() {
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     printf("msec: %.5f\n", (to_usec(end) - to_usec(start)) / 1e3);
-
-    finalize_timer();
 
     free(tree->board);
     return 0;
