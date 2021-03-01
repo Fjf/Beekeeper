@@ -4,12 +4,24 @@
 
 //#define BEST_FIRST
 
-// Without best first msec: 23203.12500
-// With best first msec: 39859.37500
+// Removed duplicate placing logic 4718.48 (274.28 knodes)
 
-// With CENTERED flag: ~20000 msec
+// Increasing n-turns to 15:
+// -------------------------
+// Initial version: 17678ms (155knodes)
 
-// With beetle movement checking bugfix: msec: 21937.50000
+// Trade-off version: 18000ms (158knodes)
+// This is significantly worse early on, but faster later on.
+
+// Recursion for connected components: 15000ms (170knodes)
+// No recurion                       : 16500ms (151knodes)
+
+// Vectorization and all optimization flags: 9600ms (270knodes)
+// No recursion with flags: ~9000ms (280knodes)
+
+// No double placement && Beetle movement optimization: 7229.5ms (362knodes)
+
+// Min-max computation optimization: 4900.5ms (595knodes)
 
 #include <math.h>
 #include <stdio.h>
@@ -27,7 +39,7 @@ double mm(struct node *node, int player, double alpha, double beta, int depth, i
 
     double best;
     if (player == 0) { // Player 0 maximizes
-        best = -MM_INFINITY;
+        best = -INFINITY;
         struct list *head, *hold;
         node_foreach_safe(node, head, hold) {
             struct node *child = container_of(head, struct node, node);
@@ -41,7 +53,7 @@ double mm(struct node *node, int player, double alpha, double beta, int depth, i
             if (beta <= alpha) break;
         }
     } else { // Player 1 minimizes
-        best = MM_INFINITY;
+        best = INFINITY;
         struct list *head, *hold;
         node_foreach_safe(node, head, hold) {
             struct node *child = container_of(head, struct node, node);
@@ -225,6 +237,9 @@ void minimax(struct node **proot) {
     node_foreach(root, head) {
         struct node *child = container_of(head, struct node, node);
         struct mm_data *data = child->data;
+
+//        printf("Value %.2f for move ", data->mm_value);
+//        print_move(child);
 
         initialize_bhe(&tmp, child->board);
         int rep = get_n_repeats(&tmp);

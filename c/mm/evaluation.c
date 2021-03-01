@@ -128,12 +128,12 @@ bool mm_evaluate_linqueen(struct node* node) {
 
     int won = finished_board(node->board);
     if (won == 1) {
-        data->mm_value = MM_INFINITY;
+        data->mm_value = MM_INFINITY - node->board->turn;
         data->mm_evaluated = true;
         return true;
     }
     if (won == 2) {
-        data->mm_value = -MM_INFINITY;
+        data->mm_value = -MM_INFINITY + node->board->turn;
         data->mm_evaluated = true;
         return true;
     }

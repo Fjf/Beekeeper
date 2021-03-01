@@ -70,17 +70,12 @@ void full_update(struct board *board) {
             if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
 
             n_updated++;
-            bool canmove = true;
-            if (get_from_stack(board, y * BOARD_SIZE + x, false) == NULL)
-                canmove = can_move(board, x, y);
-            board->tiles[y * BOARD_SIZE + x].free = canmove;
+            board->tiles[y * BOARD_SIZE + x].free = can_move(board, x, y);
         }
     }
 }
 
 void update_can_move(struct board *board, int location, int previous_location) {
-    timing("update_can_move", TIMING_START);
-    // Newly placed tiles are always free to move
     board->tiles[location].free = true;
 
     int n_onb = 0;
@@ -116,10 +111,9 @@ void update_can_move(struct board *board, int location, int previous_location) {
 
     // You can only generate cycles when you have more than 1 neighbour.
     // You can only break cycles when you had more than 1 neighbour.
-    if (n_nb > 1 || n_onb > 1)
+    if (n_nb > 1 || n_onb > 1) {
         full_update(board);
-
-    timing("update_can_move", TIMING_END);
+    }
 }
 
 /*
@@ -190,7 +184,6 @@ void add_child(struct node *node, int location, int type, int previous_location)
     board->turn++;
 
     // After this move, update the board move-checks
-    // NOTE: This is only beneficial when not a lot needs to be checked
     update_can_move(board, location, previous_location);
 
     // Set min and max tile positions to speedup translation.
@@ -308,6 +301,8 @@ void generate_placing_moves(struct node *node, int type) {
     int lx = 0, hx = BOARD_SIZE;
 #endif
 
+    bool is_added[BOARD_SIZE * BOARD_SIZE] = {0};
+
     for (int y = ly; y < hy; y++) {
         if (n_encountered == to_encounter) break;
         for (int x = lx; x < hx; x++) {
@@ -323,6 +318,10 @@ void generate_placing_moves(struct node *node, int type) {
                 int point = points[p];
                 // Check if its empty
                 if (board->tiles[point].type != EMPTY) continue;
+
+                // Check if we added this location earlier, if so, remove this (reduce amount of duplicate nodes)
+                if (is_added[point]) continue;
+                is_added[point] = true;
 
                 // Check for all neighbours of this point if its the same colour as the colour of the
                 //  passed tile.
@@ -346,7 +345,6 @@ void generate_placing_moves(struct node *node, int type) {
                 // If any neighbour of this point is another colour, check another point.
                 if (invalid) continue;
 
-                // TODO: Check for board state duplicates
                 add_child(node, point, type, -1);
             }
         }
@@ -361,9 +359,29 @@ int add_if_unique(int *array, int n, int value) {
     return 1;
 }
 
+int cc_recurse(struct board* board, int idx, bool* is_connected) {
+    if (is_connected[idx]) return 0;
+    if (board->tiles[idx].type == EMPTY) return 0;
 
-int count_connected(struct board *board, int index) {
+    is_connected[idx] = true;
+
+    int val = 1;
+    int* points = get_points_around(idx / BOARD_SIZE, idx % BOARD_SIZE);
+    val += cc_recurse(board, points[0], is_connected);
+    val += cc_recurse(board, points[1], is_connected);
+    val += cc_recurse(board, points[2], is_connected);
+    val += cc_recurse(board, points[3], is_connected);
+    val += cc_recurse(board, points[4], is_connected);
+    val += cc_recurse(board, points[5], is_connected);
+
+    return val;
+}
+
+int connected_components(struct board *board, int index) {
     bool is_connected[BOARD_SIZE * BOARD_SIZE] = {0};
+
+//    return cc_recurse(board, index, is_connected);
+
     int n_connected = 1;
     int frontier[N_TILES * 2];
     int frontier_p = 0; // Frontier pointer.
@@ -379,17 +397,14 @@ int count_connected(struct board *board, int index) {
         int *points = get_points_around(y, x);
         for (int n = 0; n < 6; n++) {
             // Skip this tile if theres nothing on it
-            if (board->tiles[points[n]].type == EMPTY) continue;
+            if (board->tiles[points[n]].type == EMPTY
+            || is_connected[points[n]]) continue;
 
-            // If a unique tile is added, increment the tracker.
+            // If it was not yet connected, add a connected tile.
+            is_connected[points[n]] = true;
 
-            if (!is_connected[points[n]]) {
-                // If it was not yet connected, add a connected tile.
-                frontier[frontier_p++] = points[n];
-                n_connected += 1;
-                is_connected[points[n]] = true;
-            }
-
+            frontier[frontier_p++] = points[n];
+            n_connected += 1;
         }
     }
     return n_connected;
@@ -468,6 +483,7 @@ bool tile_fits(struct board *board, int x, int y, int new_x, int new_y) {
         // Going to the bottom right
         return r || bl;
     }
+    print_board(board);
     fprintf(stderr, "Invalid neighbour found, check the coordinates.\n");
     exit(1);
 }
@@ -688,27 +704,27 @@ void generate_spider_moves(struct node *node, int orig_y, int orig_x) {
 }
 
 bool can_move(struct board *board, int x, int y) {
-    timing("can_move", TIMING_START);
+    struct tile_stack *ts = get_from_stack(board, y * BOARD_SIZE + x, false);
+    // If removing this tile does not change the tree, it is a valid move.
+    if (ts != NULL) return true;
+
 
     struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
-
     int n_hive_tiles = sum_hive_tiles(board) - 1;
 
     // Store the tile type for later use
     int tile_type = tile->type;
-    struct tile_stack *ts = get_from_stack(board, y * BOARD_SIZE + x, false);
     tile->type = ts == NULL ? EMPTY : ts->type;
+
 
     // Check if the points around this point consist of a single spanning tree.
     bool valid = true;
     int *points = get_points_around(y, x);
     for (int p = 0; p < 6; p++) {
-        int index = points[p];
-
-        if (board->tiles[index].type == EMPTY) continue;
+        if (board->tiles[points[p]].type == EMPTY) continue;
 
         // Count how many tiles are connected.
-        int connect_count = count_connected(board, index);
+        int connect_count = connected_components(board, points[p]);
         if (connect_count != n_hive_tiles) {
             valid = false;
         }
@@ -717,7 +733,6 @@ bool can_move(struct board *board, int x, int y) {
 
     // Restore original tile value.
     tile->type = tile_type;
-    timing("can_move", TIMING_END);
     return valid;
 }
 

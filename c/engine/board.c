@@ -31,45 +31,119 @@ struct board *init_board() {
         board->players[i].spiders_left = N_SPIDERS;
     }
 
+    board->min_x = board->min_y = BOARD_SIZE;
+    board->max_x = board->max_y = 0;
+    board->min_x = board->min_y = BOARD_SIZE;
+    board->max_x = board->max_y = 0;
+
+    for (int y = 1; y < BOARD_SIZE - 1; y++) {
+        for (int x = 1; x < BOARD_SIZE - 1; x++) {
+            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
+            if (tile->type == EMPTY) continue;
+
+            // Set min_y to the first non-empty tile row
+            if (board->min_y == BOARD_SIZE) board->min_y = y;
+
+            if (x < board->min_x) board->min_x = x;
+        }
+    }
+
+    for (int y = BOARD_SIZE - 1; y >= 0; y--) {
+        for (int x = BOARD_SIZE - 1; x >= 0; x--) {
+            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
+            if (tile->type == EMPTY) continue;
+
+            // Set min_y to the first non-empty tile row
+            if (board->max_y == 0) board->max_y = y;
+
+            if (x > board->max_x) board->max_x = x;
+        }
+    }
+
+
     memset(&board->stack, -1, TILE_STACK_SIZE * sizeof(struct tile_stack));
 
     return board;
 }
 
+
+
 void get_min_x_y(struct board* board, int* min_x, int* min_y) {
-    *min_x = *min_y = BOARD_SIZE;
-    for (int y = 1; y < BOARD_SIZE; y++) {
-        for (int x = 1; x < *min_x; x++) {
-            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
-            if (tile->type == EMPTY) continue;
+//    *min_x = *min_y = BOARD_SIZE;
+//    for (int y = 1; y < BOARD_SIZE; y++) {
+//        for (int x = 1; x < *min_x; x++) {
+//            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
+//            if (tile->type == EMPTY) continue;
+//
+//            // Set min_y to the first non-empty tile row
+//            if (*min_y == BOARD_SIZE) *min_y = y;
+//
+//            if (x < *min_x) *min_x = x;
+//        }
+//    }
 
-            // Set min_y to the first non-empty tile row
-            if (*min_y == BOARD_SIZE) *min_y = y;
-
-            if (x < *min_x) *min_x = x;
+    bool same = false;
+    for (int y = board->min_y; y < board->max_y; y++) {
+        // The max X is still the same.
+        if (board->tiles[y * BOARD_SIZE + (*min_x)].type != EMPTY) {
+            same = true;
         }
     }
+    // If the max x is not the same, it has to be x-1, because there cannot be any floating parts.
+    if (!same) (*min_x)++;
+
+
+    same = false;
+    for (int x = board->min_x; x < board->max_x; x++) {
+        // The max y is still the same.
+        if (board->tiles[(*min_y) * BOARD_SIZE + x].type != EMPTY) {
+            same = true;
+        }
+    }
+    // If the max y is not the same, it has to be y-1, because there cannot be any floating parts.
+    if (!same) (*min_y)++;
 }
 
 void get_max_x_y(struct board* board, int* max_x, int* max_y) {
-    *max_x = *max_y = 0;
-    for (int y = BOARD_SIZE - 1; y >= 0; y--) {
-        for (int x = BOARD_SIZE - 1; x >= *max_x; x--) {
-            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
-            if (tile->type == EMPTY) continue;
-
-            // Set min_y to the first non-empty tile row
-            if (*max_y == 0) *max_y = y;
-
-            if (x > *max_x) *max_x = x;
+//    *max_x = *max_y = 0;
+//    for (int y = BOARD_SIZE - 1; y >= 0; y--) {
+//        for (int x = BOARD_SIZE - 1; x >= *max_x; x--) {
+//            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
+//            if (tile->type == EMPTY) continue;
+//
+//            // Set min_y to the first non-empty tile row
+//            if (*max_y == 0) *max_y = y;
+//
+//            if (x > *max_x) *max_x = x;
+//        }
+//    }
+    bool same = false;
+    for (int y = board->min_y; y < board->max_y; y++) {
+        // The max X is still the same.
+        if (board->tiles[y * BOARD_SIZE + (*max_x)].type != EMPTY) {
+            same = true;
         }
     }
+    // If the max x is not the same, it has to be x-1, because there cannot be any floating parts.
+    if (!same) (*max_x)--;
+
+
+    same = false;
+    for (int x = board->min_x; x < board->max_x; x++) {
+        // The max y is still the same.
+        if (board->tiles[(*max_y) * BOARD_SIZE + x].type != EMPTY) {
+            same = true;
+        }
+    }
+    // If the max y is not the same, it has to be y-1, because there cannot be any floating parts.
+    if (!same) (*max_y)--;
 }
 
 /*
  * Translates the board to the center coordinate space
  */
 void translate_board(struct board *board) {
+    print_board(board);
     int offset = board->min_y * BOARD_SIZE + board->min_x;
     int moffset = board->max_y * BOARD_SIZE + board->max_x;
     int size = (moffset - offset) + 1;
@@ -109,6 +183,8 @@ void translate_board(struct board *board) {
     board->max_x += xdiff;
     board->min_y += ydiff;
     board->max_y += ydiff;
+
+    print_board(board);
 }
 
 

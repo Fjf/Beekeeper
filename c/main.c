@@ -45,7 +45,8 @@ void manual(struct node** proot) {
 
     while (true) {
         printf("Type a move:\n");
-        fgets(move, 20, stdin);
+        char* fgetres = fgets(move, 20, stdin);
+        if (fgetres == NULL) continue; // NOTE: Maybe not very good
 
         printf("%s", move);
 
@@ -96,7 +97,7 @@ int main() {
     initialize_timer("out.txt");
 
 #ifdef TESTING
-    int n_moves = 10;
+    int n_moves = 15;
 #else
     int n_moves = 100;
 #endif
@@ -118,6 +119,8 @@ int main() {
         }
 
         print_board(tree->board);
+        printf("%d %d %d %d\n", tree->board->min_x, tree->board->min_y, tree->board->max_x, tree->board->max_y);
+
 
         int won = finished_board(tree->board);
         if (won) {
