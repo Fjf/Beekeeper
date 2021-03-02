@@ -4,10 +4,22 @@
 
 //#define BEST_FIRST
 
+// Setting n-turns to 10
+// --------------------------------------------------------
+// Without best first msec: 23203.12500
+// With best first msec: 39859.37500
+
+// With CENTERED flag: ~20000 msec
+
+// With beetle movement checking bugfix: msec: 21937.50000
+
+// Small optimizations 17885.90929 (224 knodes)
+
 // Removed duplicate placing logic 4718.48 (274.28 knodes)
+// --------------------------------------------------------
 
 // Increasing n-turns to 15:
-// -------------------------
+// --------------------------------------------------------
 // Initial version: 17678ms (155knodes)
 
 // Trade-off version: 18000ms (158knodes)
@@ -22,6 +34,7 @@
 // No double placement && Beetle movement optimization: 7229.5ms (362knodes)
 
 // Min-max computation optimization: 4900.5ms (595knodes)
+// --------------------------------------------------------
 
 #include <math.h>
 #include <stdio.h>
