@@ -115,7 +115,6 @@ int main() {
         }
 
         print_board(tree->board);
-        print_adj_matrix(tree->board);
 
         int won = finished_board(tree->board);
         if (won) {

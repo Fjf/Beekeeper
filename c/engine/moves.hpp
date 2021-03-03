@@ -24,5 +24,6 @@ extern void generate_placing_moves(struct node *node, int type);
 extern void generate_free_moves(struct node* node, int player_bit);
 extern void generate_moves(struct node *node);
 extern bool can_move(struct board* board, int x, int y);
+void update_can_move(struct board *board, int location, int previous_location);
 
 #endif //THEHIVE_MOVES_H

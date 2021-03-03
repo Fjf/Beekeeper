@@ -178,11 +178,9 @@ void update_can_move(struct board *board, int location, int previous_location) {
             board->laplacian_matrix.row(idx).setZero();
             board->laplacian_matrix.col(idx).setZero();
 
+            auto A_null_space = board->laplacian_matrix.fullPivLu().kernel();
 
-            Eigen::FullPivLU<LapMatrix> lu(board->laplacian_matrix);
-            auto A_null_space = lu.kernel();
-
-            int sum = A_null_space.colwise().sum().maxCoeff();
+            int sum = round(A_null_space.colwise().sum().maxCoeff());
 
             board->tiles[y * BOARD_SIZE + x].free = (sum == sum_hive_tiles(board) - 1);
 

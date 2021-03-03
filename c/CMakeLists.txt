@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 project(hive VERSION 0.1 DESCRIPTION "hive")
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_C_FLAGS "-o3")
+set(CMAKE_C_FLAGS "-O3")
 
 # Add main.cpp file of project root directory as source file
 set(SOURCE_FILES main.cpp engine/moves.cpp engine/board.cpp pns/pn_tree.cpp engine/list.cpp pns/pns.cpp mm/mm.cpp engine/node.cpp mm/evaluation.cpp)
