@@ -46,7 +46,7 @@
 
 double mm(struct node *node, int player, double alpha, double beta, int depth, int initial_depth, time_t end_time) {
     struct mm_data *data = node->data;
-    if (depth == 0 || node->board->done || list_empty(&node->children)) {
+    if (depth == 1 || node->board->done || list_empty(&node->children)) {
         return data->mm_value;
     }
 
@@ -198,7 +198,7 @@ void minimax(struct node **proot) {
     timing("minimax", TIMING_START);
 
     struct node *root = *proot;
-    int depth = 3;
+    int depth = 4;
     int player = root->board->turn % 2;
 
     struct timespec start, end;
@@ -207,12 +207,16 @@ void minimax(struct node **proot) {
 #ifdef TESTING
     unsigned int time_to_move = 10000000;
 #else
-    unsigned int time_to_move = 20;
+    unsigned int time_to_move = 180;
 #endif
 
     time_t end_time = time(NULL) + time_to_move;
 
     printf("At turn %d\n", root->board->turn);
+
+    n_evaluated = 0;
+    time_t cur_time;
+
     // Generating level 1 children.
     generate_children(root, end_time);
 
@@ -220,15 +224,14 @@ void minimax(struct node **proot) {
     int n = 0;
     node_foreach(root, node) { n++; }
 
-    n_evaluated = 0;
-    time_t cur_time;
     while (true) {
         cur_time = time(NULL);
         if (cur_time > end_time) break;
 
-        printf("Evaluating depth %d\n", depth);
-
+        printf("Evaluating depth %d...", depth);
+        fflush(stdout);
         double value = mm(root, player, -INFINITY, INFINITY, depth, depth, end_time);
+        printf("(%d nodes)\n", n_evaluated);
 
         // Break on forced terminal state.
         if (value > MM_INFINITY - 200 || value < -MM_INFINITY + 200) break;
