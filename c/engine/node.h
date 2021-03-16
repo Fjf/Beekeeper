@@ -6,6 +6,11 @@
 #define HIVE_NODE_H
 
 
+#define KB (1024ull)
+#define MB (1024ull * KB)
+#define GB (1024ull * MB)
+
+
 #include "list.h"
 
 unsigned long long max_nodes;
@@ -29,7 +34,7 @@ struct node *game_init();
 void node_init(struct node* node, void* data);
 void node_add_child(struct node* node, struct node* child);
 void node_free(struct node* root);
-void string_move(struct node* node, char* move);
+char* string_move(struct node* node);
 void print_move(struct node* node);
 
 #endif //HIVE_NODE_H

@@ -14,6 +14,7 @@
 #define N_BEETLES 2
 #define N_SPIDERS 2
 #define N_QUEENS 1
+#define N_UNIQUE_TILES 5
 #define N_TILES (N_ANTS+N_GRASSHOPPERS+N_BEETLES+N_SPIDERS+N_QUEENS)
 
 
@@ -53,8 +54,8 @@
 
 #define TILE_STACK_SIZE (N_BEETLES * 2)
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#define MAX(a,b) ((a)>(b)?(a):(b))
 
 
 struct tile_stack {
@@ -106,17 +107,11 @@ struct board {
     struct tile_stack stack[TILE_STACK_SIZE];
 
     int move_location_tracker;
-    bool done;
+
+    long long zobrist_hash;
+    long long hash_history[150];
 };
 
-struct board_history_entry {
-    struct tile tiles[BOARD_SIZE * BOARD_SIZE];
-    struct tile_stack stack[TILE_STACK_SIZE];
-    char repeats;
-    struct list node;
-};
-
-struct list board_history;
 
 void print_board(struct board* board);
 

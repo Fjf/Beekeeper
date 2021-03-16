@@ -78,7 +78,8 @@ void string_tile(unsigned char tile, char* move, int* i) {
     move[(*i)++] = number + '0';
 }
 
-void string_move(struct node* node, char* move) {
+char* string_move(struct node* node) {
+    char* move = malloc(10 * sizeof(char));
     int i = 0;
     string_tile(node->move.tile, move, &i);
     move[i++] = ' ';
@@ -102,10 +103,12 @@ void string_move(struct node* node, char* move) {
     }
     move[i++] = '\n';
     move[i++] = '\0';
+
+    return move;
 }
 
 void print_move(struct node* node) {
-    char str[20];
-    string_move(node, str);
-    printf("%s\n", str);
+    char* str = string_move(node);
+    printf("%s", str);
+    free(str);
 }

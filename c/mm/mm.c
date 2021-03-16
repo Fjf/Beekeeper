@@ -33,57 +33,133 @@
 
 // No double placement && Beetle movement optimization: 7229.5ms (362knodes)
 
-// Min-max computation optimization: 4900.5ms (595knodes)
+
 // --------------------------------------------------------
+// Changed evaluation function to be better, so total time is not comparable to above
+// Baseline 11089.0ms (808knodes)
+
+// Min-max computation optimization: 9859.5ms (943knodes)
+
+// Early return in can_move computation: 8862.81748ms (1026knodes)
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tt.h>
+#include <assert.h>
 #include "mm.h"
-#include "../timing/timing.h"
 #include "evaluation.h"
 
-double mm(struct node *node, int player, double alpha, double beta, int depth, int initial_depth, time_t end_time) {
+
+void sort(struct node *node, bool max) {
+    struct list *temp, *head, *next;
+    // Go over all children.
+    node_foreach_safe(node, head, temp) {
+        struct node *child = container_of(head, struct node, node);
+        struct mm_data *data = child->data;
+
+        list_remove(&child->node);
+        // Do insertion sort in another list.
+        list_foreach(&node->children, next) {
+            struct node *sorted_child = container_of(next, struct node, node);
+            struct mm_data *sorted_data = sorted_child->data;
+
+            if (max && data->mm_value >= sorted_data->mm_value
+            || !max && data->mm_value <= sorted_data->mm_value) break;
+        }
+
+        list_insert_after(next->prev, &child->node);
+    }
+}
+
+int leaf_nodes, n_created, n_evaluated, n_table_returns;
+int root_player;
+float mm(struct node *node, int player, float alpha, float beta, int depth, int initial_depth, time_t end_time) {
+    // TODO: refactor exit from this function to cleanup nodes.
     struct mm_data *data = node->data;
-    if (depth == 1 || node->board->done || list_empty(&node->children)) {
-        return data->mm_value;
+
+    // Lookup in table, and set values if value is found.
+    struct tt_entry* entry = tt_retrieve(node, root_player);
+    if (entry != NULL && entry->depth >= depth) {
+        if (entry->flag == TT_FLAG_LOWER) {
+            alpha = MAX(alpha, entry->score);
+        } else if (entry->flag == TT_FLAG_UPPER) {
+            beta = MIN(beta, entry->score);
+        } else { // TT_FLAG_TRUE
+            n_table_returns++;
+            return entry->score;
+        }
+
+        if (alpha >= beta) {
+            n_table_returns++;
+            return entry->score;
+        }
     }
 
-    double best;
-    if (player == 0) { // Player 0 maximizes
-        best = -INFINITY;
-        struct list *head, *hold;
-        node_foreach_safe(node, head, hold) {
-            struct node *child = container_of(head, struct node, node);
+    float best;
 
-            // Generate children for this child then compute value.
-            generate_children(child, end_time);
-            double value = mm(child, 1, alpha, beta, depth - 1, initial_depth, end_time);
+    // Store for storing in table later.
+    float orig_alpha = alpha;
+    float orig_beta = beta;
 
-            best = MAX(best, value);
-            alpha = MAX(best, alpha);
-            if (beta <= alpha) break;
+    bool done = mm_evaluate(node);
+    n_evaluated++;
+    if (depth == 0 || done) {
+        // If the game is finished or no more depth to evaluate.
+        leaf_nodes++;
+        best = data->mm_value;
+    } else {
+        generate_children(node, end_time);
+        if (node->board->move_location_tracker == 0 || list_empty(&node->children)) {
+            best = data->mm_value;
+        } else if (player == 0) { // Player 0 maximizes
+            // Generate children for this child then compute values.
+            best = -INFINITY;
+            struct list *head, *hold;
+            node_foreach_safe(node, head, hold) {
+                struct node *child = container_of(head, struct node, node);
+
+                float value = mm(child, !player, alpha, beta, depth - 1, initial_depth, end_time);
+                if (depth < initial_depth - 1) {
+                    node->board->move_location_tracker--;
+                    node_free(child);
+                }
+
+                best = MAX(best, value);
+                alpha = MAX(best, alpha);
+                if (beta <= alpha) break;
+            }
+        } else { // Player 1 minimizes
+            best = INFINITY;
+            struct list *head, *hold;
+            node_foreach_safe(node, head, hold) {
+                struct node *child = container_of(head, struct node, node);
+
+                float value = mm(child, !player, alpha, beta, depth - 1, initial_depth, end_time);
+                if (depth < initial_depth - 1) {
+                    node->board->move_location_tracker--;
+                    node_free(child);
+                }
+
+                best = MIN(best, value);
+                beta = MIN(best, beta);
+                if (beta <= alpha) break;
+            }
         }
-    } else { // Player 1 minimizes
-        best = INFINITY;
-        struct list *head, *hold;
-        node_foreach_safe(node, head, hold) {
-            struct node *child = container_of(head, struct node, node);
+    }
 
-            generate_children(child, end_time);
-            double value = mm(child, 0, alpha, beta, depth - 1, initial_depth, end_time);
-
-            best = MIN(best, value);
-            beta = MIN(best, beta);
-            if (beta <= alpha) break;
-        }
+    char flag = TT_FLAG_TRUE;
+    if (best <= orig_alpha) {
+        flag = TT_FLAG_UPPER;
+    } else if (best >= orig_beta) {
+        flag = TT_FLAG_LOWER;
+    }
+    if (entry == NULL || entry->depth <= depth) {
+        tt_store(node, best, flag, depth, root_player);
     }
 
     data->mm_value = best;
-    // Delete all nodes except for the root node (including its children).
-    if (depth < initial_depth - 1)
-        node_free(node);
 
     return best;
 }
@@ -93,38 +169,20 @@ struct node *mm_init() {
     struct mm_data *data = malloc(sizeof(struct mm_data));
 
     data->mm_evaluated = false;
-    data->mm_value = 0.;
+    data->mm_value = 0.42f;
 
     node_init(root, (void *) data);
     return root;
 }
 
-int n_evaluated = 0;
+
 struct node *mm_add_child(struct node *node, struct board *board) {
     struct node *child = mm_init();
     child->board = board;
 
-    bool done = mm_evaluate(child);
-    n_evaluated++;
-    if (done) child->board->done = true;
+    n_created++;
 
-#ifdef BEST_FIRST
-    int player = board->turn % 2;
-    // Create an ordered list of entries (best first)
-    struct mm_data* child_data = child->data;
-    struct list* head;
-    node_foreach(node, head) {
-        struct node* c = container_of(head, struct node, node);
-        struct mm_data* d = c->data;
-        if ((player == 0 && d->mm_value < child_data->mm_value)
-        ||  (player == 1 && d->mm_value > child_data->mm_value)) {
-            break;
-        }
-    }
-    list_insert_after(head->prev, &child->node);
-#else
     node_add_child(node, child);
-#endif
     return child;
 }
 
@@ -138,11 +196,6 @@ bool generate_children(struct node *root, time_t end_time) {
     // Ensure timely finishing
     if (time(NULL) > end_time) return false;
 
-    // Dont generate children if this node is done.
-    if (root->board->done) {
-        return true;
-    }
-
     // Dont continue generating children if there is no more memory.
     if (max_nodes - n_nodes < 1000) {
         return false;
@@ -151,54 +204,16 @@ bool generate_children(struct node *root, time_t end_time) {
     // Only generate more nodes if you have no nodes yet
     if (list_empty(&root->children)) {
         generate_moves(root);
+
+        if (list_empty(&root->children)) {
+            add_child(root, -1, 0, -1);
+        }
     }
     return true;
 }
 
-int get_n_repeats(struct board_history_entry *bhe) {
-    struct list *node;
-    size_t size = sizeof(struct tile) * BOARD_SIZE * BOARD_SIZE + sizeof(struct tile_stack) * TILE_STACK_SIZE;
-    list_foreach(&board_history, node) {
-        struct board_history_entry *entry = container_of(node, struct board_history_entry, node);
-        if (memcmp(bhe, entry, size) == 0) {
-            printf("Found board match!\n");
-            // Match found
-            return entry->repeats;
-        }
-    }
-
-    return 0;
-}
-
-int add_bhe(struct board_history_entry *bhe) {
-    struct list *node;
-    size_t size = sizeof(struct tile) * BOARD_SIZE * BOARD_SIZE + sizeof(struct tile_stack) * TILE_STACK_SIZE;
-    list_foreach(&board_history, node) {
-        struct board_history_entry *entry = container_of(node, struct board_history_entry, node);
-
-        if (memcmp(bhe, entry, size) == 0) {
-            // Match found, early return.
-            entry->repeats++;
-            return entry->repeats;
-        }
-    }
-
-    list_init(&bhe->node);
-    bhe->repeats = 1;
-    list_add(&board_history, &bhe->node);
-    return bhe->repeats;
-}
-
-void initialize_bhe(struct board_history_entry *bhe, struct board *board) {
-    memcpy(bhe->tiles, board->tiles, sizeof(board->tiles));
-    memcpy(bhe->stack, board->stack, sizeof(board->stack));
-}
-
 void minimax(struct node **proot) {
-    timing("minimax", TIMING_START);
-
     struct node *root = *proot;
-    int depth = 4;
     int player = root->board->turn % 2;
 
     struct timespec start, end;
@@ -206,83 +221,67 @@ void minimax(struct node **proot) {
 
 #ifdef TESTING
     unsigned int time_to_move = 10000000;
+    int depth = 2;
 #else
-    unsigned int time_to_move = 180;
+    int depth = 2;
+    unsigned int time_to_move = 1;
 #endif
 
     time_t end_time = time(NULL) + time_to_move;
 
     printf("At turn %d\n", root->board->turn);
 
-    n_evaluated = 0;
     time_t cur_time;
 
-    // Generating level 1 children.
-    generate_children(root, end_time);
-
-    struct list* node;
-    int n = 0;
-    node_foreach(root, node) { n++; }
-
+    leaf_nodes = n_evaluated = n_created = n_table_returns = 0;
+    root_player = player;
     while (true) {
         cur_time = time(NULL);
         if (cur_time > end_time) break;
 
         printf("Evaluating depth %d...", depth);
         fflush(stdout);
-        double value = mm(root, player, -INFINITY, INFINITY, depth, depth, end_time);
-        printf("(%d nodes)\n", n_evaluated);
+        float value = mm(root, player, -INFINITY, INFINITY, depth, depth, end_time);
+        printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated, n_table_returns);
+
+        // Sorting the list by MM-value increases likelihood of finding better moves earlier.
+        // In turn, this improves alpha-beta pruning worse subtrees earlier.
+        sort(root, player == 0);
 
         // Break on forced terminal state.
-        if (value > MM_INFINITY - 200 || value < -MM_INFINITY + 200) break;
         depth += 1;
+        if (value > MM_INFINITY || value < -MM_INFINITY) continue;
+        if (value > MM_INFINITY - 200 || value < -MM_INFINITY + 200) break;
 #ifdef TESTING
-        break;
+        if (depth == 5) break;
 #endif
     }
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     double sec = (double) (to_usec(end) - to_usec(start)) / 1e6;
-    printf("Evaluated %d nodes (%.5f knodes/s)\n", n_evaluated, (n_evaluated / sec) / 1000);
+    printf("Created %d nodes (%.5f knodes/s)\n", n_created, (n_created / sec) / 1000);
 
     struct list *head;
-    double best_value = player == 0 ? -INFINITY : INFINITY;
+    float best_value = player == 0 ? -INFINITY : INFINITY;
     struct node *best = NULL;
-    struct board_history_entry tmp;
-    struct board_history_entry *bhe = malloc(sizeof(struct board_history_entry));
     node_foreach(root, head) {
         struct node *child = container_of(head, struct node, node);
         struct mm_data *data = child->data;
 
-//        printf("Value %.2f for move ", data->mm_value);
-//        print_move(child);
-
-        initialize_bhe(&tmp, child->board);
-        int rep = get_n_repeats(&tmp);
-        if (rep == 1) {
-            // Doing this move would result in 2x repeating move, possibly letting your opponent draw.
-            data->mm_value = 0;
-        }
+        printf("Value %.2f for ", data->mm_value);
+        print_move(child);
 
         if ((player == 0 && best_value < data->mm_value)
             || (player == 1 && best_value > data->mm_value)) {
             best_value = data->mm_value;
             best = child;
-            initialize_bhe(bhe, child->board);
         }
     }
-    printf("Evaluated %d children and best is %.5f\n", n, best_value);
+    printf("Evaluated %d children and best is %.5f\n", root->board->move_location_tracker, best_value);
 
     if (best == NULL) {
         root->board->turn++;
     } else {
-        int repeats = add_bhe(bhe);
-        if (repeats == 3) {
-            // TODO: Refactor this to another location
-            printf("Draw by repetition\n");
-            exit(0);
-        }
-
         list_remove(&best->node);
         node_free(root);
 
@@ -290,7 +289,4 @@ void minimax(struct node **proot) {
 
         *proot = best;
     }
-
-
-    timing("minimax", TIMING_END);
 }

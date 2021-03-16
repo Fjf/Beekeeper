@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include "engine/tt.h"
 #include "engine/board.h"
 #include "engine/moves.h"
 #include "pns/pn_tree.h"
@@ -11,9 +12,6 @@
 #include "timing/timing.h"
 #include "mm/evaluation.h"
 
-#define KB (1024ull)
-#define MB (1024ull * KB)
-#define GB (1024ull * MB)
 #define MAX_MEMORY (500ull * MB)
 
 
@@ -39,10 +37,9 @@ void manual(struct node** proot) {
     struct node* root = *proot;
     struct list* head;
 
-    generate_children(root, time(NULL) + 10);
+    generate_children(root, time(NULL) + 1000000000);
 
-    char move[20], cmove[20];
-
+    char move[20];
     while (true) {
         printf("Type a move:\n");
         char* fgetres = fgets(move, 20, stdin);
@@ -52,9 +49,9 @@ void manual(struct node** proot) {
 
         node_foreach(root, head) {
             struct node *child = container_of(head, struct node, node);
-            string_move(child, cmove);
-
+            char* cmove = string_move(child);
             int res = strcmp(move, cmove);
+            free(cmove);
             if (res == 0) {
                 list_remove(&child->node);
                 node_free(root);
@@ -65,15 +62,14 @@ void manual(struct node** proot) {
         printf("That is not a valid move!\nPick one from:\n");
         node_foreach(root, head) {
             struct node *child = container_of(head, struct node, node);
-            string_move(child, cmove);
-            printf("%s", cmove);
+            print_move(child);
         }
     }
 }
 
 int main() {
 #ifdef TESTING
-    srand(0);
+    srand(11287501);
     printf("Running test case (forced depth of 3, no randomization)\n");
 #else
     srand(time(NULL));
@@ -87,8 +83,10 @@ int main() {
     // Set the evaluation function
     mm_evaluate = mm_evaluate_expqueen;
 
-    // Initialize board history list to identify repeats.
-    list_init(&board_history);
+    // Initialize zobrist hashing table
+    zobrist_init();
+    // Initialize transposition table (set flag to -1 to know if its empty)
+    tt_init();
     initialize_points_around();
 
     struct timespec start, end;
@@ -99,7 +97,7 @@ int main() {
 #ifdef TESTING
     int n_moves = 15;
 #else
-    int n_moves = 100;
+    int n_moves = 130;
 #endif
 
     struct node* tree = game_init();
@@ -114,7 +112,7 @@ int main() {
         } else {
             // Player 2
 //            manual(&tree);
-            mm_evaluate = mm_evaluate_linqueen;
+            mm_evaluate = mm_evaluate_expqueen;
             minimax(&tree);
         }
 
@@ -129,21 +127,19 @@ int main() {
         }
 
         // Copy node except for children
-        // Doing this forces recomputation of tree every iteration.
+        // Doing this forces re-computation of tree every iteration.
         struct node* copy = mm_init();
         memcpy(&copy->move, &tree->move, sizeof(struct move));
         copy->board = init_board();
         memcpy(copy->board, tree->board, sizeof(struct board));
         memcpy(copy->data, tree->data, sizeof(struct mm_data));
-
+        tree->board->move_location_tracker = 0;
         node_free(tree);
         tree = copy;
     }
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     printf("msec: %.5f\n", (to_usec(end) - to_usec(start)) / 1e3);
-
-    finalize_timer();
 
     free(tree->board);
     return 0;

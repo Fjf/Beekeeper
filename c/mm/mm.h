@@ -11,10 +11,10 @@
 
 #define MM_TYPE_MIN 0
 #define MM_TYPE_MAX 1
-#define MM_INFINITY 100000
+#define MM_INFINITY 100000.0f
 
 struct mm_data {
-    double mm_value;
+    float mm_value;
     bool mm_evaluated;
 };
 
