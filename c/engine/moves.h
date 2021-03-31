@@ -25,4 +25,10 @@ void generate_free_moves(struct node* node, int player_bit);
 void generate_moves(struct node *node);
 bool can_move(struct board* board, int x, int y);
 
+struct node* default_add_child(struct node* node, struct board* board);
+struct node* default_init();
+
+struct node *(*dedicated_add_child)(struct node *node, struct board *board);
+struct node *(*dedicated_init)();
+
 #endif //THEHIVE_MOVES_H

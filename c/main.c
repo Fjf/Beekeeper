@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <limits.h>
+#include <utils.h>
 #include "engine/tt.h"
 #include "engine/board.h"
 #include "engine/moves.h"
@@ -11,8 +13,9 @@
 #include "engine/list.h"
 #include "timing/timing.h"
 #include "mm/evaluation.h"
+#include "mcts/mcts.h"
 
-#define MAX_MEMORY (500ull * MB)
+#define MAX_MEMORY (4ull * GB)
 
 
 /* winrate: PN vs random (fixed depth PN no disproof)
@@ -67,6 +70,42 @@ void manual(struct node** proot) {
     }
 }
 
+
+void random_moves(struct node **tree, int n_moves) {
+    for (int i = 0; i < n_moves; i++) {
+        struct node* node = *tree;
+
+        generate_children(node, (time_t) INT_MAX);
+        int choice = rand() % node->board->move_location_tracker;
+        struct list* head;
+        int n = 0;
+        node_foreach(node, head) {
+            if (choice == n++) {
+                break;
+            }
+        }
+
+        struct node* child = container_of(head, struct node, node);
+        list_remove(head);
+        node_free(node);
+        *tree = child;
+    }
+}
+
+void ptest(struct node *tree) {
+    struct timespec start, end;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
+
+    int nodes = performance_testing(tree, 3);
+
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
+    double sec = (to_usec(end) - to_usec(start)) / 1e6;
+
+    printf("%.2f knodes/s\n", (nodes / 1000.) / sec);
+}
+
+
+
 int main() {
 #ifdef TESTING
     srand(11287501);
@@ -83,37 +122,41 @@ int main() {
     // Set the evaluation function
     mm_evaluate = mm_evaluate_expqueen;
 
-    // Initialize zobrist hashing table
-    zobrist_init();
-    // Initialize transposition table (set flag to -1 to know if its empty)
-    tt_init();
-    initialize_points_around();
+    // Set the initial add child function to minimax add child
+    dedicated_add_child = mm_add_child;
 
-    struct timespec start, end;
-    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
-
-    initialize_timer("out.txt");
 
 #ifdef TESTING
-    int n_moves = 15;
+    int n_moves = 1;
 #else
     int n_moves = 130;
 #endif
 
     struct node* tree = game_init();
 
+    for (int i = 0; i < 30; i++) {
+//        ptest(tree);
+        print_board(tree->board);
+
+        random_moves(&tree, 1);
+    }
+
+    exit(1);
+
+    print_board(tree->board);
+
+    struct timespec start, end;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
     for (int i = 0; i < n_moves; i++) {
         int player = tree->board->turn % 2;
         if (player == 0) {
             // Player 1
 //            manual(&tree);
-            mm_evaluate = mm_evaluate_expqueen;
-            minimax(&tree);
+            mcts(&tree);
         } else {
             // Player 2
 //            manual(&tree);
-            mm_evaluate = mm_evaluate_expqueen;
-            minimax(&tree);
+            mcts(&tree);
         }
 
         print_board(tree->board);
@@ -128,11 +171,10 @@ int main() {
 
         // Copy node except for children
         // Doing this forces re-computation of tree every iteration.
-        struct node* copy = mm_init();
+        struct node* copy = dedicated_init();
         memcpy(&copy->move, &tree->move, sizeof(struct move));
         copy->board = init_board();
         memcpy(copy->board, tree->board, sizeof(struct board));
-        memcpy(copy->data, tree->data, sizeof(struct mm_data));
         tree->board->move_location_tracker = 0;
         node_free(tree);
         tree = copy;

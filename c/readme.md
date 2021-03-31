@@ -13,3 +13,6 @@ This is a huge waste of space, so instead we keep a _stack-tracker_ in memory, w
 We do a lookup every time a beetle gets moved to a new position to replace the original tile with the tile in the stack.
 This does mean that for z-axis of 1, movement does not get blocked correctly.
 
+
+### Zobrist Hash table initialization
+When running the python DLL, ensure you initialized the Zobrist hash table first.

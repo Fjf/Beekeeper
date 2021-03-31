@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "node.h"
 #include "board.h"
+#include "tt.h"
 
 
 void node_init(struct node* node, void* data) {
@@ -13,6 +14,7 @@ void node_init(struct node* node, void* data) {
     list_init(&node->node);
     node->data = data;
 
+    #pragma omp atomic
     n_nodes++;
 }
 
@@ -42,13 +44,21 @@ void node_free(struct node* root) {
     list_remove(&root->node);
     free(root);
 
+    #pragma omp atomic
     n_nodes--;
 }
 
 
 struct node* game_init() {
+    // Initialize zobrist hashing table
+    zobrist_init();
+    // Initialize transposition table (set flag to -1 to know if its empty)
+    tt_init();
+    // Precompute points around all indices
+    initialize_points_around();
+
     struct board *board = init_board();
-    struct node* tree = mm_init();
+    struct node* tree = dedicated_init();
     tree->board = board;
     return tree;
 }
@@ -111,4 +121,8 @@ void print_move(struct node* node) {
     char* str = string_move(node);
     printf("%s", str);
     free(str);
+}
+
+struct node* list_get_node(struct list* list) {
+    return container_of(list, struct node, node);
 }

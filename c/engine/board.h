@@ -109,7 +109,7 @@ struct board {
     int move_location_tracker;
 
     long long zobrist_hash;
-    long long hash_history[150];
+    long long hash_history[150];  // TODO: Remove hardcoded 150
 };
 
 

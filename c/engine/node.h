@@ -36,5 +36,6 @@ void node_add_child(struct node* node, struct node* child);
 void node_free(struct node* root);
 char* string_move(struct node* node);
 void print_move(struct node* node);
+struct node* list_get_node(struct list* list);
 
 #endif //HIVE_NODE_H

@@ -2,11 +2,26 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include <assert.h>
 #include "moves.h"
-#include "../timing/timing.h"
 #include "tt.h"
 
+
+struct node *default_add_child(struct node *node, struct board *board) {
+    struct node *child = default_init();
+
+    child->board = board;
+
+    node_add_child(node, child);
+    return child;
+}
+struct node* default_init() {
+    struct node *root = malloc(sizeof(struct node));
+    node_init(root, NULL);
+    return root;
+}
+
+struct node *(*dedicated_add_child)(struct node *node, struct board *board) = default_add_child;
+struct node *(*dedicated_init)() = default_init;
 
 int sum_hive_tiles(struct board *board) {
     return N_TILES * 2 - (
@@ -135,7 +150,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
         // No valid moves are available
         board->turn++;
 
-        struct node *child = mm_add_child(node, board);
+        struct node *child = dedicated_add_child(node, board);
 
         child->move.direction = 7;
         child->move.next_to = 0;
@@ -230,8 +245,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
     board->max_y = MAX(board->max_y, y);
 
     // If the min or max is at the end, translate the board to the center.
-    if (board->min_x < 2 || board->min_y < 2
-    || board->max_x > BOARD_SIZE - 3 || board->max_y > BOARD_SIZE - 3) {
+    if ((board->min_x < 2) || (board->min_y < 2) || board->max_x > BOARD_SIZE - 3 || board->max_y > BOARD_SIZE - 3) {
         // After this move, ensure this board is centered.
         translate_board(board);
     }
@@ -239,7 +253,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
     translate_board_22(board);
 #endif
 
-    struct node *child = mm_add_child(node, board);
+    struct node *child = dedicated_add_child(node, board);
 
     // Add move notation for clarity
     if (node->board->tiles[location].type != EMPTY) {
@@ -302,6 +316,7 @@ void generate_placing_moves(struct node *node, int type) {
 #else
     int initial_position = (2) * BOARD_SIZE + 2;
 #endif
+
     if (board->turn == 0) {
         return add_child(node, initial_position, type, -1);
     }
@@ -378,14 +393,14 @@ int add_if_unique(int *array, int n, int value) {
     return 1;
 }
 
-int cc_recurse(struct board* board, int idx, bool* is_connected) {
+int cc_recurse(struct board *board, int idx, bool *is_connected) {
     if (is_connected[idx]) return 0;
     if (board->tiles[idx].type == EMPTY) return 0;
 
     is_connected[idx] = true;
 
     int val = 1;
-    int* points = get_points_around(idx / BOARD_SIZE, idx % BOARD_SIZE);
+    int *points = get_points_around(idx / BOARD_SIZE, idx % BOARD_SIZE);
     val += cc_recurse(board, points[0], is_connected);
     val += cc_recurse(board, points[1], is_connected);
     val += cc_recurse(board, points[2], is_connected);
@@ -417,7 +432,8 @@ int connected_components(struct board *board, int index) {
         for (int n = 0; n < 6; n++) {
             // Skip this tile if theres nothing on it
             if (board->tiles[points[n]].type == EMPTY
-            || is_connected[points[n]]) continue;
+                || is_connected[points[n]])
+                continue;
 
             // If it was not yet connected, add a connected tile.
             is_connected[points[n]] = true;
@@ -798,20 +814,23 @@ void generate_moves(struct node *node) {
 
     struct player *player = &board->players[player_idx];
     board->move_location_tracker = 0;
-
     // By move 4 for each player, the queen has to be placed.
     if (move == 3 && player->queens_left == 1) {
         return generate_placing_moves(node, L_QUEEN | player_bit);
     }
 
-    if (player->spiders_left > 0)
+    if (player->spiders_left > 0) {
         generate_placing_moves(node, L_SPIDER | player_bit);
-    if (player->beetles_left > 0)
+    }
+    if (player->beetles_left > 0) {
         generate_placing_moves(node, L_BEETLE | player_bit);
-    if (player->grasshoppers_left > 0)
+    }
+    if (player->grasshoppers_left > 0) {
         generate_placing_moves(node, L_GRASSHOPPER | player_bit);
-    if (player->ants_left > 0)
+    }
+    if (player->ants_left > 0) {
         generate_placing_moves(node, L_ANT | player_bit);
+    }
 
     // Queens cannot be placed in the first move (tournament rules)
     if (player->queens_left > 0 && move > 0)
@@ -821,3 +840,4 @@ void generate_moves(struct node *node) {
     if (player->queens_left == 0)
         generate_free_moves(node, player_bit);
 }
+

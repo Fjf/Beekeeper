@@ -83,7 +83,6 @@ void get_max_x_y(struct board* board, int* max_x, int* max_y) {
  * Translates the board to the center coordinate space
  */
 void translate_board(struct board *board) {
-    print_board(board);
     int offset = board->min_y * BOARD_SIZE + board->min_x;
     int moffset = board->max_y * BOARD_SIZE + board->max_x;
     int size = (moffset - offset) + 1;
@@ -123,8 +122,6 @@ void translate_board(struct board *board) {
     board->max_x += xdiff;
     board->min_y += ydiff;
     board->max_y += ydiff;
-
-    print_board(board);
 }
 
 
@@ -256,8 +253,8 @@ void print_board(struct board *board) {
             printf(" ");
 
             struct tile tile = board->tiles[y * BOARD_SIZE + x];
-            unsigned char type = tile.type & (COLOR_MASK | TILE_MASK);
-            unsigned char n = (tile.type & NUMBER_MASK) >> NUMBER_SHIFT;
+            int type = tile.type & (COLOR_MASK | TILE_MASK);
+            int n = (tile.type & NUMBER_MASK) >> NUMBER_SHIFT;
             if (type == EMPTY) {
                 printf(" ");
             } else if (type == L_ANT) {
