@@ -20,8 +20,8 @@ struct board *init_board() {
     board->turn = 0;
     board->move_location_tracker = 0;
     board->n_stacked = 0;
-    board->queen1_position = -1;
-    board->queen2_position = -1;
+    board->light_queen_position = -1;
+    board->dark_queen_position = -1;
 
     for (int i = 0; i < 2; i++) {
         board->players[i].ants_left = N_ANTS;
@@ -92,10 +92,10 @@ void translate_board(struct board *board) {
 
     // Move all the tile tracking structs the same amount as the rest of the board.
     int translate_offset = (to_y * BOARD_SIZE + to_x) - offset;
-    if (board->queen1_position != -1)
-        board->queen1_position += translate_offset;
-    if (board->queen2_position != -1)
-        board->queen2_position += translate_offset;
+    if (board->light_queen_position != -1)
+        board->light_queen_position += translate_offset;
+    if (board->dark_queen_position != -1)
+        board->dark_queen_position += translate_offset;
     for (int i = 0; i < TILE_STACK_SIZE; i++) {
         if (board->stack[i].location != -1) {
             board->stack[i].location += translate_offset;
@@ -148,10 +148,10 @@ void translate_board_22(struct board *board) {
 
     // Move all the tile tracking structs the same amount as the rest of the board.
     int translate_offset = (2 * BOARD_SIZE + 2) - offset;
-    if (board->queen1_position != -1)
-        board->queen1_position += translate_offset;
-    if (board->queen2_position != -1)
-        board->queen2_position += translate_offset;
+    if (board->light_queen_position != -1)
+        board->light_queen_position += translate_offset;
+    if (board->dark_queen_position != -1)
+        board->dark_queen_position += translate_offset;
     for (int i = 0; i < TILE_STACK_SIZE; i++) {
         if (board->stack[i].location != -1) {
             board->stack[i].location += translate_offset;
@@ -198,19 +198,19 @@ bool is_surrounded(struct board* board, int y, int x) {
 int finished_board(struct board *board) {
     int x, y;
     int res = 0;
-    if (board->queen1_position != -1) {
+    if (board->light_queen_position != -1) {
         // Check queen 1
-        x = board->queen1_position % BOARD_SIZE;
-        y = board->queen1_position / BOARD_SIZE;
+        x = board->light_queen_position % BOARD_SIZE;
+        y = board->light_queen_position / BOARD_SIZE;
         if (is_surrounded(board, y, x)) {
             res = 2;
         }
     }
 
-    if (board->queen2_position != -1) {
+    if (board->dark_queen_position != -1) {
         // Check queen 2
-        x = board->queen2_position % BOARD_SIZE;
-        y = board->queen2_position / BOARD_SIZE;
+        x = board->dark_queen_position % BOARD_SIZE;
+        y = board->dark_queen_position / BOARD_SIZE;
         if (is_surrounded(board, y, x)) {
             if (res == 0)
                 res = 1;

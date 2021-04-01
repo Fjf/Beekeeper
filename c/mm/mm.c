@@ -293,7 +293,7 @@ struct node *mm_add_child(struct node *node, struct board *board) {
 bool generate_children(struct node *root, time_t end_time) {
     /*
      * Returns false if no more children should be generated after this.
-     * E.g., memory is full, or time is spent.
+     * E.g., memory is full, time is spent, or max move depth is reached.
      */
 
     // Ensure timely finishing
@@ -313,7 +313,7 @@ bool generate_children(struct node *root, time_t end_time) {
             add_child(root, -1, 0, -1);
         }
     }
-    return true;
+    return !list_empty(&root->children);
 }
 
 void minimax(struct node **proot) {

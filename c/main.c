@@ -106,12 +106,12 @@ void ptest(struct node *tree) {
 
 
 
-int main() {
+int main(int argc, char** argv) {
 #ifdef TESTING
     srand(11287501);
     printf("Running test case (forced depth of 3, no randomization)\n");
 #else
-    srand(time(NULL));
+    srand((unsigned int) time(NULL));
 #endif
 
     // Compute max amount of nodes available in memory.
@@ -134,16 +134,21 @@ int main() {
 
     struct node* tree = game_init();
 
-    for (int i = 0; i < 30; i++) {
+//    for (int i = 0; i < 30; i++) {
 //        ptest(tree);
-        print_board(tree->board);
+//        print_board(tree->board);
+//
+//        random_moves(&tree, 1);
+//    }
+//
+//    print_board(tree->board);
 
-        random_moves(&tree, 1);
+    if (argc < 2) {
+        printf("Must supply one argument (integer) to specify N MCTS nodes.\n");
+        exit(1);
     }
-
-    exit(1);
-
-    print_board(tree->board);
+    int num = atoi(argv[1]);
+    printf("Running MCTS with %d samples\n", num);
 
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
@@ -152,15 +157,15 @@ int main() {
         if (player == 0) {
             // Player 1
 //            manual(&tree);
-            mcts(&tree);
+            random_moves(&tree, 1);
+//            minimax(&tree);
         } else {
             // Player 2
 //            manual(&tree);
-            mcts(&tree);
+            mcts(&tree, num);
         }
 
-        print_board(tree->board);
-        printf("%d %d %d %d\n", tree->board->min_x, tree->board->min_y, tree->board->max_x, tree->board->max_y);
+//        print_board(tree->board);
 
 
         int won = finished_board(tree->board);

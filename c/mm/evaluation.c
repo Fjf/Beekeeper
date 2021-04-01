@@ -87,9 +87,9 @@ bool mm_evaluate_expqueen(struct node* node) {
         }
     }
 
-    if (node->board->queen1_position != -1) {
-        int x1 = node->board->queen1_position % BOARD_SIZE;
-        int y1 = node->board->queen1_position / BOARD_SIZE;
+    if (node->board->light_queen_position != -1) {
+        int x1 = node->board->light_queen_position % BOARD_SIZE;
+        int y1 = node->board->light_queen_position / BOARD_SIZE;
         int* points = get_points_around(y1, x1);
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 1, the value drops by 1
@@ -98,9 +98,9 @@ bool mm_evaluate_expqueen(struct node* node) {
         }
     }
 
-    if (node->board->queen2_position != -1) {
-        int x2 = node->board->queen2_position % BOARD_SIZE;
-        int y2 = node->board->queen2_position / BOARD_SIZE;
+    if (node->board->dark_queen_position != -1) {
+        int x2 = node->board->dark_queen_position % BOARD_SIZE;
+        int y2 = node->board->dark_queen_position / BOARD_SIZE;
         int* points = get_points_around(y2, x2);
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 2, the value increases by 1
@@ -179,9 +179,9 @@ bool mm_evaluate_linqueen(struct node* node) {
     }
 
 
-    if (node->board->queen1_position != -1) {
-        int x1 = node->board->queen1_position % BOARD_SIZE;
-        int y1 = node->board->queen1_position / BOARD_SIZE;
+    if (node->board->light_queen_position != -1) {
+        int x1 = node->board->light_queen_position % BOARD_SIZE;
+        int y1 = node->board->light_queen_position / BOARD_SIZE;
         int* points = get_points_around(y1, x1);
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 1, the value drops by 1
@@ -190,9 +190,9 @@ bool mm_evaluate_linqueen(struct node* node) {
         }
     }
 
-    if (node->board->queen2_position != -1) {
-        int x2 = node->board->queen2_position % BOARD_SIZE;
-        int y2 = node->board->queen2_position / BOARD_SIZE;
+    if (node->board->dark_queen_position != -1) {
+        int x2 = node->board->dark_queen_position % BOARD_SIZE;
+        int y2 = node->board->dark_queen_position / BOARD_SIZE;
         int* points = get_points_around(y2, x2);
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 2, the value increases by 1

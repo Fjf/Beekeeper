@@ -91,14 +91,16 @@ struct player {
 #define BOARD_SIZE ((N_TILES * 2) + BOARD_PADDING * 2)
 
 
+#define MAX_TURNS 150
+
 struct board {
     struct tile tiles[BOARD_SIZE * BOARD_SIZE];
     int turn;  // Use this to derive whose turn it is
 
     struct player players[2];
 
-    int queen1_position;
-    int queen2_position;
+    int light_queen_position;
+    int dark_queen_position;
 
     int min_x, min_y;
     int max_x, max_y;
@@ -109,7 +111,7 @@ struct board {
     int move_location_tracker;
 
     long long zobrist_hash;
-    long long hash_history[150];  // TODO: Remove hardcoded 150
+    long long hash_history[MAX_TURNS];
 };
 
 

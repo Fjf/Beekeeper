@@ -138,6 +138,10 @@ void update_can_move(struct board *board, int location, int previous_location) {
 void add_child(struct node *node, int location, int type, int previous_location) {
     struct tile_stack *ts;
 
+    if (node->board->turn == MAX_TURNS - 1) {
+        return;
+    }
+
     // Create new board
     struct board *board = malloc(sizeof(struct board));
     memcpy(board, node->board, sizeof(struct board));
@@ -206,9 +210,9 @@ void add_child(struct node *node, int location, int type, int previous_location)
 
     // Do this for easier board-finished state checking (dont have to take into account beetles).
     if ((type & (TILE_MASK | COLOR_MASK)) == L_QUEEN) {
-        board->queen1_position = location;
+        board->light_queen_position = location;
     } else if ((type & (TILE_MASK | COLOR_MASK)) == D_QUEEN) {
-        board->queen2_position = location;
+        board->dark_queen_position = location;
     }
 
     // Update the zobrist hash for this child
@@ -245,7 +249,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
     board->max_y = MAX(board->max_y, y);
 
     // If the min or max is at the end, translate the board to the center.
-    if ((board->min_x < 2) || (board->min_y < 2) || board->max_x > BOARD_SIZE - 3 || board->max_y > BOARD_SIZE - 3) {
+    if ((board->min_x <= 2) || (board->min_y <= 2) || board->max_x > BOARD_SIZE - 3 || board->max_y > BOARD_SIZE - 3) {
         // After this move, ensure this board is centered.
         translate_board(board);
     }
@@ -517,7 +521,7 @@ bool tile_fits(struct board *board, int x, int y, int new_x, int new_y) {
         return r || bl;
     }
     print_board(board);
-    fprintf(stderr, "Invalid neighbour found, check the coordinates.\n");
+    fprintf(stderr, "Invalid neighbour found, check the coordinates. (%d,%d)->(%d,%d)\n", x, y, new_x, new_y);
     exit(1);
 }
 

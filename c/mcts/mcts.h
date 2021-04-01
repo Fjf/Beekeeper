@@ -13,7 +13,7 @@ struct mcts_data {
 };
 
 
-void mcts(struct node **tree);
+void mcts(struct node **tree, int n_playouts);
 
 
 #endif //HIVE_MCTS_H
