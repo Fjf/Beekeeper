@@ -165,9 +165,6 @@ int main(int argc, char** argv) {
             mcts(&tree, num);
         }
 
-//        print_board(tree->board);
-
-
         int won = finished_board(tree->board);
         if (won) {
             printf("Player %d won in move %d\n", won, tree->board->turn);

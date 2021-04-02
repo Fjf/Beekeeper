@@ -11,6 +11,12 @@
 
 
 /*
+ *    10   20   50  100  200  500  1000 2000
+ *    3/5  4/5  3/5 5/5  5/5  3/5  5/5   4/5
+ */
+
+
+/*
  * MCTS w/ 100 steps
  *
  *
@@ -106,11 +112,11 @@ void mcts(struct node **tree, int n_playouts) {
             while ((do_fixed_iterations && n_playouts > 0) ||
                    (!do_fixed_iterations && end_time > time(NULL))) {
                 node_foreach(root, head) {
+                    n_playouts--;
+
+                    if (n_playouts == 0) break;
                     #pragma omp task firstprivate(head)
                     {
-                        #pragma omp atomic
-                        n_playouts--;
-
                         struct node *child = container_of(head, struct node, node);
                         struct mcts_data *data = child->data;
                         int win = mcts_playout(child, end_time);

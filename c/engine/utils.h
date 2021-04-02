@@ -5,7 +5,7 @@
 #ifndef HIVE_UTILS_H
 #define HIVE_UTILS_H
 
-#import "node.h"
+#include "node.h"
 
 int performance_testing(struct node* tree, int depth);
 
