@@ -104,7 +104,39 @@ void ptest(struct node *tree) {
     printf("%.2f knodes/s\n", (nodes / 1000.) / sec);
 }
 
+/*
+ *          (1000 samples)
+ *  -------------------------------------------------------
+ * |  Move limit  |    w/l/d    | total time |  playout/s  |
+ * |--------------|-------------|------------|-------------|
+ * | N_TURNS 50   | 20/24/956   | (5616ms)   |    178      |
+ * | N_TURNS 100  | 49/39/912   | (14188ms)  |    70       |
+ * | N_TURNS 200  | 79/83/838   | (30740ms)  |    32       |
+ * | N_TURNS 500  | 104/127/769 | (78722ms)  |    12       |
+ * | N_TURNS 1000 | 195/198/607 | (150591ms) |    6        |
+ * | N_TURNS 2000 | 288/301/411 | (278767ms) |    3        |
+ *  -------------------------------------------------------
+ *  Every sample is a full playout starting from an empty
+ *   (initial) board state.
+ */
+void mcts_test(struct node *tree) {
+    time_t t = time(NULL) + 100000;
 
+    struct timespec start, end;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
+
+    int w = 0, l = 0, d = 0;
+    for (int i = 0; i < 1000; i++) {
+        int result = mcts_playout(tree, t);
+        if (result == 1) w++;
+        else if (result == 2) l++;
+        else if (result == 3) d++;
+    }
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
+    printf("msec: %.5f\n", (to_usec(end) - to_usec(start)) / 1e3);
+    printf("w/l/d: %d/%d/%d\n", w, l, d);
+
+}
 
 int main(int argc, char** argv) {
 #ifdef TESTING
@@ -133,6 +165,9 @@ int main(int argc, char** argv) {
 #endif
 
     struct node* tree = game_init();
+
+    mcts_test(tree);
+    exit(1);
 
 //    for (int i = 0; i < 30; i++) {
 //        ptest(tree);

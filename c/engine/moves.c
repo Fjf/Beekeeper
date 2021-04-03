@@ -249,7 +249,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
     board->max_y = MAX(board->max_y, y);
 
     // If the min or max is at the end, translate the board to the center.
-    if ((board->min_x <= 2) || (board->min_y <= 2) || board->max_x > BOARD_SIZE - 3 || board->max_y > BOARD_SIZE - 3) {
+    if ((board->min_x <= 3) || (board->min_y <= 3) || board->max_x > BOARD_SIZE - 4 || board->max_y > BOARD_SIZE - 4) {
         // After this move, ensure this board is centered.
         translate_board(board);
     }

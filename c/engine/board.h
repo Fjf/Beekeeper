@@ -90,8 +90,10 @@ struct player {
 #define BOARD_PADDING 2
 #define BOARD_SIZE ((N_TILES * 2) + BOARD_PADDING * 2)
 
-
+// Default MAX_TURNS of 150
+#ifndef MAX_TURNS
 #define MAX_TURNS 150
+#endif
 
 struct board {
     struct tile tiles[BOARD_SIZE * BOARD_SIZE];

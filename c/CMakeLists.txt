@@ -8,7 +8,7 @@ set(SOURCE_FILES main.c engine/moves.c engine/moves.h engine/board.c engine/boar
 
 # Add executable target with source files listed in SOURCE_FILES variable
 add_executable(hive_run ${SOURCE_FILES} engine/utils.c engine/utils.h)
-target_compile_definitions(hive_run PRIVATE CENTERED=1)
+target_compile_definitions(hive_run PRIVATE CENTERED=1 MAX_TURNS=2000)
 
 # Testing executable with TESTING compile flag
 add_executable(hive_test ${SOURCE_FILES})

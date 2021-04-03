@@ -14,6 +14,6 @@ struct mcts_data {
 
 
 void mcts(struct node **tree, int n_playouts);
-
+int mcts_playout(struct node *root, time_t end_time);
 
 #endif //HIVE_MCTS_H

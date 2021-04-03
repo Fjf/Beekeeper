@@ -239,6 +239,7 @@ def performance_factor(hive):
     plt.ylabel("knodes/second (over %d samples)" % n_samples)
     plt.show()
 
+
 def main():
     hive = Hive()
 
