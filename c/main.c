@@ -118,6 +118,32 @@ void ptest(struct node *tree) {
  *  -------------------------------------------------------
  *  Every sample is a full playout starting from an empty
  *   (initial) board state.
+ *
+
+ https://www.aatbio.com/tools/linear-logarithmic-semi-log-regression-online-calculator
+
+ x,    y
+ 50,   44
+ 100,  88
+ 200,  162
+ 500,  231
+ 1000, 393
+ 2000, 589
+
+ linear log regression gives; (datapoints look logarithmic)
+ y = 3.7 * x^(0.676)
+
+ 50, 5616
+100,14188
+200,30470
+500,78722
+1000,150591
+2000,278767
+
+ lin regr gives;
+ y = 140.18*x + 3109.94
+
+ *
  */
 void mcts_test(struct node *tree) {
     time_t t = time(NULL) + 100000;
@@ -161,13 +187,13 @@ int main(int argc, char** argv) {
 #ifdef TESTING
     int n_moves = 1;
 #else
-    int n_moves = 130;
+    int n_moves = MAX_TURNS - 1;
 #endif
 
     struct node* tree = game_init();
 
-    mcts_test(tree);
-    exit(1);
+//    mcts_test(tree);
+//    exit(1);
 
 //    for (int i = 0; i < 30; i++) {
 //        ptest(tree);
@@ -178,11 +204,12 @@ int main(int argc, char** argv) {
 //
 //    print_board(tree->board);
 
-    if (argc < 2) {
-        printf("Must supply one argument (integer) to specify N MCTS nodes.\n");
-        exit(1);
+    int num;
+    if (argc == 2) {
+        num = atoi(argv[1]);
+    } else {
+        num = -1;
     }
-    int num = atoi(argv[1]);
     printf("Running MCTS with %d samples\n", num);
 
     struct timespec start, end;
@@ -192,13 +219,15 @@ int main(int argc, char** argv) {
         if (player == 0) {
             // Player 1
 //            manual(&tree);
-            random_moves(&tree, 1);
-//            minimax(&tree);
+//            random_moves(&tree, 1);
+            minimax(&tree);
         } else {
             // Player 2
 //            manual(&tree);
             mcts(&tree, num);
         }
+
+        print_board(tree->board);
 
         int won = finished_board(tree->board);
         if (won) {

@@ -16,22 +16,6 @@
  */
 
 
-/*
- * MCTS w/ 100 steps
- *
- *
- *
- *
- * MCTS w/ 2000 steps
- *
- * MCTS vs MINIMAX (draws)
- *   0   -   1    -   0
- *
- * MCTS vs RANDOM  (draws)
- *   4   -   0    -   1
- */
-
-
 
 struct node *mcts_init() {
     struct node *root = malloc(sizeof(struct node));
@@ -103,7 +87,7 @@ void mcts(struct node **tree, int n_playouts) {
 
     bool do_fixed_iterations = n_playouts != -1;
 
-    omp_set_num_threads(2);
+    omp_set_num_threads(1);
     #pragma omp parallel
     {
         #pragma omp single

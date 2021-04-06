@@ -113,7 +113,7 @@ class Hive:
         lib.generate_moves(self.node)
 
     def print(self):
-        print(self.node)
+        self.node.contents.print()
 
     def finished(self):
         return lib.finished_board(self.node.contents.board)
@@ -245,8 +245,8 @@ def main():
 
     # branching_factor(hive)
 
-    performance_factor(hive)
-
+    # performance_factor(hive)
+    hive.print()
 
 
 if __name__ == "__main__":

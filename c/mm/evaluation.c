@@ -75,8 +75,6 @@ bool mm_evaluate_expqueen(struct node* node) {
                 float inc = 1.f;
                 if ((tile & TILE_MASK) == L_ANT) {
                     inc = 2.f;
-                } else if ((tile & TILE_MASK) == L_QUEEN) {
-                    inc = 10.f;
                 }
                 if ((tile & COLOR_MASK) == LIGHT) {
                     value -= inc;

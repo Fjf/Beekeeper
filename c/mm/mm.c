@@ -170,7 +170,7 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
     if (to_replace) {
     #pragma omp critical (transposition)
     {
-//        tt_store(node, best, flag, depth, root_player);
+        tt_store(node, best, flag, depth, root_player);
     }}
 
     data->mm_value = best;
@@ -209,7 +209,7 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
     float orig_alpha = alpha;
     float orig_beta = beta;
     generate_children(node, end_time);
-    omp_set_num_threads(4);
+    omp_set_num_threads(2);
     #pragma omp parallel
     {
     #pragma omp single
@@ -257,7 +257,7 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
         flag = TT_FLAG_LOWER;
     }
     if (to_replace) {
-//        tt_store(node, best, flag, depth, root_player);
+        tt_store(node, best, flag, depth, root_player);
     }
 
     data->mm_value = best;
@@ -336,7 +336,7 @@ void minimax(struct node **proot) {
     int depth = 2;
 #else
     int depth = 2;
-    unsigned int time_to_move = 5;
+    unsigned int time_to_move = 15;
 #endif
 
     time_t end_time = time(NULL) + time_to_move;
@@ -344,8 +344,7 @@ void minimax(struct node **proot) {
     printf("At turn %d\n", root->board->turn);
 
     time_t cur_time;
-    int
-    n_total_evaluated = 0;
+    int n_total_evaluated = 0;
     root_player = player;
     while (true) {
         leaf_nodes = n_evaluated = n_created = n_table_returns = 0;
@@ -357,9 +356,6 @@ void minimax(struct node **proot) {
         float value = mm_par(root, player, -INFINITY, INFINITY, depth, depth, end_time);
         printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated,
                n_table_returns);
-
-        // If no new nodes were created, no new depth is found.
-        if (n_created == 0) break;
 
         // Sorting the list by MM-value increases likelihood of finding better moves earlier.
         // In turn, this improves alpha-beta pruning worse subtrees earlier.
