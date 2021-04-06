@@ -242,6 +242,7 @@ int main(int argc, char** argv) {
         copy->board = init_board();
         memcpy(copy->board, tree->board, sizeof(struct board));
         tree->board->move_location_tracker = 0;
+
         node_free(tree);
         tree = copy;
     }

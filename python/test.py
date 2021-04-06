@@ -153,29 +153,28 @@ def branching_factor(hive):
     n_samples = 500
     n_moves = 100
     data_store = [[] for _ in range(n_moves)]
-    for _ in range(n_samples):
-        for move in range(n_moves):
 
-            hive.generate_moves()
-            n_children = hive.node.contents.board.contents.move_location_tracker
+    for move in range(n_moves):
+        hive.generate_moves()
+        n_children = hive.node.contents.board.contents.move_location_tracker
 
-            data_store[move].append(n_children)
+        data_store[move].append(n_children)
 
-            total_nodes += n_children
-            if n_children == 0:
-                # Terminal state
+        total_nodes += n_children
+        if n_children == 0:
+            # Terminal state
+            break
+
+        random_child = random.randint(0, n_children - 1)
+
+        for i, child in enumerate(hive.children()):
+            if i == random_child:
+                lib.list_remove(byref(child.contents.node))
+                lib.node_free(hive.node)
+                hive.node = child
                 break
 
-            random_child = random.randint(0, n_children - 1)
-
-            for i, child in enumerate(hive.children()):
-                if i == random_child:
-                    lib.list_remove(byref(child.contents.node))
-                    lib.node_free(hive.node)
-                    hive.node = child
-                    break
-
-        hive.reinitialize()
+    # hive.reinitialize()
 
     elapsed = (datetime.datetime.now() - start_time).total_seconds()
     print("Generated %d nodes in %.2f seconds (%.2f knodes/s)" % (total_nodes, elapsed, total_nodes / 1000 / elapsed))
@@ -240,13 +239,30 @@ def performance_factor(hive):
     plt.show()
 
 
+def test(hive):
+    for i in range(10):
+        hive.generate_moves()
+        if i == 9:
+            for child in hive.children():
+                lib.print_board(child.contents.board)
+
+        # select child
+        for child in hive.children():
+            # detach child
+            lib.list_remove(byref(child.contents.node))
+            # free parent
+            lib.node_free(hive.node)
+            hive.node = child
+            break
+
+
 def main():
     hive = Hive()
 
     # branching_factor(hive)
 
     # performance_factor(hive)
-    hive.print()
+    test(hive)
 
 
 if __name__ == "__main__":
