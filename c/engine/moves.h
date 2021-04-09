@@ -24,6 +24,7 @@ void generate_placing_moves(struct node *node, int type);
 void generate_free_moves(struct node* node, int player_bit);
 void generate_moves(struct node *node);
 bool can_move(struct board* board, int x, int y);
+void full_update(struct board *board);
 
 struct node* default_add_child(struct node* node, struct board* board);
 struct node* default_init();

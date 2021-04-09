@@ -336,7 +336,7 @@ void minimax(struct node **proot) {
     int depth = 2;
 #else
     int depth = 2;
-    unsigned int time_to_move = 15;
+    unsigned int time_to_move = 5;
 #endif
 
     time_t end_time = time(NULL) + time_to_move;

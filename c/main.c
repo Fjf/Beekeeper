@@ -14,6 +14,7 @@
 #include "timing/timing.h"
 #include "mm/evaluation.h"
 #include "mcts/mcts.h"
+#include "puzzles.h"
 
 #define MAX_MEMORY (4ull * GB)
 
@@ -133,10 +134,10 @@ void ptest(struct node *tree) {
  linear log regression gives; (datapoints look logarithmic)
  y = 3.7 * x^(0.676)
 
- 50, 5616
-100,14188
-200,30470
-500,78722
+  50,5616
+ 100,14188
+ 200,30470
+ 500,78722
 1000,150591
 2000,278767
 
@@ -192,8 +193,9 @@ int main(int argc, char** argv) {
 
     struct node* tree = game_init();
 
-//    mcts_test(tree);
-//    exit(1);
+    setup_puzzle(&tree, 11);
+
+    print_board(tree->board);
 
 //    for (int i = 0; i < 30; i++) {
 //        ptest(tree);
@@ -204,13 +206,13 @@ int main(int argc, char** argv) {
 //
 //    print_board(tree->board);
 
-    int num;
-    if (argc == 2) {
-        num = atoi(argv[1]);
-    } else {
-        num = -1;
-    }
-    printf("Running MCTS with %d samples\n", num);
+//    int num;
+//    if (argc == 2) {
+//        num = atoi(argv[1]);
+//    } else {
+//        num = -1;
+//    }
+//    printf("Running MCTS with %d samples\n", num);
 
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
@@ -221,10 +223,12 @@ int main(int argc, char** argv) {
 //            manual(&tree);
 //            random_moves(&tree, 1);
             minimax(&tree);
+//            mcts(&tree, 2000);
         } else {
             // Player 2
 //            manual(&tree);
-            mcts(&tree, num);
+//            mcts(&tree, num);
+            minimax(&tree);
         }
 
         print_board(tree->board);

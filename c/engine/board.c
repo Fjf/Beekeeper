@@ -33,8 +33,6 @@ struct board *init_board() {
 
     board->min_x = board->min_y = BOARD_SIZE;
     board->max_x = board->max_y = 0;
-    board->min_x = board->min_y = BOARD_SIZE;
-    board->max_x = board->max_y = 0;
 
     board->zobrist_hash = 0;
 
@@ -161,7 +159,6 @@ void translate_board_22(struct board *board) {
     // Copy data into temp array
     struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
     void* temp = &t;
-//    void *temp = calloc(BOARD_SIZE * BOARD_SIZE, sizeof(struct tile));
 
     memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
            ((void*)&board->tiles) + offset * sizeof(struct tile),
@@ -171,8 +168,6 @@ void translate_board_22(struct board *board) {
     memset(&board->tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
     // Copy data back into main array after clearing data.
     memcpy(&board->tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
-
-//    free(temp);
 }
 
 

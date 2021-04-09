@@ -18,6 +18,7 @@ struct tt_entry {
     long long lock;
     float score;
     char flag;
+    long sanity;
     unsigned char depth;
 };
 
