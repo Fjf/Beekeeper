@@ -5,9 +5,8 @@
 #ifndef HIVE_MCTS_H
 #define HIVE_MCTS_H
 
-
+#include <time.h>
 #include <stdbool.h>
-#include <bits/types/time_t.h>
 
 struct mcts_data {
     unsigned int p0;

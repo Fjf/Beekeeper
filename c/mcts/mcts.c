@@ -94,7 +94,7 @@ void mcts(struct node **tree, int n_playouts) {
     dedicated_add_child = mcts_add_child;
     dedicated_init = mcts_init;
 
-    unsigned int time_to_move = 5;
+    unsigned int time_to_move = 1000000;
 
     time_t end_time = time(NULL) + time_to_move;
 
@@ -156,8 +156,6 @@ void mcts(struct node **tree, int n_playouts) {
             parent_data->draw++;
         }
     }
-
-    printf("Did %d playouts in %d seconds\n", abs(n_playouts) + 1, time_to_move);
 
 #ifdef DEBUG
     printf("Final stats:\n");
