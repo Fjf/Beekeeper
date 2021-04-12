@@ -181,9 +181,9 @@ int main(int argc, char** argv) {
     // Set the evaluation function
     mm_evaluate = mm_evaluate_expqueen;
 
-    // Set the initial add child function to minimax add child
-    dedicated_add_child = mm_add_child;
-
+    // Register mcts node add function
+    dedicated_add_child = mcts_add_child;
+    dedicated_init = mcts_init;
 
 #ifdef TESTING
     int n_moves = 1;
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
 
     struct node* tree = game_init();
 
-    setup_puzzle(&tree, 11);
+//    setup_puzzle(&tree, 11);
 
     print_board(tree->board);
 
@@ -221,14 +221,14 @@ int main(int argc, char** argv) {
         if (player == 0) {
             // Player 1
 //            manual(&tree);
-//            random_moves(&tree, 1);
-            minimax(&tree);
+            random_moves(&tree, 1);
+//            minimax(&tree);
 //            mcts(&tree, 2000);
         } else {
             // Player 2
 //            manual(&tree);
-//            mcts(&tree, num);
-            minimax(&tree);
+            mcts(&tree, -1);
+//            minimax(&tree);
         }
 
         print_board(tree->board);

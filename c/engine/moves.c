@@ -283,12 +283,12 @@ void initialize_points_around() {
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
             int *points = points_around[y * BOARD_SIZE + x];
-            points[0] = (y - 1) * BOARD_SIZE + (x + 0);
-            points[1] = (y - 1) * BOARD_SIZE + (x - 1);
-            points[2] = (y + 0) * BOARD_SIZE + (x + 1);
-            points[3] = (y + 0) * BOARD_SIZE + (x - 1);
-            points[4] = (y + 1) * BOARD_SIZE + (x + 1);
-            points[5] = (y + 1) * BOARD_SIZE + (x + 0);
+            points[0] = (y - 1) * BOARD_SIZE + (x - 1);
+            points[1] = (y - 1) * BOARD_SIZE + (x + 0);
+            points[2] = (y + 0) * BOARD_SIZE + (x - 1);
+            points[3] = (y + 0) * BOARD_SIZE + (x + 1);
+            points[4] = (y + 1) * BOARD_SIZE + (x + 0);
+            points[5] = (y + 1) * BOARD_SIZE + (x + 1);
         }
     }
 }

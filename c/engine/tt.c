@@ -35,7 +35,7 @@ void tt_store(struct node* node, float score, char flag, int depth, int player) 
         // Simple depth related replacement scheme.
 //        if (entry->depth > depth) return;
     }
-    long sanity = node->board->dark_queen_position << 32 | node->board->light_queen_position;
+    long long sanity = (long long) (node->board->dark_queen_position) | node->board->light_queen_position;
 
     entry->sanity = sanity;
     entry->lock = node->board->zobrist_hash / TT_TABLE_SIZE;
@@ -49,7 +49,7 @@ struct tt_entry* tt_retrieve(struct node* node, int player) {
     struct tt_entry* entry = &tt_table[idx];
     long long lock = node->board->zobrist_hash / TT_TABLE_SIZE;
 
-    long sanity = node->board->dark_queen_position << 32 | node->board->light_queen_position;
+    long long sanity = (long long) (node->board->dark_queen_position) << 32 | node->board->light_queen_position;
     if (entry->flag == -1 || entry->lock != lock || entry->sanity != sanity) return NULL;
     return entry;
 }
