@@ -206,13 +206,13 @@ int main(int argc, char** argv) {
 //
 //    print_board(tree->board);
 
-//    int num;
-//    if (argc == 2) {
-//        num = atoi(argv[1]);
-//    } else {
-//        num = -1;
-//    }
-//    printf("Running MCTS with %d samples\n", num);
+    int num;
+    if (argc == 2) {
+        num = atoi(argv[1]);
+    } else {
+        num = -1;
+    }
+    printf("Running MCTS with %d samples\n", num);
 
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
         } else {
             // Player 2
 //            manual(&tree);
-            mcts(&tree, -1);
+            mcts(&tree, num);
 //            minimax(&tree);
         }
 
