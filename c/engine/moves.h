@@ -10,6 +10,8 @@
 #include "../mm/mm.h"
 #include <time.h>
 
+#define MOVE_NO_ANTS 1 << 0
+
 #define to_usec(timespec) ((((timespec).tv_sec * 1e9) + (timespec).tv_nsec) / 1e3)
 #define is_ok(code) { \
     int err = code;   \
@@ -21,8 +23,8 @@ int* get_points_around(int y, int x);
 void initialize_points_around();
 void add_child(struct node *node, int location, int type, int previous_location);
 void generate_placing_moves(struct node *node, int type);
-void generate_free_moves(struct node* node, int player_bit);
-void generate_moves(struct node *node);
+void generate_free_moves(struct node *node, int player_bit, int flags);
+void generate_moves(struct node *node, int flags);
 bool can_move(struct board* board, int x, int y);
 void full_update(struct board *board);
 

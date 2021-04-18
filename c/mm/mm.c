@@ -123,7 +123,11 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
         leaf_nodes++;
         best = data->mm_value;
     } else {
-        generate_children(node, end_time);
+        int flags = 0;
+        if (initial_depth - depth > 2) {
+            flags |= MOVE_NO_ANTS;
+        }
+        generate_children(node, end_time, 0);
         struct list *head, *hold;
         if (node->board->move_location_tracker == 0 || list_empty(&node->children)) {
             best = data->mm_value;
@@ -208,13 +212,13 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
 
     float orig_alpha = alpha;
     float orig_beta = beta;
-    generate_children(node, end_time);
+    generate_children(node, end_time, 0);
     omp_set_num_threads(2);
     #pragma omp parallel
     {
     #pragma omp single
     {
-    generate_children(node, end_time);
+        generate_children(node, end_time, 0);
     if (node->board->move_location_tracker == 0 || list_empty(&node->children)) {
         fprintf(stderr, "Root node must have children.");
         exit(1);
@@ -290,7 +294,7 @@ struct node *mm_add_child(struct node *node, struct board *board) {
 }
 
 
-bool generate_children(struct node *root, time_t end_time) {
+bool generate_children(struct node *root, time_t end_time, int flags) {
     /*
      * Returns false if no more children should be generated after this.
      * E.g., memory is full, time is spent, or max move depth is reached.
@@ -307,7 +311,7 @@ bool generate_children(struct node *root, time_t end_time) {
 
     // Only generate more nodes if you have no nodes yet
     if (list_empty(&root->children)) {
-        generate_moves(root);
+        generate_moves(root, 0);
 
         if (list_empty(&root->children)) {
             add_child(root, -1, 0, -1);

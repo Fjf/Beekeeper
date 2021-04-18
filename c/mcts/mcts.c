@@ -48,7 +48,7 @@ int mcts_playout(struct node *root, time_t end_time) {
         if (won > 0) return won;
 
         // Draw if no children could be generated due to time constraints
-        if (!generate_children(node, end_time)) return 3;
+        if (!generate_children(node, end_time, 0)) return 3;
 
         int random_choice = rand() % node->board->move_location_tracker;
 
@@ -98,7 +98,7 @@ void mcts(struct node **tree, int n_playouts) {
 
     time_t end_time = time(NULL) + time_to_move;
 
-    generate_children(root, end_time);
+    generate_children(root, end_time, 0);
 
     struct list *head;
 

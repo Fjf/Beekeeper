@@ -41,7 +41,7 @@ void manual(struct node** proot) {
     struct node* root = *proot;
     struct list* head;
 
-    generate_children(root, time(NULL) + 1000000000);
+    generate_children(root, time(NULL) + 1000000000, 0);
 
     char move[20];
     while (true) {
@@ -76,7 +76,7 @@ void random_moves(struct node **tree, int n_moves) {
     for (int i = 0; i < n_moves; i++) {
         struct node* node = *tree;
 
-        generate_children(node, (time_t) INT_MAX);
+        generate_children(node, (time_t) INT_MAX, 0);
         int choice = rand() % node->board->move_location_tracker;
         struct list* head;
         int n = 0;
@@ -221,14 +221,14 @@ int main(int argc, char** argv) {
         if (player == 0) {
             // Player 1
 //            manual(&tree);
-            random_moves(&tree, 1);
-//            minimax(&tree);
+//            random_moves(&tree, 1);
+            minimax(&tree);
 //            mcts(&tree, 2000);
         } else {
             // Player 2
 //            manual(&tree);
-            mcts(&tree, num);
-//            minimax(&tree);
+//            mcts(&tree, num);
+            minimax(&tree);
         }
 
         int won = finished_board(tree->board);

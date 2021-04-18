@@ -771,7 +771,7 @@ bool can_move(struct board *board, int x, int y) {
 }
 
 
-void generate_free_moves(struct node *node, int player_bit) {
+void generate_free_moves(struct node *node, int player_bit, int flags) {
     struct board *board = node->board;
 
 #ifdef CENTERED
@@ -797,7 +797,9 @@ void generate_free_moves(struct node *node, int player_bit) {
             } else if ((tile->type & TILE_MASK) == L_BEETLE) {
                 generate_beetle_moves(node, y, x);
             } else if ((tile->type & TILE_MASK) == L_ANT) {
-                generate_ant_moves(node, y, x);
+                // Dont move ants if this flag is set.
+                if ((flags & MOVE_NO_ANTS) > 0) continue;
+                    generate_ant_moves(node, y, x);
             } else if ((tile->type & TILE_MASK) == L_QUEEN) {
                 generate_queen_moves(node, y, x);
             } else if ((tile->type & TILE_MASK) == L_SPIDER) {
@@ -808,7 +810,7 @@ void generate_free_moves(struct node *node, int player_bit) {
 }
 
 
-void generate_moves(struct node *node) {
+void generate_moves(struct node *node, int flags) {
     int player_idx = node->board->turn % 2;
     int player_bit = player_idx << COLOR_SHIFT;
 
@@ -842,6 +844,6 @@ void generate_moves(struct node *node) {
 
     // Tiles can only be moved if their queen is on the board.
     if (player->queens_left == 0)
-        generate_free_moves(node, player_bit);
+        generate_free_moves(node, player_bit, flags);
 }
 

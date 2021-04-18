@@ -16,7 +16,7 @@ void do_pn_random_move(struct node **proot) {
 
     struct board *board = root->board;
     if (board->move_location_tracker == -1) {
-        generate_moves(root);
+        generate_moves(root, 0);
 
         if (board->move_location_tracker == -1) {
             fprintf(stderr, "No moves could be generated\n");
@@ -96,7 +96,7 @@ void set_proof_numbers(struct node *root, int original_player_bit) {
 }
 
 int initialize_node(struct node *root, int original_player_bit) {
-    generate_moves(root);
+    generate_moves(root, 0);
 
     struct pn_data* data = root->data;
     data->expanded = true;

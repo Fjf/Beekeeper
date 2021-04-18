@@ -8,7 +8,7 @@
 
 int performance_testing(struct node* tree, int depth) {
     if (depth == 0) return 1;
-    generate_moves(tree);
+    generate_moves(tree, 0);
 
     struct list *head, *temp;
     int ret = 1;

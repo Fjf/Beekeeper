@@ -249,7 +249,7 @@ void puzzle_13(struct node* tree) {
     board->tiles[4 * BOARD_SIZE + 2].type = make_tile(L_ANT, 1);
     board->tiles[4 * BOARD_SIZE + 1].type = make_tile(D_GRASSHOPPER, 3);
 
-        board->n_stacked = 2;
+    board->n_stacked = 2;
 }
 
 void setup_puzzle(struct node** tree, int puzzle_number) {
