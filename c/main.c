@@ -4,6 +4,7 @@
 #include <string.h>
 #include <limits.h>
 #include <utils.h>
+#include <assert.h>
 #include "engine/tt.h"
 #include "engine/board.h"
 #include "engine/moves.h"
@@ -147,6 +148,9 @@ void ptest(struct node *tree) {
  *
  */
 void mcts_test(struct node *tree) {
+    struct mcts_data* data = tree->data;
+    data->keep = true;
+
     time_t t = time(NULL) + 100000;
 
     struct timespec start, end;
@@ -185,6 +189,11 @@ int main(int argc, char** argv) {
     dedicated_add_child = mcts_add_child;
     dedicated_init = mcts_init;
 
+
+    // Register mcts node add function
+//    dedicated_add_child = mm_add_child;
+//    dedicated_init = mm_init;
+
 #ifdef TESTING
     int n_moves = 1;
 #else
@@ -193,17 +202,21 @@ int main(int argc, char** argv) {
 
     struct node* tree = game_init();
 
-//    setup_puzzle(&tree, 11);
+    assert(tree->board != NULL);
 
-    print_board(tree->board);
+//    setup_puzzle(&tree, 11);
+//    print_board(tree->board);
 
 //    for (int i = 0; i < 30; i++) {
-//        ptest(tree);
 //        print_board(tree->board);
 //
 //        random_moves(&tree, 1);
 //    }
+
+//    mcts_test(tree);
 //
+//    exit(1);
+
 //    print_board(tree->board);
 
     int num;
@@ -221,8 +234,8 @@ int main(int argc, char** argv) {
         if (player == 0) {
             // Player 1
 //            manual(&tree);
-//            random_moves(&tree, 1);
-            minimax(&tree);
+            random_moves(&tree, 1);
+//            minimax(&tree);
 //            mcts(&tree, 2000);
         } else {
             // Player 2
@@ -231,6 +244,7 @@ int main(int argc, char** argv) {
             minimax(&tree);
         }
 
+//        print_board(tree->board);
         int won = finished_board(tree->board);
         if (won) {
             printf("Player %d won in move %d\n", won, tree->board->turn);

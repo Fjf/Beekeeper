@@ -25,6 +25,10 @@ float unused_tiles(struct node* node) {
 bool mm_evaluate_expqueen(struct node* node) {
     struct mm_data* data = node->data;
 
+    // We want to have this information.
+    update_can_move(node->board, node->move.location, node->move.previous_location);
+
+
 #ifdef TESTING
     float value = 0.;
 #else

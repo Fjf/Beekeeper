@@ -38,6 +38,8 @@ struct board *init_board() {
 
     memset(&board->stack, -1, TILE_STACK_SIZE * sizeof(struct tile_stack));
 
+    board->has_updated = 0;
+
     return board;
 }
 

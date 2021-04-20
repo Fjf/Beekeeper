@@ -48,7 +48,8 @@ int mcts_playout(struct node *root, time_t end_time) {
         if (won > 0) return won;
 
         // Draw if no children could be generated due to time constraints
-        if (!generate_children(node, end_time, 0)) return 3;
+        bool generated_children = generate_children(node, end_time, 0);
+        if (!generated_children) return 3;
 
         int random_choice = rand() % node->board->move_location_tracker;
 
@@ -94,7 +95,7 @@ void mcts(struct node **tree, int n_playouts) {
     dedicated_add_child = mcts_add_child;
     dedicated_init = mcts_init;
 
-    unsigned int time_to_move = 1000000;
+    unsigned int time_to_move = 5;
 
     time_t end_time = time(NULL) + time_to_move;
 
@@ -127,7 +128,8 @@ void mcts(struct node **tree, int n_playouts) {
                 break;
             }
 
-            double value = n_wins / n_simulations + 1.4 * sqrt(log(parent_simulations) / n_simulations);
+            double c = 100;
+            double value = n_wins / n_simulations + c * sqrt(log(parent_simulations) / n_simulations);
             if (best_value < value) {
                 best_value = value;
                 best = child;
@@ -156,6 +158,7 @@ void mcts(struct node **tree, int n_playouts) {
             parent_data->draw++;
         }
     }
+    printf("samples/s: %.2f\n", ((-n_playouts) / (double)time_to_move));
 
 #ifdef DEBUG
     printf("Final stats:\n");

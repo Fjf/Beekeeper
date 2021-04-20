@@ -114,6 +114,8 @@ struct board {
 
     long long zobrist_hash;
     long long hash_history[MAX_TURNS];
+
+    bool has_updated;
 };
 
 

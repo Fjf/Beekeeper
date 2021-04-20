@@ -124,10 +124,10 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
         best = data->mm_value;
     } else {
         int flags = 0;
-        if (initial_depth - depth > 2) {
-            flags |= MOVE_NO_ANTS;
+        if (initial_depth - depth >= 2) {
+//            flags |= MOVE_NO_ANTS;
         }
-        generate_children(node, end_time, 0);
+        generate_children(node, end_time, flags);
         struct list *head, *hold;
         if (node->board->move_location_tracker == 0 || list_empty(&node->children)) {
             best = data->mm_value;
@@ -212,8 +212,7 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
 
     float orig_alpha = alpha;
     float orig_beta = beta;
-    generate_children(node, end_time, 0);
-    omp_set_num_threads(2);
+    omp_set_num_threads(1);
     #pragma omp parallel
     {
     #pragma omp single
@@ -311,7 +310,7 @@ bool generate_children(struct node *root, time_t end_time, int flags) {
 
     // Only generate more nodes if you have no nodes yet
     if (list_empty(&root->children)) {
-        generate_moves(root, 0);
+        generate_moves(root, flags);
 
         if (list_empty(&root->children)) {
             add_child(root, -1, 0, -1);
@@ -340,12 +339,10 @@ void minimax(struct node **proot) {
     int depth = 2;
 #else
     int depth = 2;
-    unsigned int time_to_move = 5;
+    unsigned int time_to_move = 1;
 #endif
 
     time_t end_time = time(NULL) + time_to_move;
-
-    printf("At turn %d\n", root->board->turn);
 
     time_t cur_time;
     int n_total_evaluated = 0;
@@ -355,11 +352,11 @@ void minimax(struct node **proot) {
         cur_time = time(NULL);
         if (cur_time > end_time) break;
 
-        printf("Evaluating depth %d...", depth);
+//        printf("Evaluating depth %d...", depth);
         fflush(stdout);
         float value = mm_par(root, player, -INFINITY, INFINITY, depth, depth, end_time);
-        printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated,
-               n_table_returns);
+//        printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated,
+//               n_table_returns);
 
         // Sorting the list by MM-value increases likelihood of finding better moves earlier.
         // In turn, this improves alpha-beta pruning worse subtrees earlier.
@@ -378,7 +375,7 @@ void minimax(struct node **proot) {
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     double sec = (double) (to_usec(end) - to_usec(start)) / 1e6;
-    printf("Evaluated %d nodes (%.5f knodes/s)\n", n_total_evaluated, (n_total_evaluated / sec) / 1000);
+//    printf("Evaluated %d nodes (%.5f knodes/s)\n", n_total_evaluated, (n_total_evaluated / sec) / 1000);
 
     struct list *head;
     float best_value = player == 0 ? -INFINITY : INFINITY;
@@ -387,24 +384,19 @@ void minimax(struct node **proot) {
         struct node *child = container_of(head, struct node, node);
         struct mm_data *data = child->data;
 
-        printf("Value %.2f for ", data->mm_value);
-        print_move(child);
-
         if ((player == 0 && best_value < data->mm_value)
             || (player == 1 && best_value > data->mm_value)) {
             best_value = data->mm_value;
             best = child;
         }
     }
-    printf("Evaluated %d children and best is %.5f\n", root->board->move_location_tracker, best_value);
+//    printf("Evaluated %d children and best is %.5f\n", root->board->move_location_tracker, best_value);
 
     if (best == NULL) {
         root->board->turn++;
     } else {
         list_remove(&best->node);
         node_free(root);
-
-        print_move(best);
 
         *proot = best;
     }

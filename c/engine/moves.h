@@ -13,10 +13,6 @@
 #define MOVE_NO_ANTS 1 << 0
 
 #define to_usec(timespec) ((((timespec).tv_sec * 1e9) + (timespec).tv_nsec) / 1e3)
-#define is_ok(code) { \
-    int err = code;   \
-    if (err != 0) return err; \
-}
 
 int sum_hive_tiles(struct board *board);
 int* get_points_around(int y, int x);
@@ -27,6 +23,7 @@ void generate_free_moves(struct node *node, int player_bit, int flags);
 void generate_moves(struct node *node, int flags);
 bool can_move(struct board* board, int x, int y);
 void full_update(struct board *board);
+void update_can_move(struct board *board, int location, int previous_location);
 
 struct node* default_add_child(struct node* node, struct board* board);
 struct node* default_init();

@@ -20,6 +20,8 @@ struct move {
     unsigned char tile;
     unsigned char next_to;
     unsigned char direction;
+    int previous_location;
+    int location;
 };
 
 struct node {

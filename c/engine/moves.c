@@ -92,6 +92,10 @@ void full_update(struct board *board) {
 }
 
 void update_can_move(struct board *board, int location, int previous_location) {
+    // Dont do this checking twice.
+    if (board->has_updated) return;
+    board->has_updated = true;
+
     board->tiles[location].free = true;
 
     int n_neighbours = 0;
@@ -115,7 +119,6 @@ void update_can_move(struct board *board, int location, int previous_location) {
             board->tiles[py * BOARD_SIZE + px].free = can_move(board, px, py);
         }
     }
-
     int *points = get_points_around(location / BOARD_SIZE, location % BOARD_SIZE);
     n_neighbours = 0;
     for (int i = 0; i < 6; i++) {
@@ -149,7 +152,6 @@ void add_child(struct node *node, int location, int type, int previous_location)
 
     // Parent will track how many children it has this way.
     node->board->move_location_tracker++;
-
     if (location == -1) {
         // No valid moves are available
         board->turn++;
@@ -223,9 +225,8 @@ void add_child(struct node *node, int location, int type, int previous_location)
     board->tiles[location].type = type;
     board->turn++;
 
-
-    // After this move, update the board move-checks
-    update_can_move(board, location, previous_location);
+    board->has_updated = false;
+//    update_can_move(board, location, previous_location);
 
     // Set min and max tile positions to speedup translation.
     int x = location % BOARD_SIZE;
@@ -258,6 +259,8 @@ void add_child(struct node *node, int location, int type, int previous_location)
 #endif
 
     struct node *child = dedicated_add_child(node, board);
+    child->move.previous_location = previous_location;
+    child->move.location = location;
 
     // Add move notation for clarity
     if (node->board->tiles[location].type != EMPTY) {
@@ -774,6 +777,9 @@ bool can_move(struct board *board, int x, int y) {
 void generate_free_moves(struct node *node, int player_bit, int flags) {
     struct board *board = node->board;
 
+    // We do a full update as soon as we want to move.
+    update_can_move(board, node->move.location, node->move.previous_location);
+
 #ifdef CENTERED
     int ly = board->min_y, hy = board->max_y + 1;
     int lx = board->min_x, hx = board->max_x + 1;
@@ -798,8 +804,10 @@ void generate_free_moves(struct node *node, int player_bit, int flags) {
                 generate_beetle_moves(node, y, x);
             } else if ((tile->type & TILE_MASK) == L_ANT) {
                 // Dont move ants if this flag is set.
-                if ((flags & MOVE_NO_ANTS) > 0) continue;
-                    generate_ant_moves(node, y, x);
+                if ((flags & MOVE_NO_ANTS) > 0) {
+                    continue;
+                }
+                generate_ant_moves(node, y, x);
             } else if ((tile->type & TILE_MASK) == L_QUEEN) {
                 generate_queen_moves(node, y, x);
             } else if ((tile->type & TILE_MASK) == L_SPIDER) {
