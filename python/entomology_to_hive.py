@@ -49,15 +49,16 @@ def main():
         item[2] -= min_y
 
     n_stacked = 0
-    for tiles, x, y in collection:
-        tile_type, number = tile_to_engine_notation(tiles[0])
-        print("board->tiles[%d * BOARD_SIZE + %d].type = make_tile(%s, %d);" % (y, x, tile_type, number))
-        for i, stack_tile in enumerate(reversed(tiles[1:])):
-            tile_type, number = tile_to_engine_notation(stack_tile)
-            print("board->stack[%d].location = %d * BOARD_SIZE + %d;" % (n_stacked, y, x))
-            print("board->stack[%d].z = %d;" % (n_stacked, i))
-            print("board->stack[%d].type = make_tile(%s, %d);" % (n_stacked, tile_type, number))
-            n_stacked += 1
+    for i in range(10000000):
+        for tiles, x, y in collection:
+            tile_type, number = tile_to_engine_notation(tiles[0])
+            print("board->tiles[%d * BOARD_SIZE + %d].type = make_tile(%s, %d);" % (y, x, tile_type, number))
+            for i, stack_tile in enumerate(reversed(tiles[1:])):
+                tile_type, number = tile_to_engine_notation(stack_tile)
+                print("board->stack[%d].location = %d * BOARD_SIZE + %d;" % (n_stacked, y, x))
+                print("board->stack[%d].z = %d;" % (n_stacked, i))
+                print("board->stack[%d].type = make_tile(%s, %d);" % (n_stacked, tile_type, number))
+                n_stacked += 1
 
 
 

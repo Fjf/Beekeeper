@@ -94,13 +94,13 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
             } else if (entry->flag == TT_FLAG_UPPER) {
                 beta = MIN(beta, entry->score);
             } else { // TT_FLAG_TRUE
-                #pragma omp atomic
+#pragma omp atomic
                 n_table_returns++;
                 best = entry->score;
             }
 
             if (alpha >= beta) {
-                #pragma omp atomic
+#pragma omp atomic
                 n_table_returns++;
                 best = entry->score;
             }
@@ -115,11 +115,11 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
     float orig_beta = beta;
 
     bool done = mm_evaluate(node);
-    #pragma omp atomic
+#pragma omp atomic
     n_evaluated++;
     if (depth == 0 || done) {
         // If the game is finished or no more depth to evaluate.
-        #pragma omp atomic
+#pragma omp atomic
         leaf_nodes++;
         best = data->mm_value;
     } else {
@@ -172,10 +172,11 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
         flag = TT_FLAG_LOWER;
     }
     if (to_replace) {
-    #pragma omp critical (transposition)
-    {
-        tt_store(node, best, flag, depth, root_player);
-    }}
+#pragma omp critical (transposition)
+        {
+            tt_store(node, best, flag, depth, root_player);
+        }
+    }
 
     data->mm_value = best;
 
@@ -197,13 +198,13 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
         } else if (entry->flag == TT_FLAG_UPPER) {
             beta = MIN(beta, entry->score);
         } else { // TT_FLAG_TRUE
-            #pragma omp atomic
+#pragma omp atomic
             n_table_returns++;
             return entry->score;
         }
 
         if (alpha >= beta) {
-            #pragma omp atomic
+#pragma omp atomic
             n_table_returns++;
             return entry->score;
         }
@@ -213,45 +214,49 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
     float orig_alpha = alpha;
     float orig_beta = beta;
     omp_set_num_threads(1);
-    #pragma omp parallel
+#pragma omp parallel
     {
-    #pragma omp single
-    {
-        generate_children(node, end_time, 0);
-    if (node->board->move_location_tracker == 0 || list_empty(&node->children)) {
-        fprintf(stderr, "Root node must have children.");
-        exit(1);
+#pragma omp single
+        {
+            generate_children(node, end_time, 0);
+            if (node->board->move_location_tracker == 0 || list_empty(&node->children)) {
+                fprintf(stderr, "Root node must have children.");
+                exit(1);
+            }
+            if (player == 0) { // Player 0 maximizes
+                // Generate children for this child then compute values.
+                best = -INFINITY;
+                struct list *head;
+                node_foreach(node, head) {
+#pragma omp task firstprivate(head)
+                    {
+
+                        struct node *child = container_of(head, struct node, node);
+                        float value = mm(child, !player, alpha, beta, depth - 1, initial_depth, end_time);
+#pragma omp critical (setting)
+                        {
+                            best = MAX(best, value);
+                        }
+                    }
+                }
+            } else { // Player 1 minimizes
+                best = INFINITY;
+                struct list *head;
+                node_foreach(node, head) {
+#pragma omp task firstprivate(head)
+                    {
+                        struct node *child = container_of(head, struct node, node);
+
+                        float value = mm(child, !player, alpha, beta, depth - 1, initial_depth, end_time);
+#pragma omp critical (setting)
+                        {
+                            best = MIN(best, value);
+                        }
+                    }
+                }
+            }
+        }
     }
-    if (player == 0) { // Player 0 maximizes
-        // Generate children for this child then compute values.
-        best = -INFINITY;
-        struct list *head;
-        node_foreach(node, head) {
-        #pragma omp task firstprivate(head)
-        {
-
-            struct node *child = container_of(head, struct node, node);
-            float value = mm(child, !player, alpha, beta, depth - 1, initial_depth, end_time);
-            #pragma omp critical (setting)
-            {
-                best = MAX(best, value);
-            }
-        }}
-    } else { // Player 1 minimizes
-        best = INFINITY;
-        struct list *head;
-        node_foreach(node, head) {
-        #pragma omp task firstprivate(head)
-        {
-            struct node *child = container_of(head, struct node, node);
-
-            float value = mm(child, !player, alpha, beta, depth - 1, initial_depth, end_time);
-            #pragma omp critical (setting)
-            {
-                best = MIN(best, value);
-            }
-        }}
-    }}}
 
     char flag = TT_FLAG_TRUE;
     if (best <= orig_alpha) {
@@ -285,7 +290,7 @@ struct node *mm_add_child(struct node *node, struct board *board) {
     struct node *child = mm_init();
     child->board = board;
 
-    #pragma omp atomic
+#pragma omp atomic
     n_created++;
 
     node_add_child(node, child);
@@ -319,7 +324,7 @@ bool generate_children(struct node *root, time_t end_time, int flags) {
     return !list_empty(&root->children);
 }
 
-void minimax(struct node **proot) {
+void minimax(struct node **proot, struct player_arguments *args) {
     struct node *root = *proot;
 
     // Create struct for root node to store data.
@@ -339,7 +344,7 @@ void minimax(struct node **proot) {
     int depth = 2;
 #else
     int depth = 2;
-    unsigned int time_to_move = 1;
+    unsigned int time_to_move = (unsigned int) args->time_to_move;
 #endif
 
     time_t end_time = time(NULL) + time_to_move;
@@ -352,11 +357,14 @@ void minimax(struct node **proot) {
         cur_time = time(NULL);
         if (cur_time > end_time) break;
 
-//        printf("Evaluating depth %d...", depth);
+        if (args->verbose)
+            printf("Evaluating depth %d...", depth);
+
         fflush(stdout);
         float value = mm_par(root, player, -INFINITY, INFINITY, depth, depth, end_time);
-//        printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated,
-//               n_table_returns);
+
+        if (args->verbose)
+            printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated, n_table_returns);
 
         // Sorting the list by MM-value increases likelihood of finding better moves earlier.
         // In turn, this improves alpha-beta pruning worse subtrees earlier.
@@ -375,7 +383,9 @@ void minimax(struct node **proot) {
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     double sec = (double) (to_usec(end) - to_usec(start)) / 1e6;
-//    printf("Evaluated %d nodes (%.5f knodes/s)\n", n_total_evaluated, (n_total_evaluated / sec) / 1000);
+
+    if (args->verbose)
+        printf("Evaluated %d nodes (%.5f knodes/s)\n", n_total_evaluated, (n_total_evaluated / sec) / 1000);
 
     struct list *head;
     float best_value = player == 0 ? -INFINITY : INFINITY;
@@ -390,7 +400,9 @@ void minimax(struct node **proot) {
             best = child;
         }
     }
-//    printf("Evaluated %d children and best is %.5f\n", root->board->move_location_tracker, best_value);
+
+    if (args->verbose)
+        printf("Evaluated %d children and best is %.5f\n", root->board->move_location_tracker, best_value);
 
     if (best == NULL) {
         root->board->turn++;

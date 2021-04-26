@@ -8,6 +8,7 @@
 #include "../engine/node.h"
 #include "../engine/moves.h"
 #include <time.h>
+#include "utils.h"
 
 #define MM_TYPE_MIN 0
 #define MM_TYPE_MAX 1
@@ -18,7 +19,7 @@ struct mm_data {
     bool mm_evaluated;
 };
 
-void minimax(struct node** proot);
+void minimax(struct node **proot, struct player_arguments *args);
 struct node* mm_init();
 struct node* mm_add_child(struct node* node, struct board* board);
 

@@ -20,6 +20,7 @@
 #define MAX_MEMORY (4ull * GB)
 
 
+
 /* winrate: PN vs random (fixed depth PN no disproof)
  *  PN  -  draws  - random
  *   5  -    3    -   2
@@ -177,6 +178,11 @@ int main(int argc, char** argv) {
     srand((unsigned int) time(NULL));
 #endif
 
+    struct arguments arguments = {0};
+    parse_args(argc, argv, &arguments);
+
+    print_args(&arguments);
+
     // Compute max amount of nodes available in memory.
     max_nodes = MAX_MEMORY / (sizeof(struct board) + sizeof(struct node) + sizeof(struct mm_data));
     n_nodes = 0;
@@ -225,26 +231,26 @@ int main(int argc, char** argv) {
     } else {
         num = -1;
     }
-    printf("Running MCTS with %d samples\n", num);
 
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
     for (int i = 0; i < n_moves; i++) {
         int player = tree->board->turn % 2;
-        if (player == 0) {
-            // Player 1
-//            manual(&tree);
+
+        struct player_arguments* pa = (player == 0 ? &arguments.p1 : &arguments.p2);
+        if (pa->algorithm == ALG_MCTS) {
+            mcts(&tree, pa);
+        } else if (pa->algorithm == ALG_MM){
+            minimax(&tree, pa);
+        } else if (pa->algorithm == ALG_RANDOM) {
             random_moves(&tree, 1);
-//            minimax(&tree);
-//            mcts(&tree, 2000);
-        } else {
-            // Player 2
-//            manual(&tree);
-//            mcts(&tree, num);
-            minimax(&tree);
+        } else if (pa->algorithm == ALG_MANUAL) {
+            manual(&tree);
         }
 
-//        print_board(tree->board);
+        if (pa->verbose)
+            print_board(tree->board);
+
         int won = finished_board(tree->board);
         if (won) {
             printf("Player %d won in move %d\n", won, tree->board->turn);

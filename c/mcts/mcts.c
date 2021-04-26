@@ -74,7 +74,7 @@ int mcts_playout(struct node *root, time_t end_time) {
     }
 }
 
-void mcts(struct node **tree, int n_playouts) {
+void mcts(struct node **tree, struct player_arguments *args) {
     struct node *root = *tree;
 
     // Create struct to store data if it doesnt exist
@@ -95,7 +95,7 @@ void mcts(struct node **tree, int n_playouts) {
     dedicated_add_child = mcts_add_child;
     dedicated_init = mcts_init;
 
-    unsigned int time_to_move = 5;
+    unsigned int time_to_move = (unsigned int) args->time_to_move;
 
     time_t end_time = time(NULL) + time_to_move;
 
@@ -103,15 +103,16 @@ void mcts(struct node **tree, int n_playouts) {
 
     struct list *head;
 
-    bool do_fixed_iterations = n_playouts != -1;
+    bool do_fixed_iterations = false;
+    int n_iterations = -1;
 
     omp_set_num_threads(1);
     // Generate random branches until finish
-    while ((do_fixed_iterations && n_playouts > 0) ||
+    while ((do_fixed_iterations && n_iterations > 0) ||
            (!do_fixed_iterations && end_time > time(NULL))) {
 
-        n_playouts--;
-        if (n_playouts == 0) break;
+        n_iterations--;
+        if (n_iterations == 0) break;
 
         struct node* best = NULL;
         double best_value = -INFINITY;
@@ -128,7 +129,7 @@ void mcts(struct node **tree, int n_playouts) {
                 break;
             }
 
-            double c = 100;
+            double c = args->mcts_constant;
             double value = n_wins / n_simulations + c * sqrt(log(parent_simulations) / n_simulations);
             if (best_value < value) {
                 best_value = value;
@@ -158,7 +159,7 @@ void mcts(struct node **tree, int n_playouts) {
             parent_data->draw++;
         }
     }
-    printf("samples/s: %.2f\n", ((-n_playouts) / (double)time_to_move));
+    printf("samples/s: %.2f\n", ((-n_iterations) / (double)time_to_move));
 
 #ifdef DEBUG
     printf("Final stats:\n");
