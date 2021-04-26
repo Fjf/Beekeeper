@@ -55,8 +55,8 @@ void parse_args(int argc, char* const* argv, struct arguments* arguments) {
                 }
                 break;
             case 'c':
-                arguments->p1.mcts_constant = atoi(optarg);
-                arguments->p2.mcts_constant = atoi(optarg);
+                arguments->p1.mcts_constant = atof(optarg);
+                arguments->p2.mcts_constant = atof(optarg);
                 break;
             case 't':
                 arguments->p1.time_to_move = atoi(optarg);
