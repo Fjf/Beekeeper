@@ -153,6 +153,7 @@ void mcts(struct node **tree, struct player_arguments *args) {
             memcpy(local->data, best->data, sizeof(struct mcts_data));
             node_copy(local, best);
             int win = mcts_playout(local, end_time);
+            node_free(local);
 
             #pragma omp critical (set_mcts_data)
             {
@@ -167,6 +168,7 @@ void mcts(struct node **tree, struct player_arguments *args) {
                     parent_data->draw++;
                 }
             }
+
         }
     }
     printf("samples/s: %.2f\n", ((-n_iterations) * omp_get_num_threads() / (double)time_to_move));
