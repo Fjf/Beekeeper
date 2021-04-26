@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "node.h"
 #include "board.h"
 #include "tt.h"
@@ -46,6 +47,13 @@ void node_free(struct node* root) {
 
     #pragma omp atomic
     n_nodes--;
+}
+
+void node_copy(struct node* dest, struct node* src) {
+    memcpy(&dest->move, &src->move, sizeof(struct move));
+    dest->board = init_board();
+    memcpy(dest->board, src->board, sizeof(struct board));
+    dest->board->move_location_tracker = 0;
 }
 
 

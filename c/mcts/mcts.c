@@ -9,6 +9,7 @@
 #include <omp.h>
 #include <math.h>
 #include <assert.h>
+#include <string.h>
 #include "mcts.h"
 
 
@@ -106,8 +107,9 @@ void mcts(struct node **tree, struct player_arguments *args) {
     bool do_fixed_iterations = false;
     int n_iterations = -1;
 
-    omp_set_num_threads(1);
+
     // Generate random branches until finish
+    #pragma omp parallel
     while ((do_fixed_iterations && n_iterations > 0) ||
            (!do_fixed_iterations && end_time > time(NULL))) {
 
@@ -144,22 +146,30 @@ void mcts(struct node **tree, struct player_arguments *args) {
         struct mcts_data *data = best->data;
         // Selected node should not be freed.
         data->keep = true;
-        int win = mcts_playout(best, end_time);
 
-        if (win == 1) {
-            data->p0++;
-            parent_data->p0++;
-        }
-        else if (win == 2) {
-            data->p1++;
-            parent_data->p1++;
-        }
-        else {
-            data->draw++;
-            parent_data->draw++;
+        #pragma omp parallel for
+        for (int n = 0; n < omp_get_num_threads(); n++) {
+            struct node* local = mcts_init();
+            memcpy(local->data, best->data, sizeof(struct mcts_data));
+            node_copy(local, best);
+            int win = mcts_playout(local, end_time);
+
+            #pragma omp critical (set_mcts_data)
+            {
+                if (win == 1) {
+                    data->p0++;
+                    parent_data->p0++;
+                } else if (win == 2) {
+                    data->p1++;
+                    parent_data->p1++;
+                } else {
+                    data->draw++;
+                    parent_data->draw++;
+                }
+            }
         }
     }
-    printf("samples/s: %.2f\n", ((-n_iterations) / (double)time_to_move));
+    printf("samples/s: %.2f\n", ((-n_iterations) * omp_get_num_threads() / (double)time_to_move));
 
 #ifdef DEBUG
     printf("Final stats:\n");

@@ -260,10 +260,7 @@ int main(int argc, char** argv) {
         // Copy node except for children
         // Doing this forces re-computation of tree every iteration.
         struct node* copy = dedicated_init();
-        memcpy(&copy->move, &tree->move, sizeof(struct move));
-        copy->board = init_board();
-        memcpy(copy->board, tree->board, sizeof(struct board));
-        tree->board->move_location_tracker = 0;
+        node_copy(copy, tree);
 
         node_free(tree);
         tree = copy;
