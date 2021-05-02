@@ -21,6 +21,10 @@ void add_child(struct node *node, int location, int type, int previous_location)
 void generate_placing_moves(struct node *node, int type);
 void generate_free_moves(struct node *node, int player_bit, int flags);
 void generate_moves(struct node *node, int flags);
+
+void find_articulation(struct board *board, int idx, int parent);
+void articulation(struct board* board, int index);
+
 bool can_move(struct board* board, int x, int y);
 void full_update(struct board *board);
 void update_can_move(struct board *board, int location, int previous_location);

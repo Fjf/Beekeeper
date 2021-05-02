@@ -5,6 +5,9 @@
 #ifndef HIVE_MCTS_H
 #define HIVE_MCTS_H
 
+#define PRIORITIZATION
+
+
 #include <time.h>
 #include <stdbool.h>
 #include "utils.h"
@@ -14,6 +17,9 @@ struct mcts_data {
     unsigned int p1;
     unsigned int draw;
     bool keep;
+#ifdef PRIORITIZATION
+    int prio;
+#endif
 };
 
 struct node *mcts_init();

@@ -99,7 +99,7 @@ void ptest(struct node *tree) {
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
 
-    int nodes = performance_testing(tree, 3);
+    int nodes = performance_testing(tree, 8);
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     double sec = (to_usec(end) - to_usec(start)) / 1e6;
@@ -166,6 +166,7 @@ void mcts_test(struct node *tree) {
     }
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     printf("msec: %.5f\n", (to_usec(end) - to_usec(start)) / 1e3);
+    printf("playouts p sec: %.5f\n", 1000. / ((to_usec(end) - to_usec(start)) / 1e6));
     printf("w/l/d: %d/%d/%d\n", w, l, d);
 
 }
@@ -210,7 +211,10 @@ int main(int argc, char** argv) {
 
     assert(tree->board != NULL);
 
-//    setup_puzzle(&tree, 11);
+//    setup_puzzle(&tree, 4);
+//    print_board(tree->board);
+//    exit(0);
+
 //    print_board(tree->board);
 
 //    for (int i = 0; i < 30; i++) {

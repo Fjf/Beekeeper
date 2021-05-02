@@ -19,6 +19,22 @@
  */
 
 
+int prioritization(struct board* board, int player) {
+    int queen_position = player != 0 ? board->light_queen_position : board->dark_queen_position;
+    if (queen_position == -1) return 1;
+    int x = queen_position % BOARD_SIZE;
+    int y = queen_position / BOARD_SIZE;
+
+
+    int* points = get_points_around(y, x);
+    int count = 0;
+    for (int i = 0; i < 6; i++) {
+        int point = points[i];
+        count += (board->tiles[point].type != EMPTY);
+    }
+    return count;
+}
+
 
 struct node *mcts_init() {
     struct node *root = malloc(sizeof(struct node));
@@ -43,7 +59,7 @@ void print_mcts_data(struct mcts_data *pData);
 
 int mcts_playout(struct node *root, time_t end_time) {
     struct node *node = root;
-
+    int player = root->board->turn % 2;
     while (true) {
         int won = finished_board(node->board);
         if (won > 0) return won;
@@ -52,9 +68,37 @@ int mcts_playout(struct node *root, time_t end_time) {
         bool generated_children = generate_children(node, end_time, 0);
         if (!generated_children) return 3;
 
+        struct list *head, *temp;
+#ifdef PRIORITIZATION
+        int prio_sum = 0;
+        node_foreach_safe(node, head, temp) {
+            struct node* child = container_of(head, struct node, node);
+            struct mcts_data* child_data = child->data;
+            child_data->prio = prioritization(child->board, player);
+            prio_sum += child_data->prio;
+        }
+        int random_choice = rand() % prio_sum;
+
+        struct mcts_data* parent_data = node->data;
+        node_foreach_safe(node, head, temp) {
+            struct node *child = container_of(head, struct node, node);
+            struct mcts_data* child_data = child->data;
+            random_choice -= child_data->prio;
+            if (random_choice <= 0) {
+                // Dont delete the nodes with the keep flag on
+                if (!parent_data->keep) {
+                    list_remove(&child->node);
+                    // Done using the previous node completely
+                    node_free(node);
+                }
+
+                node = child;
+                break;
+            }
+        }
+#else
         int random_choice = rand() % node->board->move_location_tracker;
 
-        struct list *head, *temp;
         int n = 0;
         struct mcts_data* parent_data = node->data;
         node_foreach_safe(node, head, temp) {
@@ -72,6 +116,7 @@ int mcts_playout(struct node *root, time_t end_time) {
                 break;
             }
         }
+#endif
     }
 }
 

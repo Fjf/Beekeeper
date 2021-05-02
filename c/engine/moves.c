@@ -14,6 +14,7 @@ struct node *default_add_child(struct node *node, struct board *board) {
     node_add_child(node, child);
     return child;
 }
+
 struct node* default_init() {
     struct node *root = malloc(sizeof(struct node));
     node_init(root, NULL);
@@ -22,6 +23,24 @@ struct node* default_init() {
 
 struct node *(*dedicated_add_child)(struct node *node, struct board *board) = default_add_child;
 struct node *(*dedicated_init)() = default_init;
+
+int to_tile_index(unsigned char tile) {
+    int color = (tile & COLOR_MASK) >> COLOR_SHIFT;
+    int sum = color * N_TILES;
+    int type = tile & TILE_MASK;
+    int n    = ((tile & NUMBER_MASK) >> NUMBER_SHIFT) - 1;
+
+    if (type == L_ANT) return sum + n;
+    sum += N_ANTS;
+    if (type == L_GRASSHOPPER) return sum + n;
+    sum += N_GRASSHOPPERS;
+    if (type == L_BEETLE) return sum + n;
+    sum += N_BEETLES;
+    if (type == L_SPIDER) return sum + n;
+    sum += N_SPIDERS;
+    // It must be a queen.
+    return sum + n;
+}
 
 int sum_hive_tiles(struct board *board) {
     return N_TILES * 2 - (
@@ -78,6 +97,7 @@ void full_update(struct board *board) {
     int lx = 0, hx = BOARD_SIZE;
 #endif
 
+//    int first_tile = -1;
     for (int x = lx; x < hx; x++) {
         if (n_updated == to_update) break;
         for (int y = ly; y < hy; y++) {
@@ -85,16 +105,26 @@ void full_update(struct board *board) {
             // Dont check empty tiles, or tiles which could already move before this.
             if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
 
+//            first_tile = y * BOARD_SIZE + x;
+
+            // Allow everything at first, then let articulation fix this.
             n_updated++;
             board->tiles[y * BOARD_SIZE + x].free = can_move(board, x, y);
         }
     }
+
+//    print_board(board);
+//    articulation(board, first_tile);
+    // TODO: After articulation, set all stacked beetles to 'free = true', because they are stacked.
 }
 
 void update_can_move(struct board *board, int location, int previous_location) {
     // Dont do this checking twice.
     if (board->has_updated) return;
     board->has_updated = true;
+
+    // For articulation it might be beneficial to always full update.
+    return full_update(board);
 
     board->tiles[location].free = true;
 
@@ -400,35 +430,63 @@ int add_if_unique(int *array, int n, int value) {
     return 1;
 }
 
-int cc_recurse(struct board *board, int idx, bool *is_connected) {
-    if (is_connected[idx]) return 0;
-    if (board->tiles[idx].type == EMPTY) return 0;
-
-    is_connected[idx] = true;
-
-    int val = 1;
-    int *points = get_points_around(idx / BOARD_SIZE, idx % BOARD_SIZE);
-    val += cc_recurse(board, points[0], is_connected);
-    val += cc_recurse(board, points[1], is_connected);
-    val += cc_recurse(board, points[2], is_connected);
-    val += cc_recurse(board, points[3], is_connected);
-    val += cc_recurse(board, points[4], is_connected);
-    val += cc_recurse(board, points[5], is_connected);
-
-    return val;
-}
+//bool visited[N_TILES * 2];
+//int tin[N_TILES * 2], low[N_TILES * 2];
+//int timer;
+//void find_articulation(struct board *board, int idx, int parent) {
+//    int v = to_tile_index(board->tiles[idx].type);
+//    visited[v] = true;
+//    tin[v] = low[v] = timer++;
+//
+//    int children = 0;
+//
+//    int *points = get_points_around(idx / BOARD_SIZE, idx % BOARD_SIZE);
+//    for (int i = 0; i < 6; i++) {
+//        int to_idx = points[i];
+//        // Skip empty tiles
+//        if (board->tiles[to_idx].type == EMPTY) continue;
+//
+//        int to = to_tile_index(board->tiles[to_idx].type);
+//        // Dont go back to parent
+//        if (to_idx == parent) continue;
+//
+//        if (visited[to]) {
+//            low[v] = MIN(low[v], tin[to]);
+//        } else {
+//            find_articulation(board, to_idx, idx);
+//            low[v] = MIN(low[v], low[to]);
+//            if (low[to] >= tin[v] && parent != -1) {
+//                // This is a node which cannot be removed.
+//                board->tiles[idx].free = false;
+//            }
+//            children++;
+//        }
+//    }
+//    if (parent == -1 && children > 1) {
+//        board->tiles[idx].free = false;
+//    }
+//}
+//
+//void articulation(struct board* board, int index) {
+//    timer = 0;
+//    memset(&visited, false, sizeof(visited));
+//    memset(&tin, -1, sizeof(tin));
+//    memset(&low, -1, sizeof(low));
+//
+//    find_articulation(board, index, -1);
+//}
 
 int connected_components(struct board *board, int index) {
-    bool is_connected[BOARD_SIZE * BOARD_SIZE] = {0};
+    bool visited[BOARD_SIZE * BOARD_SIZE] = {0};
 
-//    return cc_recurse(board, index, is_connected);
+//    return find_articulation(board, index, -1, is_connected);
 
     int n_connected = 1;
     int frontier[N_TILES * 2];
     int frontier_p = 0; // Frontier pointer.
 
     frontier[frontier_p++] = index;
-    is_connected[index] = true;
+    visited[index] = true;
 
     while (frontier_p != 0) {
         int i = frontier[--frontier_p];
@@ -439,11 +497,11 @@ int connected_components(struct board *board, int index) {
         for (int n = 0; n < 6; n++) {
             // Skip this tile if theres nothing on it
             if (board->tiles[points[n]].type == EMPTY
-                || is_connected[points[n]])
+                || visited[points[n]])
                 continue;
 
             // If it was not yet connected, add a connected tile.
-            is_connected[points[n]] = true;
+            visited[points[n]] = true;
 
             frontier[frontier_p++] = points[n];
             n_connected += 1;

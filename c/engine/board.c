@@ -278,6 +278,7 @@ void print_board(struct board *board) {
 
             // Add number after tile
             if (n > 0) {
+//                n = board->tiles[y * BOARD_SIZE + x].free;
                 printf("%d", n);
             } else {
                 printf(" ");
