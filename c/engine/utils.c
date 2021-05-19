@@ -29,18 +29,19 @@ void parse_args(int argc, char* const* argv, struct arguments* arguments) {
     int c;
     int errflg = 0;
     struct player_arguments* pa;
-    while ((c = getopt(argc, argv, ":P:p:c:t:v")) != -1) {
+    while ((c = getopt(argc, argv, ":A:a:C:c:t:T:PpFfv")) != -1) {
+        if (c >= 97) {
+            pa = &arguments->p2;
+            c -= 32;
+        } else {
+            pa = &arguments->p1;
+        }
         switch(c) {
-            case 'v':
+            case 'V':
                 arguments->p1.verbose = true;
                 arguments->p2.verbose = true;
                 break;
-            case 'p':
-            case 'P':
-                if (c == 'p')
-                    pa = &arguments->p2;
-                else
-                    pa = &arguments->p1;
+            case 'A':
                 if (strcmp(optarg, "mcts") == 0) {
                     pa->algorithm = ALG_MCTS;
                 } else if (strcmp(optarg, "mm") == 0) {
@@ -54,13 +55,17 @@ void parse_args(int argc, char* const* argv, struct arguments* arguments) {
                     errflg++;
                 }
                 break;
-            case 'c':
-                arguments->p1.mcts_constant = atof(optarg);
-                arguments->p2.mcts_constant = atof(optarg);
+            case 'C':
+                pa->mcts_constant = atof(optarg);
                 break;
-            case 't':
-                arguments->p1.time_to_move = atoi(optarg);
-                arguments->p2.time_to_move = atoi(optarg);
+            case 'T':
+                pa->time_to_move = atof(optarg);
+                break;
+            case 'P':
+                pa->prioritization = true;
+                break;
+            case 'F':
+                pa->first_play_urgency = true;
                 break;
             case ':':       /* -f or -o without operand */
                 fprintf(stderr,
@@ -85,15 +90,19 @@ void print_args(struct arguments* arguments) {
     char* algo = alg_to_str(pa->algorithm);
     printf("Player 1:\n"
            "\tAlgorithm: %s\n"
-           "\tMCTS Constant: %.5f\n"
-           "\tTime-to-move: %d\n"
-            , algo, pa->mcts_constant, pa->time_to_move);
+           "\tMCTS Constant: %.2f\n"
+           "\tTime-to-move: %.2f\n"
+           "\tMCTS-Prioritization: %d\n"
+           "\tMCTS-FirstPlayUrgency: %d\n"
+            , algo, pa->mcts_constant, pa->time_to_move, pa->prioritization, pa->first_play_urgency);
 
     pa = &arguments->p2;
     algo = alg_to_str(pa->algorithm);
     printf("Player 2:\n"
            "\tAlgorithm: %s\n"
-           "\tMCTS Constant: %.5f\n"
-           "\tTime-to-move: %d\n"
-            , algo, pa->mcts_constant, pa->time_to_move);
+           "\tMCTS Constant: %.2f\n"
+           "\tTime-to-move: %.2f\n"
+           "\tMCTS-Prioritization: %d\n"
+           "\tMCTS-FirstPlayUrgency: %d\n"
+            , algo, pa->mcts_constant, pa->time_to_move, pa->prioritization, pa->first_play_urgency);
 }

@@ -25,6 +25,8 @@ void generate_moves(struct node *node, int flags);
 void find_articulation(struct board *board, int idx, int parent);
 void articulation(struct board* board, int index);
 
+void print_cc_stats();
+
 bool can_move(struct board* board, int x, int y);
 void full_update(struct board *board);
 void update_can_move(struct board *board, int location, int previous_location);

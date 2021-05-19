@@ -51,6 +51,7 @@
 #include <omp.h>
 #include "mm.h"
 #include "evaluation.h"
+#include "../mcts/mcts.h"
 
 
 void sort(struct node *node, bool max) {
@@ -84,28 +85,28 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
     // Lookup in table, and set values if value is found.
     bool to_replace;
     float best = -INFINITY;
-#pragma omp critical (transposition)
-    {
-        struct tt_entry *entry = tt_retrieve(node, root_player);
-        to_replace = (entry == NULL || entry->depth <= depth);
-        if (!to_replace) {
-            if (entry->flag == TT_FLAG_LOWER) {
-                alpha = MAX(alpha, entry->score);
-            } else if (entry->flag == TT_FLAG_UPPER) {
-                beta = MIN(beta, entry->score);
-            } else { // TT_FLAG_TRUE
-#pragma omp atomic
-                n_table_returns++;
-                best = entry->score;
-            }
-
-            if (alpha >= beta) {
-#pragma omp atomic
-                n_table_returns++;
-                best = entry->score;
-            }
-        }
-    }
+//#pragma omp critical (transposition)
+//    {
+//        struct tt_entry *entry = tt_retrieve(node, root_player);
+//        to_replace = (entry == NULL || entry->depth <= depth);
+//        if (!to_replace) {
+//            if (entry->flag == TT_FLAG_LOWER) {
+//                alpha = MAX(alpha, entry->score);
+//            } else if (entry->flag == TT_FLAG_UPPER) {
+//                beta = MIN(beta, entry->score);
+//            } else { // TT_FLAG_TRUE
+//#pragma omp atomic
+//                n_table_returns++;
+//                best = entry->score;
+//            }
+//
+//            if (alpha >= beta) {
+//#pragma omp atomic
+//                n_table_returns++;
+//                best = entry->score;
+//            }
+//        }
+//    }
 
     // Terminate from critical section
     if (best != -INFINITY) return best;
@@ -165,18 +166,18 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
         }
     }
 
-    char flag = TT_FLAG_TRUE;
-    if (best <= orig_alpha) {
-        flag = TT_FLAG_UPPER;
-    } else if (best >= orig_beta) {
-        flag = TT_FLAG_LOWER;
-    }
-    if (to_replace) {
-#pragma omp critical (transposition)
-        {
-            tt_store(node, best, flag, depth, root_player);
-        }
-    }
+//    char flag = TT_FLAG_TRUE;
+//    if (best <= orig_alpha) {
+//        flag = TT_FLAG_UPPER;
+//    } else if (best >= orig_beta) {
+//        flag = TT_FLAG_LOWER;
+//    }
+//    if (to_replace) {
+//#pragma omp critical (transposition)
+//        {
+//            tt_store(node, best, flag, depth, root_player);
+//        }
+//    }
 
     data->mm_value = best;
 
@@ -190,25 +191,25 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
     // Lookup in table, and set values if value is found.
     bool to_replace = false;
     float best;
-    struct tt_entry *entry = tt_retrieve(node, root_player);
-    to_replace = (entry == NULL || entry->depth <= depth);
-    if (!to_replace) {
-        if (entry->flag == TT_FLAG_LOWER) {
-            alpha = MAX(alpha, entry->score);
-        } else if (entry->flag == TT_FLAG_UPPER) {
-            beta = MIN(beta, entry->score);
-        } else { // TT_FLAG_TRUE
-#pragma omp atomic
-            n_table_returns++;
-            return entry->score;
-        }
-
-        if (alpha >= beta) {
-#pragma omp atomic
-            n_table_returns++;
-            return entry->score;
-        }
-    }
+//    struct tt_entry *entry = tt_retrieve(node, root_player);
+//    to_replace = (entry == NULL || entry->depth <= depth);
+//    if (!to_replace) {
+//        if (entry->flag == TT_FLAG_LOWER) {
+//            alpha = MAX(alpha, entry->score);
+//        } else if (entry->flag == TT_FLAG_UPPER) {
+//            beta = MIN(beta, entry->score);
+//        } else { // TT_FLAG_TRUE
+//#pragma omp atomic
+//            n_table_returns++;
+//            return entry->score;
+//        }
+//
+//        if (alpha >= beta) {
+//#pragma omp atomic
+//            n_table_returns++;
+//            return entry->score;
+//        }
+//    }
 
 
     float orig_alpha = alpha;
@@ -258,15 +259,15 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
         }
     }
 
-    char flag = TT_FLAG_TRUE;
-    if (best <= orig_alpha) {
-        flag = TT_FLAG_UPPER;
-    } else if (best >= orig_beta) {
-        flag = TT_FLAG_LOWER;
-    }
-    if (to_replace) {
-        tt_store(node, best, flag, depth, root_player);
-    }
+//    char flag = TT_FLAG_TRUE;
+//    if (best <= orig_alpha) {
+//        flag = TT_FLAG_UPPER;
+//    } else if (best >= orig_beta) {
+//        flag = TT_FLAG_LOWER;
+//    }
+//    if (to_replace) {
+//        tt_store(node, best, flag, depth, root_player);
+//    }
 
     data->mm_value = best;
 
@@ -298,19 +299,26 @@ struct node *mm_add_child(struct node *node, struct board *board) {
 }
 
 
-bool generate_children(struct node *root, time_t end_time, int flags) {
+int generate_children(struct node *root, time_t end_time, int flags) {
     /*
-     * Returns false if no more children should be generated after this.
-     * E.g., memory is full, time is spent, or max move depth is reached.
+     * Returns 0 if nothing went wrong, an error-code otherwise
+     *   1: No more moves could be generated due to turn limit.
+     *   2: Time-budget is spent.
+     *   3: Memory is full, no new nodes can be allocated.
      */
 
     // Ensure timely finishing
-    if (time(NULL) > end_time) return false;
+    if (time(NULL) > end_time) return ERR_NOTIME;
 
     // Dont continue generating children if there is no more memory.
     if (max_nodes - n_nodes < 1000) {
         fprintf(stderr, "Not enough memory to hold amount of required nodes (%lld/%lld).\n", n_nodes, max_nodes);
-        exit(1);
+//        exit(1);
+        return ERR_NOMEM;
+    }
+
+    if (root->board->turn == MAX_TURNS - 1) {
+        return ERR_NOMOVES;
     }
 
     // Only generate more nodes if you have no nodes yet
@@ -321,7 +329,7 @@ bool generate_children(struct node *root, time_t end_time, int flags) {
             add_child(root, -1, 0, -1);
         }
     }
-    return !list_empty(&root->children);
+    return list_empty(&root->children);
 }
 
 void minimax(struct node **proot, struct player_arguments *args) {

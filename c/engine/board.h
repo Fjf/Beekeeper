@@ -125,6 +125,7 @@ struct board* init_board();
 
 void get_min_x_y(struct board* board, int* min_x, int* min_y);
 void get_max_x_y(struct board* board, int* max_x, int* max_y);
+int count_tiles_around(struct board* board, int position);
 void translate_board(struct board* board);
 void translate_board_22(struct board* board);
 int finished_board(struct board* board);

@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include "../engine/node.h"
 
+float unused_tiles(struct node* node);
 bool mm_evaluate_expqueen(struct node* node);
 bool mm_evaluate_linqueen(struct node* node);
 bool mm_evaluate_noblock(struct node* node);

@@ -173,6 +173,20 @@ void translate_board_22(struct board *board) {
 }
 
 
+int count_tiles_around(struct board* board, int position) {
+    int x = position % BOARD_SIZE;
+    int y = position / BOARD_SIZE;
+    int count = 0;
+    int* points = get_points_around(y, x);
+    for (int p = 0; p < 6; p++) {
+        if (board->tiles[points[p]].type != EMPTY) {
+            count++;
+        }
+    }
+    return count;
+}
+
+
 bool is_surrounded(struct board* board, int y, int x) {
     int p;
     int* points = get_points_around(y, x);

@@ -177,6 +177,10 @@ void add_child(struct node *node, int location, int type, int previous_location)
 
     // Create new board
     struct board *board = malloc(sizeof(struct board));
+    if (board == NULL) {
+        fprintf(stderr, "No memory left to allocate a board\n");
+        exit(1);
+    }
     memcpy(board, node->board, sizeof(struct board));
     board->move_location_tracker = 0;
 
@@ -476,6 +480,7 @@ int add_if_unique(int *array, int n, int value) {
 //    find_articulation(board, index, -1);
 //}
 
+
 int connected_components(struct board *board, int index) {
     bool visited[BOARD_SIZE * BOARD_SIZE] = {0};
 
@@ -507,6 +512,7 @@ int connected_components(struct board *board, int index) {
             n_connected += 1;
         }
     }
+
     return n_connected;
 }
 

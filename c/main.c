@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <utils.h>
 #include <assert.h>
+#include <omp.h>
 #include "engine/tt.h"
 #include "engine/board.h"
 #include "engine/moves.h"
@@ -159,7 +160,7 @@ void mcts_test(struct node *tree) {
 
     int w = 0, l = 0, d = 0;
     for (int i = 0; i < 1000; i++) {
-        int result = mcts_playout(tree, t);
+        int result = mcts_playout_prio(tree, t);
         if (result == 1) w++;
         else if (result == 2) l++;
         else if (result == 3) d++;
@@ -236,6 +237,8 @@ int main(int argc, char** argv) {
         num = -1;
     }
 
+    omp_set_num_threads(1);
+
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
     for (int i = 0; i < n_moves; i++) {
@@ -257,6 +260,7 @@ int main(int argc, char** argv) {
 
         int won = finished_board(tree->board);
         if (won) {
+
             printf("Player %d won in move %d\n", won, tree->board->turn);
             break;
         }

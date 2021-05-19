@@ -15,7 +15,7 @@ void zobrist_init() {
     }
 }
 
-void zobrist_hash(struct board* board, int location, int old_location, int type) {
+void zobrist_hash(struct board *board, int location, int old_location, int type) {
     int tile_type = type & TILE_MASK;
     int color = (type & COLOR_MASK) >> COLOR_SHIFT;
     int idx = tile_type + N_UNIQUE_TILES * color;
@@ -25,9 +25,9 @@ void zobrist_hash(struct board* board, int location, int old_location, int type)
         board->zobrist_hash ^= zobrist_table[old_location * N_UNIQUE_TILES * 2 + idx];
 }
 
-void tt_store(struct node* node, float score, char flag, int depth, int player) {
+void tt_store(struct node *node, float score, char flag, int depth, int player) {
     long idx = node->board->zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
-    struct tt_entry* entry = &tt_table[idx];
+    struct tt_entry *entry = &tt_table[idx];
 
     if (entry->flag != -1) {
         // There was already an entry here TODO: Replacement scheme
@@ -35,7 +35,13 @@ void tt_store(struct node* node, float score, char flag, int depth, int player) 
         // Simple depth related replacement scheme.
 //        if (entry->depth > depth) return;
     }
-    long long sanity = (long long) (node->board->dark_queen_position) | node->board->light_queen_position;
+    u_char bit_length = 10;
+    long long sanity = ((((node->board->dark_queen_position << bit_length)
+                          | node->board->light_queen_position) << bit_length)
+                        | (node->board->min_x) << 5
+                        | (node->board->min_y) << 5
+                        | (node->board->max_x) << 5
+                        | (node->board->max_y) << 5);
 
     entry->sanity = sanity;
     entry->lock = node->board->zobrist_hash / TT_TABLE_SIZE;
@@ -44,12 +50,18 @@ void tt_store(struct node* node, float score, char flag, int depth, int player) 
     entry->depth = depth;
 }
 
-struct tt_entry* tt_retrieve(struct node* node, int player) {
+struct tt_entry *tt_retrieve(struct node *node, int player) {
     long idx = node->board->zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
-    struct tt_entry* entry = &tt_table[idx];
+    struct tt_entry *entry = &tt_table[idx];
     long long lock = node->board->zobrist_hash / TT_TABLE_SIZE;
 
-    long long sanity = (long long) (node->board->dark_queen_position) << 32 | node->board->light_queen_position;
+    u_char bit_length = 10;
+    long long sanity = ((((node->board->dark_queen_position << bit_length)
+                          | node->board->light_queen_position) << bit_length)
+                        | (node->board->min_x) << 5
+                        | (node->board->min_y) << 5
+                        | (node->board->max_x) << 5
+                        | (node->board->max_y) << 5);
     if (entry->flag == -1 || entry->lock != lock || entry->sanity != sanity) return NULL;
     return entry;
 }

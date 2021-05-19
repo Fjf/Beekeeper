@@ -20,7 +20,9 @@
 struct player_arguments {
     int algorithm;
     double mcts_constant;
-    int time_to_move;
+    double time_to_move;
+    bool prioritization;
+    bool first_play_urgency;
     bool verbose;
 };
 struct arguments {
