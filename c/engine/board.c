@@ -355,8 +355,8 @@ void print_board(struct board *board) {
 
 void print_matrix(struct board* board) {
     printf("---------\n");
-    for (int i = 6; i < BOARD_SIZE - 6; i++) {
-        for (int j = 6; j < BOARD_SIZE - 6; j++) {
+    for (int i = 0; i < BOARD_SIZE - 0; i++) {
+        for (int j = 0; j < BOARD_SIZE - 0; j++) {
             int t = board->tiles[i * BOARD_SIZE + j].type;
             printf("%d ", t & TILE_MASK);
         }

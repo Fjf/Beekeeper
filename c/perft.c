@@ -32,6 +32,6 @@ int main(int argc, char** argv) {
         int nodes = n - last;
         last = n;
         double time = (to_usec(end) - to_usec(start)) / 1e6;
-        printf("%8d | %15.4f | %15d | (%.2f)\n", depth, time, nodes, (nodes/time) / 1000);
+        printf("%8d | %15.4f | %15d | (%.2f)\n", depth, time, nodes, (n/time) / 1000);
     }
 }

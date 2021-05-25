@@ -40,8 +40,8 @@ class Board(Structure):
         ('turn', c_int),
         ('players', Player * 2),
 
-        ('queen1_position', c_int),
-        ('queen2_position', c_int),
+        ('light_queen_position', c_int),
+        ('dark_queen_position', c_int),
 
         ('min_x', c_int),
         ('min_y', c_int),
@@ -54,7 +54,9 @@ class Board(Structure):
         ('move_location_tracker', c_int),
 
         ('zobrist_hash', c_longlong),
-        ('hash_history', c_longlong * 150)  # TODO: Remove hardcoded 150
+        ('hash_history', c_longlong * 100),
+
+        ('has_updated', c_bool),
     ]
 
 
@@ -80,7 +82,9 @@ class Move(Structure):
     _fields_ = [
         ('tile', c_byte),
         ('next_to', c_byte),
-        ('direction', c_byte)
+        ('direction', c_byte),
+        ('previous_location', c_int),
+        ('location', c_int),
     ]
 
 
@@ -256,13 +260,43 @@ def test(hive):
             break
 
 
+def to_matrix(hive):
+    lib.print_matrix(hive.node.contents.board)
+
+
+def generate_graphs(hive):
+    n_moves = 100
+    for move in range(n_moves):
+        to_matrix(hive)
+
+        # Do performance testing (generate all nodes to depth N)
+        hive.generate_moves()
+        n_children = hive.node.contents.board.contents.move_location_tracker
+
+        if n_children == 0:
+            # Terminal state
+            break
+
+        random_child = random.randint(0, n_children - 1)
+        for i, child in enumerate(hive.children()):
+            if i == random_child:
+                lib.list_remove(byref(child.contents.node))
+                lib.node_free(hive.node)
+                hive.node = child
+                break
+
+    hive.reinitialize()
+
+
 def main():
     hive = Hive()
 
     # branching_factor(hive)
 
     # performance_factor(hive)
-    test(hive)
+    # test(hive)
+
+    generate_graphs(hive)
 
 
 if __name__ == "__main__":

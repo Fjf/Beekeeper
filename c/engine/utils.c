@@ -35,10 +35,13 @@ int performance_testing_parallel(struct node *tree, int depth, int par_depth) {
 #pragma omp parallel
 #pragma omp single
         node_foreach_safe(tree, head, temp) {
-#pragma omp task
+#pragma omp task firstprivate(head)
             {
                 struct node *child = container_of(head, struct node, node);
-                ret += performance_testing(child, depth - 1);
+                int r = performance_testing(child, depth - 1);
+
+                #pragma omp atomic
+                ret += r;
 
                 #pragma omp critical (free)
                 node_free(child);
@@ -119,8 +122,6 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
 }
 
 void print_args(struct arguments *arguments) {
-
-
     for (int i = 0; i < 2; i++) {
         struct player_arguments* pa = &arguments->p1;
         if (i == 1) {
