@@ -8,27 +8,57 @@
 #include "moves.h"
 #include <unistd.h>
 #include <string.h>
+#include <omp.h>
 
-int performance_testing(struct node* tree, int depth) {
+int performance_testing(struct node *tree, int depth) {
     if (depth == 0) return 1;
     generate_moves(tree, 0);
 
     struct list *head, *temp;
     int ret = 1;
     node_foreach_safe(tree, head, temp) {
-        struct node* child = container_of(head, struct node, node);
-        ret += performance_testing(child, depth-1);
+        struct node *child = container_of(head, struct node, node);
+        ret += performance_testing(child, depth - 1);
         node_free(child);
     }
     return ret;
 }
 
+int performance_testing_parallel(struct node *tree, int depth, int par_depth) {
+    if (depth == 0) return 1;
+    generate_moves(tree, 0);
+
+    int ret = 1;
+    struct list *head, *temp;
+
+    if (par_depth == 0) {
+#pragma omp parallel
+#pragma omp single
+        node_foreach_safe(tree, head, temp) {
+#pragma omp task
+            {
+                struct node *child = container_of(head, struct node, node);
+                ret += performance_testing(child, depth - 1);
+
+                #pragma omp critical (free)
+                node_free(child);
+            }
+        }
+    } else {
+        node_foreach_safe(tree, head, temp) {
+            struct node *child = container_of(head, struct node, node);
+            ret += performance_testing_parallel(child, depth - 1, par_depth - 1);
+            node_free(child);
+        }
+    }
+    return ret;
+}
 
 
-void parse_args(int argc, char* const* argv, struct arguments* arguments) {
+void parse_args(int argc, char *const *argv, struct arguments *arguments) {
     int c;
     int errflg = 0;
-    struct player_arguments* pa;
+    struct player_arguments *pa;
     while ((c = getopt(argc, argv, ":A:a:C:c:t:T:PpFfv")) != -1) {
         if (c >= 97) {
             pa = &arguments->p2;
@@ -36,7 +66,7 @@ void parse_args(int argc, char* const* argv, struct arguments* arguments) {
         } else {
             pa = &arguments->p1;
         }
-        switch(c) {
+        switch (c) {
             case 'V':
                 arguments->p1.verbose = true;
                 arguments->p2.verbose = true;
@@ -85,16 +115,16 @@ void parse_args(int argc, char* const* argv, struct arguments* arguments) {
     }
 }
 
-void print_args(struct arguments* arguments) {
-    struct player_arguments* pa = &arguments->p1;
-    char* algo = alg_to_str(pa->algorithm);
+void print_args(struct arguments *arguments) {
+    struct player_arguments *pa = &arguments->p1;
+    char *algo = alg_to_str(pa->algorithm);
     printf("Player 1:\n"
            "\tAlgorithm: %s\n"
            "\tMCTS Constant: %.2f\n"
            "\tTime-to-move: %.2f\n"
            "\tMCTS-Prioritization: %d\n"
-           "\tMCTS-FirstPlayUrgency: %d\n"
-            , algo, pa->mcts_constant, pa->time_to_move, pa->prioritization, pa->first_play_urgency);
+           "\tMCTS-FirstPlayUrgency: %d\n", algo, pa->mcts_constant, pa->time_to_move, pa->prioritization,
+           pa->first_play_urgency);
 
     pa = &arguments->p2;
     algo = alg_to_str(pa->algorithm);
@@ -103,6 +133,6 @@ void print_args(struct arguments* arguments) {
            "\tMCTS Constant: %.2f\n"
            "\tTime-to-move: %.2f\n"
            "\tMCTS-Prioritization: %d\n"
-           "\tMCTS-FirstPlayUrgency: %d\n"
-            , algo, pa->mcts_constant, pa->time_to_move, pa->prioritization, pa->first_play_urgency);
+           "\tMCTS-FirstPlayUrgency: %d\n", algo, pa->mcts_constant, pa->time_to_move, pa->prioritization,
+           pa->first_play_urgency);
 }

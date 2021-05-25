@@ -35,5 +35,6 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments);
 void print_args(struct arguments *arguments);
 
 int performance_testing(struct node *tree, int depth);
+int performance_testing_parallel(struct node* tree, int depth, int par_depth);
 
 #endif //HIVE_UTILS_H

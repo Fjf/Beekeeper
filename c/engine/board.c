@@ -44,14 +44,13 @@ struct board *init_board() {
 }
 
 
-
-void get_min_x_y(struct board* board, int* min_x, int* min_y) {
+void get_min_x_y(struct board *board, int *min_x, int *min_y) {
     int lower_x = *min_x;
     int lower_y = *min_y;
     *min_x = *min_y = BOARD_SIZE;
     for (int y = lower_y; y < BOARD_SIZE; y++) {
         for (int x = lower_x; x < *min_x; x++) {
-            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
+            struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
             if (tile->type == EMPTY) continue;
 
             // Set min_y to the first non-empty tile row
@@ -62,13 +61,13 @@ void get_min_x_y(struct board* board, int* min_x, int* min_y) {
     }
 }
 
-void get_max_x_y(struct board* board, int* max_x, int* max_y) {
+void get_max_x_y(struct board *board, int *max_x, int *max_y) {
     int upper_y = *max_y;
     int upper_x = *max_x;
     *max_x = *max_y = 0;
     for (int y = upper_y; y >= 0; y--) {
         for (int x = upper_x; x >= *max_x; x--) {
-            struct tile* tile = &board->tiles[y * BOARD_SIZE + x];
+            struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
             if (tile->type == EMPTY) continue;
 
             // Set min_y to the first non-empty tile row
@@ -76,6 +75,52 @@ void get_max_x_y(struct board* board, int* max_x, int* max_y) {
 
             if (x > *max_x) *max_x = x;
         }
+    }
+}
+
+
+
+
+void force_set_bounds(struct board *board) {
+    board->min_y = board->min_x = board->max_x = board->max_y = -1;
+    // Set min Y
+    for (int y = 0; y < BOARD_SIZE; y++) {
+        for (int x = 0; x < BOARD_SIZE; x++) {
+            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+                board->min_y = y;
+                break;
+            }
+        }
+        if (board->min_y != -1) break;
+    }
+
+    // Set max Y
+    for (int y = BOARD_SIZE - 1; y >= 0; y--) {
+        for (int x = 0; x < BOARD_SIZE; x++) {
+            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+                board->max_y = y;
+                break;
+            }
+        }
+        if (board->max_y != -1) break;
+    }
+    for (int x = 0; x < BOARD_SIZE; x++) {
+        for (int y = 0; y < BOARD_SIZE; y++) {
+            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+                board->min_x = x;
+                break;
+            }
+        }
+        if (board->min_x != -1) break;
+    }
+    for (int x = BOARD_SIZE - 1; x >= 0; x--) {
+        for (int y = 0; y < BOARD_SIZE; y++) {
+            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+                board->max_x = x;
+                break;
+            }
+        }
+        if (board->max_x != -1) break;
     }
 }
 
@@ -87,8 +132,8 @@ void translate_board(struct board *board) {
     int moffset = board->max_y * BOARD_SIZE + board->max_x;
     int size = (moffset - offset) + 1;
 
-    int to_x = (BOARD_SIZE / 2) - (board->max_x - board->min_x) / 2;
-    int to_y = (BOARD_SIZE / 2) - (board->max_y - board->min_y) / 2;
+    int to_x = (BOARD_SIZE / 2) - (board->max_x - board->min_x + 1) / 2;
+    int to_y = (BOARD_SIZE / 2) - (board->max_y - board->min_y + 1) / 2;
 
     // Move all the tile tracking structs the same amount as the rest of the board.
     int translate_offset = (to_y * BOARD_SIZE + to_x) - offset;
@@ -104,10 +149,10 @@ void translate_board(struct board *board) {
 
     // Copy data into temp array
     struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
-    void* temp = &t;
+    void *temp = &t;
 
     memcpy(temp + (to_y * BOARD_SIZE + to_x) * sizeof(struct tile),
-           ((void*)&board->tiles) + offset * sizeof(struct tile),
+           ((void *) &board->tiles) + offset * sizeof(struct tile),
            (size) * sizeof(struct tile)
     );
 
@@ -160,10 +205,10 @@ void translate_board_22(struct board *board) {
 
     // Copy data into temp array
     struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
-    void* temp = &t;
+    void *temp = &t;
 
     memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
-           ((void*)&board->tiles) + offset * sizeof(struct tile),
+           ((void *) &board->tiles) + offset * sizeof(struct tile),
            (size - (2 * BOARD_SIZE + 2)) * sizeof(struct tile)
     );
 
@@ -173,11 +218,11 @@ void translate_board_22(struct board *board) {
 }
 
 
-int count_tiles_around(struct board* board, int position) {
+int count_tiles_around(struct board *board, int position) {
     int x = position % BOARD_SIZE;
     int y = position / BOARD_SIZE;
     int count = 0;
-    int* points = get_points_around(y, x);
+    int *points = get_points_around(y, x);
     for (int p = 0; p < 6; p++) {
         if (board->tiles[points[p]].type != EMPTY) {
             count++;
@@ -187,9 +232,9 @@ int count_tiles_around(struct board* board, int position) {
 }
 
 
-bool is_surrounded(struct board* board, int y, int x) {
+bool is_surrounded(struct board *board, int y, int x) {
     int p;
-    int* points = get_points_around(y, x);
+    int *points = get_points_around(y, x);
     for (p = 0; p < 6; p++) {
         if (board->tiles[points[p]].type == EMPTY) {
             break;
@@ -308,3 +353,13 @@ void print_board(struct board *board) {
     printf("\n");
 }
 
+void print_matrix(struct board* board) {
+    printf("---------\n");
+    for (int i = 6; i < BOARD_SIZE - 6; i++) {
+        for (int j = 6; j < BOARD_SIZE - 6; j++) {
+            int t = board->tiles[i * BOARD_SIZE + j].type;
+            printf("%d ", t & TILE_MASK);
+        }
+        printf("\n");
+    }
+}

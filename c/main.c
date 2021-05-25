@@ -172,6 +172,7 @@ void mcts_test(struct node *tree) {
 
 }
 
+
 int main(int argc, char** argv) {
 #ifdef TESTING
     srand(11287501);

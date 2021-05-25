@@ -120,7 +120,7 @@ struct board {
 
 
 void print_board(struct board* board);
-
+void print_matrix(struct board* board);
 struct board* init_board();
 
 void get_min_x_y(struct board* board, int* min_x, int* min_y);
