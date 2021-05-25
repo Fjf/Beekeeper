@@ -10,10 +10,11 @@
 #include <omp.h>
 
 int main(int argc, char** argv) {
-    int max_depth = 8;
+    int max_depth = 5;
     if (argc > 1) {
         max_depth = atoi(argv[1]);
     }
+    omp_set_num_threads(4);
 
     printf("Running perft with depth %d on %d threads.\n", max_depth, omp_get_max_threads());
 

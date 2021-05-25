@@ -59,7 +59,7 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
     int c;
     int errflg = 0;
     struct player_arguments *pa;
-    while ((c = getopt(argc, argv, ":A:a:C:c:t:T:PpFfv")) != -1) {
+    while ((c = getopt(argc, argv, ":A:a:C:c:t:T:e:E:PpFfv")) != -1) {
         if (c >= 97) {
             pa = &arguments->p2;
             c -= 32;
@@ -70,6 +70,9 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
             case 'V':
                 arguments->p1.verbose = true;
                 arguments->p2.verbose = true;
+                break;
+            case 'E':
+                pa->evaluation_function = atoi(optarg);
                 break;
             case 'A':
                 if (strcmp(optarg, "mcts") == 0) {
@@ -116,23 +119,23 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
 }
 
 void print_args(struct arguments *arguments) {
-    struct player_arguments *pa = &arguments->p1;
-    char *algo = alg_to_str(pa->algorithm);
-    printf("Player 1:\n"
-           "\tAlgorithm: %s\n"
-           "\tMCTS Constant: %.2f\n"
-           "\tTime-to-move: %.2f\n"
-           "\tMCTS-Prioritization: %d\n"
-           "\tMCTS-FirstPlayUrgency: %d\n", algo, pa->mcts_constant, pa->time_to_move, pa->prioritization,
-           pa->first_play_urgency);
 
-    pa = &arguments->p2;
-    algo = alg_to_str(pa->algorithm);
-    printf("Player 2:\n"
-           "\tAlgorithm: %s\n"
-           "\tMCTS Constant: %.2f\n"
-           "\tTime-to-move: %.2f\n"
-           "\tMCTS-Prioritization: %d\n"
-           "\tMCTS-FirstPlayUrgency: %d\n", algo, pa->mcts_constant, pa->time_to_move, pa->prioritization,
-           pa->first_play_urgency);
+
+    for (int i = 0; i < 2; i++) {
+        struct player_arguments* pa = &arguments->p1;
+        if (i == 1) {
+            pa = &arguments->p2;
+        }
+
+        char *algo = alg_to_str(pa->algorithm);
+        char *eval = eval_to_str(pa->evaluation_function);
+        printf("Player %d:\n"
+               "\tAlgorithm: %s\n"
+               "\tMinimax Eval: %s\n"
+               "\tMCTS Constant: %.2f\n"
+               "\tTime-to-move: %.2f\n"
+               "\tMCTS-Prioritization: %d\n"
+               "\tMCTS-FirstPlayUrgency: %d\n", i+1, algo, eval, pa->mcts_constant, pa->time_to_move, pa->prioritization,
+               pa->first_play_urgency);
+    }
 }

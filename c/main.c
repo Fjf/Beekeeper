@@ -191,17 +191,9 @@ int main(int argc, char** argv) {
     n_nodes = 0;
     printf("Can hold %llu nodes in memory.\n", max_nodes);
 
-    // Set the evaluation function
-    mm_evaluate = mm_evaluate_expqueen;
-
     // Register mcts node add function
     dedicated_add_child = mcts_add_child;
     dedicated_init = mcts_init;
-
-
-    // Register mcts node add function
-//    dedicated_add_child = mm_add_child;
-//    dedicated_init = mm_init;
 
 #ifdef TESTING
     int n_moves = 1;

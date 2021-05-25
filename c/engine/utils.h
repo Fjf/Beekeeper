@@ -6,16 +6,18 @@
 #define HIVE_UTILS_H
 
 #include "node.h"
-
+#include "../mm/evaluation.h"
 
 #define ALG_MM 0
 #define ALG_MCTS 1
 #define ALG_RANDOM 2
-#define ALG_MANUAL 2
+#define ALG_MANUAL 3
 #define alg_to_str(in) ((in) == ALG_MM ? "Minimax" : \
                        ((in) == ALG_MCTS ? "MCTS" :  \
                        ((in) == ALG_RANDOM ? "Random" : \
                        ((in) == ALG_MANUAL ? "Manual" : "Unknown"))))
+#define eval_to_str(in) ((in) == EVAL_QUEEN ? "Queen" : \
+                       ((in) == EVAL_MOVEMENT ? "Movement" : "Unknown"))
 
 struct player_arguments {
     int algorithm;
@@ -24,6 +26,7 @@ struct player_arguments {
     bool prioritization;
     bool first_play_urgency;
     bool verbose;
+    int evaluation_function;
 };
 struct arguments {
     struct player_arguments p1;

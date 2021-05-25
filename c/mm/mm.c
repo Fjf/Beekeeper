@@ -344,6 +344,14 @@ void minimax(struct node **proot, struct player_arguments *args) {
     dedicated_add_child = mm_add_child;
     dedicated_init = mm_init;
 
+    mm_evaluate = mm_evaluate_expqueen;
+    if (args->evaluation_function == EVAL_QUEEN) {
+        // Set the evaluation function
+        mm_evaluate = mm_evaluate_expqueen;
+    } else if (args->evaluation_function == EVAL_MOVEMENT) {
+        mm_evaluate = mm_evaluate_movement;
+    }
+
     struct timespec start, end;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
 
@@ -384,6 +392,7 @@ void minimax(struct node **proot, struct player_arguments *args) {
         depth += 1;
         if (value > MM_INFINITY || value < -MM_INFINITY) continue;
         if (value > MM_INFINITY - 200 || value < -MM_INFINITY + 200) break;
+        if (root->board->turn + depth == MAX_TURNS) break;
 #ifdef TESTING
         if (depth == 6) break;
 #endif

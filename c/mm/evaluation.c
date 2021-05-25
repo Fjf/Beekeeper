@@ -116,11 +116,15 @@ bool mm_evaluate_expqueen(struct node* node) {
     return false;
 }
 
-bool mm_evaluate_linqueen(struct node* node) {
+bool mm_evaluate_movement(struct node* node) {
     struct mm_data* data = node->data;
 
+    // We want to have this information.
+    update_can_move(node->board, node->move.location, node->move.previous_location);
+
+
 #ifdef TESTING
-    float value = 0.f;
+    float value = 0.;
 #else
     float value = 0.f + (float)(rand() % 100) / 1000.f;
 #endif
@@ -142,7 +146,8 @@ bool mm_evaluate_linqueen(struct node* node) {
         return true;
     }
 
-    value += unused_tiles(node);
+
+    value += unused_tiles(node) * 0.3f;
 
     int n_encountered = 0;
     int to_encounter = sum_hive_tiles(node->board);
@@ -156,6 +161,7 @@ bool mm_evaluate_linqueen(struct node* node) {
     int lx = 0, hx = BOARD_SIZE;
 #endif
 
+    float movement_multiplier = 5;
     for (int x = lx; x < hx; x++) {
         if (n_encountered == to_encounter) break;
         for (int y = ly; y < hy; y++) {
@@ -168,18 +174,18 @@ bool mm_evaluate_linqueen(struct node* node) {
                 float inc = 1.f;
                 if ((tile & TILE_MASK) == L_ANT) {
                     inc = 2.f;
-                } else if ((tile & TILE_MASK) == L_QUEEN) {
-                    inc = 10.f;
+                }
+                if ((tile & TILE_MASK) == L_QUEEN) {
+                    inc = 3.f;
                 }
                 if ((tile & COLOR_MASK) == LIGHT) {
-                    value -= inc;
+                    value -= inc * movement_multiplier;
                 } else {
-                    value += inc;
+                    value += inc * movement_multiplier;
                 }
             }
         }
     }
-
 
     if (node->board->light_queen_position != -1) {
         int x1 = node->board->light_queen_position % BOARD_SIZE;
@@ -188,7 +194,7 @@ bool mm_evaluate_linqueen(struct node* node) {
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 1, the value drops by 1
             if (node->board->tiles[points[i]].type != EMPTY)
-                value -= 15.f;
+                value -= 2.0f;
         }
     }
 
@@ -199,7 +205,7 @@ bool mm_evaluate_linqueen(struct node* node) {
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 2, the value increases by 1
             if (node->board->tiles[points[i]].type != EMPTY)
-                value += 15.f;
+                value += 2.0f;
         }
     }
 
