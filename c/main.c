@@ -168,7 +168,7 @@ void mcts_test(struct node *tree) {
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
     printf("msec: %.5f\n", (to_usec(end) - to_usec(start)) / 1e3);
     printf("playouts p sec: %.5f\n", 1000. / ((to_usec(end) - to_usec(start)) / 1e6));
-    printf("w/l/d: %d/%d/%d\n", w, l, d);
+    printf("%d & %d & %d\n", w, l, d);
 
 }
 

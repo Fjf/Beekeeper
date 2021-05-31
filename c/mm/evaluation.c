@@ -116,6 +116,17 @@ bool mm_evaluate_expqueen(struct node* node) {
     return false;
 }
 
+float relative_tile_value(unsigned char tile) {
+    float value = 1.f;
+    if ((tile & TILE_MASK) == L_ANT) {
+        value = 2.f;
+    }
+    if ((tile & TILE_MASK) == L_QUEEN) {
+        value = 3.f;
+    }
+    return value;
+}
+
 bool mm_evaluate_movement(struct node* node) {
     struct mm_data* data = node->data;
 
@@ -161,7 +172,7 @@ bool mm_evaluate_movement(struct node* node) {
     int lx = 0, hx = BOARD_SIZE;
 #endif
 
-    float movement_multiplier = 5;
+    float free_counter = 0.f;
     for (int x = lx; x < hx; x++) {
         if (n_encountered == to_encounter) break;
         for (int y = ly; y < hy; y++) {
@@ -171,21 +182,30 @@ bool mm_evaluate_movement(struct node* node) {
             n_encountered++;
 
             if (!node->board->tiles[y * BOARD_SIZE + x].free) {
-                float inc = 1.f;
-                if ((tile & TILE_MASK) == L_ANT) {
-                    inc = 2.f;
-                }
-                if ((tile & TILE_MASK) == L_QUEEN) {
-                    inc = 3.f;
-                }
+                float inc = relative_tile_value(tile);
                 if ((tile & COLOR_MASK) == LIGHT) {
-                    value -= inc * movement_multiplier;
+                    free_counter -= inc;
                 } else {
-                    value += inc * movement_multiplier;
+                    free_counter += inc;
                 }
             }
         }
     }
+
+    // Count the tiles on the stack too.
+    for (int i = 0; i < node->board->n_stacked; i++) {
+        struct tile_stack* ts = &node->board->stack[i];
+        unsigned char tile = ts->type;
+        float inc = relative_tile_value(tile);
+        if ((tile & COLOR_MASK) == LIGHT) {
+            free_counter -= inc;
+        } else {
+            free_counter += inc;
+        }
+    }
+
+    float movement_multiplier = 5;
+    value += free_counter * movement_multiplier;
 
     if (node->board->light_queen_position != -1) {
         int x1 = node->board->light_queen_position % BOARD_SIZE;

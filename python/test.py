@@ -88,6 +88,42 @@ class Move(Structure):
     ]
 
 
+#
+# The PlayerArguments structure is used to specify to MCTS or Minimax what parameters to use in the search.
+# Algorithm can be between 0 and 3;
+#   0 - Minimax
+#   1 - MCTS
+#   2 - Random
+#   3 - Manual
+# MCTS constant is the constant used for UCB1 to define the exploration factor.
+# Time to move is the amount of allotted time to select a move.
+# Prioritization is an MCTS playout prioritization strategy to reduce the amount of draws.
+# First play urgency is an MCTS enhancement to quickly identify good branches early on.
+# Verbose generates more output per algorithm.
+# Evaluation function is a switch case for Minimax, it can be 0 or 1;
+#   0 - Queen surrounding prioritization
+#   1 - Opponent tile blocking prioritization
+#
+class PlayerArguments(Structure):
+    _fields_ = [
+        ('algorithm', c_int),
+        ('mcts_constant', c_double),
+        ('time_to_move', c_double),
+        ('prioritization', c_bool),
+        ('first_play_urgency', c_bool),
+        ('verbose', c_bool),
+        ('evaluation_function', c_int),
+    ]
+
+#
+# The Arguments structure stored for each player what algorithm they use and what parameters to use for this algorithm.
+#
+class Arguments(Structure):
+    _fields_ = [
+        ('p1', PlayerArguments),
+        ('p2', PlayerArguments),
+    ]
+
 class Node(Structure):
     _fields_ = [
         ('children', List),

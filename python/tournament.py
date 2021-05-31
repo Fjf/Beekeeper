@@ -133,7 +133,8 @@ def main():
         data = pickle.load(open("data.store", "rb"))
 
     print("Initial ratings")
-    print_ratings(fig=False)
+    print_ratings(fig=True)
+    exit(0)
 
     pool = [
         Configuration("random"),

@@ -51,12 +51,12 @@ float prioritization(struct node* node) {
         result = 1;
     } else if (count < 0 && player == 1 || count > 0 && player == 0) {
         // Bad result
-        result =  1.f / fabsf(count);
+        result =  1.f / (1 + fabsf(count));
     } else {
-        result =  fabsf(count);
+        result = 1 + fabsf(count);
     }
 
-    return powf(result, 3);
+    return powf(result, 0);
 }
 
 
