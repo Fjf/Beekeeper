@@ -16,26 +16,27 @@ data = defaultdict(dd)
 
 
 class Configuration(object):
-    def __init__(self, alg="random", c=1, p=False, t=1., f=False):
+    def __init__(self, alg="random", c=1, p=False, t=1., f=False, e=0):
         self.algorithm = alg
         self.mcts_constant = str(c)
         self.mcts_prioritization = p
         self.time = str(t)
         self.first_play_urgency = f
+        self.evaluation_function = str(e)
 
     def to_cmd(self, player1=True):
         if player1:
             prio = "-P" if self.mcts_prioritization is True else ""
             fpu = "-F" if self.first_play_urgency is True else ""
-            return ["-A", self.algorithm, prio, fpu, "-C", self.mcts_constant, "-T", self.time]
+            return ["-A", self.algorithm, prio, fpu, "-C", self.mcts_constant, "-T", self.time, "-E", self.evaluation_function]
         else:
             prio = "-p" if self.mcts_prioritization is True else ""
             fpu = "-f" if self.first_play_urgency is True else ""
-            return ["-a", self.algorithm, prio, fpu, "-c", self.mcts_constant, "-t", self.time]
+            return ["-a", self.algorithm, prio, fpu, "-c", self.mcts_constant, "-t", self.time, "-e", self.evaluation_function]
 
     def __repr__(self):
-        return "%s|%s|%d|%s|%d" % (
-            self.algorithm, self.mcts_constant, self.mcts_prioritization, self.time, self.first_play_urgency)
+        return "%s|%s|%d|%s|%d|%s" % (
+            self.algorithm, self.mcts_constant, self.mcts_prioritization, self.time, self.first_play_urgency, self.evaluation_function)
 
 
 def expect_result(p1, p2):
@@ -78,17 +79,18 @@ def playout(p1: Configuration, p2: Configuration):
 
 def to_readable(val):
     index = [
-        ("Alg", ""),
-        ("MC", "mcts"),
-        ("MP", "mcts"),
-        ("T (s)", ""),
-        ("FMU", "mcts")
+        ("Alg", "", True),
+        ("MC", "mcts", True),
+        ("MP", "mcts", False),
+        ("T (s)", "", True),
+        ("FMU", "mcts", False),
+        ("Eval", "mm", True)
     ]
     vals = val.split("|")
     algorithm = vals[0]
     result = []
     for value, tup in zip(vals, index):
-        if tup[1] in algorithm and value != "0":
+        if tup[1] in algorithm and (tup[2] or value != "0"):
             result.append(tup[0] + ": " + value)
     return ",".join(result)
 
@@ -134,23 +136,22 @@ def main():
 
     print("Initial ratings")
     print_ratings(fig=True)
-    exit(0)
 
     pool = [
         Configuration("random"),
-        Configuration("mcts", 1, t=25),
-        Configuration("mcts", 1, t=125),
+        # Configuration("mcts", 1, t=25),
+        # Configuration("mcts", 1, t=125),
 
         Configuration("mm"),
         Configuration("mm", t=0.1),
         Configuration("mm", t=0.01),
-        # Configuration("mcts", 1),
+        Configuration("mcts", 1),
         # Configuration("mcts", 5),
-        Configuration("mcts", 1, t=5),
+        # Configuration("mcts", 1, t=5),
         # Configuration("mcts", 100),
-        # Configuration("mcts", 1, True),
+        Configuration("mcts", 1, True),
         # Configuration("mcts", 5, True),
-        # Configuration("mcts", 1, False, f=True),
+        Configuration("mcts", 1, False, f=True),
     ]
 
     for i in range(5):
@@ -162,7 +163,7 @@ def main():
             print_ratings(fig=False)
         pickle.dump(data, open("data.store", "wb"))
 
-        print_ratings(fig=True)
+        print_ratings(fig=False)
 
 
 if __name__ == "__main__":

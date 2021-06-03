@@ -175,7 +175,7 @@ struct node *mcts_add_child(struct node *node, struct board *board) {
 
 void print_mcts_data(struct mcts_data *pData);
 
-int mcts_playout(struct node *root, time_t end_time) {
+int mcts_playout(struct node *root, double end_time) {
     struct node *node = root;
     while (true) {
         struct mcts_data *parent_data = node->data;
@@ -236,7 +236,7 @@ int mcts_playout(struct node *root, time_t end_time) {
     }
 }
 
-int mcts_playout_prio(struct node *root, time_t end_time) {
+int mcts_playout_prio(struct node *root, double end_time) {
     struct node *node = root;
     while (true) {
         int won = finished_board(node->board);
@@ -384,9 +384,9 @@ void mcts(struct node **tree, struct player_arguments *args) {
     dedicated_add_child = mcts_add_child;
     dedicated_init = mcts_init;
 
-    unsigned int time_to_move = (unsigned int) args->time_to_move;
-
-    time_t end_time = time(NULL) + time_to_move;
+    struct timespec cur_time;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_time);
+    double end_time = (to_usec(cur_time) / 1e6) + args->time_to_move;
 
     generate_children(root, end_time, 0);
 
@@ -429,7 +429,7 @@ void mcts(struct node **tree, struct player_arguments *args) {
             node_free(mcts_leaf);
         }
     }
-    printf("samples/s: %.2f\n", (n_iterations / (double) time_to_move));
+    printf("samples/s: %.2f\n", (n_iterations / args->time_to_move));
 
 #ifdef DEBUG
     printf("Final stats:\n");

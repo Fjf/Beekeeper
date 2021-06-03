@@ -882,6 +882,44 @@ void generate_free_moves(struct node *node, int player_bit, int flags) {
 }
 
 
+
+int generate_children(struct node *root, double end_time, int flags) {
+    /*
+     * Returns 0 if nothing went wrong, an error-code otherwise
+     *   1: No more moves could be generated due to turn limit.
+     *   2: Time-budget is spent.
+     *   3: Memory is full, no new nodes can be allocated.
+     */
+
+    // Ensure timely finishing
+    struct timespec cur_time;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_time);
+    if (to_usec(cur_time) / 1e6 > end_time) return ERR_NOTIME;
+
+    // Dont continue generating children if there is no more memory.
+    if (max_nodes - n_nodes < 1000) {
+        fprintf(stderr, "Not enough memory to hold amount of required nodes (%lld/%lld).\n", n_nodes, max_nodes);
+//        exit(1);
+        return ERR_NOMEM;
+    }
+
+    if (root->board->turn == MAX_TURNS - 1) {
+        return ERR_NOMOVES;
+    }
+
+    // Only generate more nodes if you have no nodes yet
+    if (list_empty(&root->children)) {
+        generate_moves(root, flags);
+
+        if (list_empty(&root->children)) {
+            add_child(root, -1, 0, -1);
+        }
+    }
+    return list_empty(&root->children);
+}
+
+
+
 void generate_moves(struct node *node, int flags) {
     int player_idx = node->board->turn % 2;
     int player_bit = player_idx << COLOR_SHIFT;

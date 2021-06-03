@@ -13,8 +13,8 @@
 
 #include "list.h"
 
-unsigned long long max_nodes;
-unsigned long long n_nodes;
+unsigned long long int max_nodes;
+unsigned long long int n_nodes;
 
 struct move {
     unsigned char tile;

@@ -1,4 +1,4 @@
-    import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 def mcts_explore_compare():
@@ -47,8 +47,8 @@ def mcts_explore_compare():
 
 
 def main():
-    mcts_explore_compare()
-    exit(0)
+    # mcts_explore_compare()
+    # exit(0)
 
     g = 101
     random = [84, 14, 62, g, g, 68, 88, g, 62, g, g, g, 46, 46, g, g, 62, g, g, 24, 90, 54, g, g, 80, 52, 64, 93, 38,
@@ -84,15 +84,15 @@ def main():
     uct1dot4 = list(filter(lambda x: x != g, uct1dot4))
     uct100 = list(filter(lambda x: x != g, uct100))
 
-    print(len(random), sum(random) / len(random))
-    print("uct1.4", len(uct1dot4), sum(uct1dot4) / len(uct1dot4))
-    print(len(uct100), sum(uct100) / len(uct100))
-    print(len(mm_allmoves), sum(mm_allmoves) / len(mm_allmoves))
-    print(len(mm_noants), sum(mm_noants) / len(mm_noants))
-    print(len(mcts_uct100_5sec), sum(mcts_uct100_5sec) / len(mcts_uct100_5sec))
-    print(len(mm_noants_5sec), sum(mm_noants_5sec) / len(mm_noants_5sec))
-    print(len(mm_20sec), sum(mm_20sec) / len(mm_20sec))
-    print(len(mcts_20sec), sum(mcts_20sec) / len(mcts_20sec))
+    print("random", len(random) / 50, sum(random) / len(random), sep=" & ")
+    print("ucb c=1.4", len(uct1dot4) / 50, sum(uct1dot4) / len(uct1dot4), sep=" & ")
+    print("ucb c=100", len(uct100) / 50, sum(uct100) / len(uct100), sep=" & ")
+    print("mm t=1", len(mm_allmoves) / 50, sum(mm_allmoves) / len(mm_allmoves), sep=" & ")
+    print("mm t=1 NA", len(mm_noants) / 50, sum(mm_noants) / len(mm_noants), sep=" & ")
+    print("ucb c=100 t=5", len(mcts_uct100_5sec) / 50, sum(mcts_uct100_5sec) / len(mcts_uct100_5sec), sep=" & ")
+    print("mm t=5 NA",  len(mm_noants_5sec) / 50, sum(mm_noants_5sec) / len(mm_noants_5sec), sep=" & ")
+    print("mm t=20", len(mm_20sec) / 50, sum(mm_20sec) / len(mm_20sec), sep=" & ")
+    print("ucb c=100 t=20", len(mcts_20sec) / 50, sum(mcts_20sec) / len(mcts_20sec), sep=" & ")
 
     plt.hist([random, uct1dot4, uct100, mm_allmoves, mm_noants], bins=5)
     plt.legend(["Random", "UCT c=1.4", "UCT c=100", "MM Full", "MM No ants"])

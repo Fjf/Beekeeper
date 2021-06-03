@@ -18,10 +18,6 @@
 #include "mcts/mcts.h"
 #include "puzzles.h"
 
-#define MAX_MEMORY (4ull * GB)
-
-
-
 /* winrate: PN vs random (fixed depth PN no disproof)
  *  PN  -  draws  - random
  *   5  -    3    -   2
@@ -71,28 +67,6 @@ void manual(struct node** proot) {
             struct node *child = container_of(head, struct node, node);
             print_move(child);
         }
-    }
-}
-
-
-void random_moves(struct node **tree, int n_moves) {
-    for (int i = 0; i < n_moves; i++) {
-        struct node* node = *tree;
-
-        generate_children(node, (time_t) INT_MAX, 0);
-        int choice = rand() % node->board->move_location_tracker;
-        struct list* head;
-        int n = 0;
-        node_foreach(node, head) {
-            if (choice == n++) {
-                break;
-            }
-        }
-
-        struct node* child = container_of(head, struct node, node);
-        list_remove(head);
-        node_free(node);
-        *tree = child;
     }
 }
 
@@ -187,8 +161,6 @@ int main(int argc, char** argv) {
     print_args(&arguments);
 
     // Compute max amount of nodes available in memory.
-    max_nodes = MAX_MEMORY / (sizeof(struct board) + sizeof(struct node) + sizeof(struct mm_data));
-    n_nodes = 0;
     printf("Can hold %llu nodes in memory.\n", max_nodes);
 
     // Register mcts node add function

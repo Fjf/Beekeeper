@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <omp.h>
+#include <limits.h>
 
 int performance_testing(struct node *tree, int depth) {
     if (depth == 0) return 1;
@@ -55,6 +56,29 @@ int performance_testing_parallel(struct node *tree, int depth, int par_depth) {
         }
     }
     return ret;
+}
+
+
+
+void random_moves(struct node **tree, int n_moves) {
+    for (int i = 0; i < n_moves; i++) {
+        struct node* node = *tree;
+
+        generate_children(node, (time_t) INT_MAX, 0);
+        int choice = rand() % node->board->move_location_tracker;
+        struct list* head;
+        int n = 0;
+        node_foreach(node, head) {
+            if (choice == n++) {
+                break;
+            }
+        }
+
+        struct node* child = container_of(head, struct node, node);
+        list_remove(head);
+        node_free(node);
+        *tree = child;
+    }
 }
 
 

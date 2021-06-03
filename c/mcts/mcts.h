@@ -5,10 +5,6 @@
 #ifndef HIVE_MCTS_H
 #define HIVE_MCTS_H
 
-#define ERR_NOMOVES 1
-#define ERR_NOTIME 2
-#define ERR_NOMEM 3
-
 #include <time.h>
 #include <stdbool.h>
 #include "utils.h"
@@ -27,7 +23,7 @@ struct node *mcts_add_child(struct node *node, struct board *board);
 
 
 void mcts(struct node **tree, struct player_arguments *args);
-int mcts_playout(struct node *root, time_t end_time);
-int mcts_playout_prio(struct node *root, time_t end_time);
+int mcts_playout(struct node *root, double end_time);
+int mcts_playout_prio(struct node *root, double end_time);
 
 #endif //HIVE_MCTS_H

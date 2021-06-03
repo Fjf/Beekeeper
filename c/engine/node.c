@@ -9,6 +9,10 @@
 #include "board.h"
 #include "tt.h"
 
+#define MAX_MEMORY (4ull * GB)
+
+unsigned long long max_nodes = MAX_MEMORY / (sizeof(struct board) + sizeof(struct node) + sizeof(struct mm_data));
+unsigned long long n_nodes = 0;
 
 void node_init(struct node* node, void* data) {
     list_init(&node->children);

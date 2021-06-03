@@ -23,5 +23,4 @@ void minimax(struct node **proot, struct player_arguments *args);
 struct node* mm_init();
 struct node* mm_add_child(struct node* node, struct board* board);
 
-int generate_children(struct node *root, time_t end_time, int flags);
 #endif //HIVE_MM_H

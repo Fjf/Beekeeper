@@ -49,6 +49,7 @@
 #include <tt.h>
 #include <assert.h>
 #include <omp.h>
+#include <sys/time.h>
 #include "mm.h"
 #include "evaluation.h"
 #include "../mcts/mcts.h"
@@ -79,7 +80,7 @@ void sort(struct node *node, bool max) {
 int leaf_nodes, n_created, n_evaluated, n_table_returns;
 int root_player;
 
-float mm(struct node *node, int player, float alpha, float beta, int depth, int initial_depth, time_t end_time) {
+float mm(struct node *node, int player, float alpha, float beta, int depth, int initial_depth, double end_time) {
     struct mm_data *data = node->data;
 
     // Lookup in table, and set values if value is found.
@@ -185,7 +186,7 @@ float mm(struct node *node, int player, float alpha, float beta, int depth, int 
 }
 
 
-float mm_par(struct node *node, int player, float alpha, float beta, int depth, int initial_depth, time_t end_time) {
+float mm_par(struct node *node, int player, float alpha, float beta, int depth, int initial_depth, double end_time) {
     struct mm_data *data = node->data;
 
     // Lookup in table, and set values if value is found.
@@ -299,39 +300,6 @@ struct node *mm_add_child(struct node *node, struct board *board) {
 }
 
 
-int generate_children(struct node *root, time_t end_time, int flags) {
-    /*
-     * Returns 0 if nothing went wrong, an error-code otherwise
-     *   1: No more moves could be generated due to turn limit.
-     *   2: Time-budget is spent.
-     *   3: Memory is full, no new nodes can be allocated.
-     */
-
-    // Ensure timely finishing
-    if (time(NULL) > end_time) return ERR_NOTIME;
-
-    // Dont continue generating children if there is no more memory.
-    if (max_nodes - n_nodes < 1000) {
-        fprintf(stderr, "Not enough memory to hold amount of required nodes (%lld/%lld).\n", n_nodes, max_nodes);
-//        exit(1);
-        return ERR_NOMEM;
-    }
-
-    if (root->board->turn == MAX_TURNS - 1) {
-        return ERR_NOMOVES;
-    }
-
-    // Only generate more nodes if you have no nodes yet
-    if (list_empty(&root->children)) {
-        generate_moves(root, flags);
-
-        if (list_empty(&root->children)) {
-            add_child(root, -1, 0, -1);
-        }
-    }
-    return list_empty(&root->children);
-}
-
 void minimax(struct node **proot, struct player_arguments *args) {
     struct node *root = *proot;
 
@@ -352,26 +320,22 @@ void minimax(struct node **proot, struct player_arguments *args) {
         mm_evaluate = mm_evaluate_movement;
     }
 
-    struct timespec start, end;
-    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
-
 #ifdef TESTING
-    unsigned int time_to_move = 10000000;
     int depth = 2;
 #else
     int depth = 2;
-    unsigned int time_to_move = (unsigned int) args->time_to_move;
 #endif
 
-    time_t end_time = time(NULL) + time_to_move;
+    struct timespec cur_time;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_time);
+    double end_time = (to_usec(cur_time) / 1e6) + args->time_to_move;
 
-    time_t cur_time;
     int n_total_evaluated = 0;
     root_player = player;
     while (true) {
         leaf_nodes = n_evaluated = n_created = n_table_returns = 0;
-        cur_time = time(NULL);
-        if (cur_time > end_time) break;
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_time);
+        if (to_usec(cur_time) / 1e6 > end_time) break;
 
         if (args->verbose)
             printf("Evaluating depth %d...", depth);
@@ -398,11 +362,8 @@ void minimax(struct node **proot, struct player_arguments *args) {
 #endif
     }
 
-    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
-    double sec = (double) (to_usec(end) - to_usec(start)) / 1e6;
-
     if (args->verbose)
-        printf("Evaluated %d nodes (%.5f knodes/s)\n", n_total_evaluated, (n_total_evaluated / sec) / 1000);
+        printf("Evaluated %d nodes (%.5f knodes/s)\n", n_total_evaluated, (n_total_evaluated / args->time_to_move) / 1000);
 
     struct list *head;
     float best_value = player == 0 ? -INFINITY : INFINITY;

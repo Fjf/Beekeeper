@@ -12,6 +12,10 @@
 
 #define MOVE_NO_ANTS 1 << 0
 
+#define ERR_NOMOVES 1
+#define ERR_NOTIME 2
+#define ERR_NOMEM 3
+
 #define to_usec(timespec) ((((timespec).tv_sec * 1e9) + (timespec).tv_nsec) / 1e3)
 
 int sum_hive_tiles(struct board *board);
@@ -26,6 +30,8 @@ void find_articulation(struct board *board, int idx, int parent);
 void articulation(struct board* board, int index);
 
 void print_cc_stats();
+
+int generate_children(struct node *root, double end_time, int flags);
 
 bool can_move(struct board* board, int x, int y);
 void full_update(struct board *board);

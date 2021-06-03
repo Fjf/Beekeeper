@@ -10,7 +10,7 @@
 #include <omp.h>
 
 int main(int argc, char** argv) {
-    int max_depth = 5;
+    int max_depth = 4;
     if (argc > 1) {
         max_depth = atoi(argv[1]);
     }
@@ -20,13 +20,15 @@ int main(int argc, char** argv) {
 
     struct node* tree = game_init();
 
+    random_moves(&tree, 10);
+
     int last = 0;
     struct timespec start, end;
     printf("Depth    | Time (s)        | Nodes           | Knodes/sec    \n");
     printf("---------|-----------------|-----------------|--------------\n");
     for (int depth = 0; depth < max_depth; depth++) {
         clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
-        int n = performance_testing_parallel(tree, depth, 2);
+        int n = performance_testing(tree, depth);
         clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
 
         int nodes = n - last;
