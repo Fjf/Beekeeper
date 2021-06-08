@@ -10,11 +10,11 @@ set(SOURCE_FILES main.c engine/moves.c engine/moves.h engine/board.c engine/boar
 add_executable(hive_run ${SOURCE_FILES} engine/utils.c engine/utils.h puzzles.c puzzles.h)
 # Add math library to compilation for MCTS
 target_link_libraries(hive_run m)
-target_compile_definitions(hive_run PRIVATE CENTERED=1 MAX_TURNS=100)
+target_compile_definitions(hive_run PRIVATE CENTERED=1 MAX_TURNS=180)
 
 
 add_executable(perft ${LIB_FILES} perft.c engine/utils.h)
-target_compile_definitions(hive_run PRIVATE CENTERED=1 MAX_TURNS=100)
+target_compile_definitions(hive_run PRIVATE CENTERED=1 MAX_TURNS=180)
 
 
 # Testing executable with TESTING compile flag

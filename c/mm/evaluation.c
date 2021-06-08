@@ -4,13 +4,13 @@
 
 #include <stdlib.h>
 #include <board.h>
-#include <math.h>
-#include "evaluation.h"
-#include "../timing/timing.h"
 
 
-
-
+struct eval_multi evaluation_multipliers = {
+        .movement = 7.28f,
+        .queen = 0.25f,
+        .used_tiles = 9.5f
+};
 
 float unused_tiles(struct node* node) {
     int value = 0;
@@ -49,21 +49,16 @@ bool mm_evaluate_expqueen(struct node* node) {
     int won = finished_board(node->board);
     if (won == 1) {
         data->mm_value = MM_INFINITY - (float)node->board->turn;
-        data->mm_evaluated = true;
         return true;
-    }
-    if (won == 2) {
+    } if (won == 2) {
         data->mm_value = -MM_INFINITY + (float)node->board->turn;
-        data->mm_evaluated = true;
         return true;
-    }
-    if (won == 3) {
+    } if (won == 3) {
         data->mm_value = 0;
-        data->mm_evaluated = true;
         return true;
     }
 
-    value += unused_tiles(node) * 0.3f;
+    value += unused_tiles(node) * 8.87622930462319f;
 
     int n_encountered = 0;
     int to_encounter = sum_hive_tiles(node->board);
@@ -109,7 +104,7 @@ bool mm_evaluate_expqueen(struct node* node) {
         }
     }
 
-    float movement_multiplier = 1;
+    float movement_multiplier = 8.493793292308318f;
     value += free_counter * movement_multiplier;
 
     if (node->board->light_queen_position != -1) {
@@ -119,7 +114,7 @@ bool mm_evaluate_expqueen(struct node* node) {
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 1, the value drops by 1
             if (node->board->tiles[points[i]].type != EMPTY)
-                value -= 10.0f;
+                value -=  0.05295699310799809f;
         }
     }
 
@@ -130,16 +125,15 @@ bool mm_evaluate_expqueen(struct node* node) {
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 2, the value increases by 1
             if (node->board->tiles[points[i]].type != EMPTY)
-                value += 10.0f;
+                value +=  0.05295699310799809f;
         }
     }
 
     data->mm_value = value;
-    data->mm_evaluated = true;
     return false;
 }
 
-bool mm_evaluate_movement(struct node* node) {
+bool mm_evaluate_variable(struct node* node) {
     struct mm_data* data = node->data;
 
     // We want to have this information.
@@ -155,22 +149,19 @@ bool mm_evaluate_movement(struct node* node) {
     int won = finished_board(node->board);
     if (won == 1) {
         data->mm_value = MM_INFINITY - (float)node->board->turn;
-        data->mm_evaluated = true;
         return true;
     }
     if (won == 2) {
         data->mm_value = -MM_INFINITY + (float)node->board->turn;
-        data->mm_evaluated = true;
         return true;
     }
     if (won == 3) {
         data->mm_value = 0;
-        data->mm_evaluated = true;
         return true;
     }
 
 
-    value += unused_tiles(node) * 0.3f;
+    value += unused_tiles(node) * evaluation_multipliers.used_tiles;
 
     int n_encountered = 0;
     int to_encounter = sum_hive_tiles(node->board);
@@ -216,9 +207,9 @@ bool mm_evaluate_movement(struct node* node) {
         }
     }
 
-    float movement_multiplier = 0.5f;
-    value += free_counter * movement_multiplier;
+    value += free_counter * evaluation_multipliers.movement;
 
+    float queen_count = 0;
     if (node->board->light_queen_position != -1) {
         int x1 = node->board->light_queen_position % BOARD_SIZE;
         int y1 = node->board->light_queen_position / BOARD_SIZE;
@@ -226,7 +217,7 @@ bool mm_evaluate_movement(struct node* node) {
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 1, the value drops by 1
             if (node->board->tiles[points[i]].type != EMPTY)
-                value -= 2.0f;
+                queen_count--;
         }
     }
 
@@ -237,11 +228,11 @@ bool mm_evaluate_movement(struct node* node) {
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 2, the value increases by 1
             if (node->board->tiles[points[i]].type != EMPTY)
-                value += 2.0f;
+                queen_count++;
         }
     }
+    value += queen_count * evaluation_multipliers.queen;
 
     data->mm_value = value;
-    data->mm_evaluated = true;
     return false;
 }

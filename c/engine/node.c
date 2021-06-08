@@ -106,23 +106,23 @@ char* string_move(struct node* node) {
     string_tile(node->move.tile, move, &i);
     move[i++] = ' ';
 
-    if (node->move.direction == 4) {
-        move[i++] = '\\';
-    } else if (node->move.direction == 2) {
-        move[i++] = '-';
-    } else if (node->move.direction == 0) {
-        move[i++] = '/';
-    }
-
-    string_tile(node->move.next_to, move, &i);
-
     if (node->move.direction == 5) {
-        move[i++] = '/';
+        move[i++] = '\\';
     } else if (node->move.direction == 3) {
         move[i++] = '-';
     } else if (node->move.direction == 1) {
+        move[i++] = '/';
+    }
+    string_tile(node->move.next_to, move, &i);
+
+    if (node->move.direction == 4) {
+        move[i++] = '/';
+    } else if (node->move.direction == 2) {
+        move[i++] = '-';
+    } else if (node->move.direction == 0) {
         move[i++] = '\\';
     }
+
     move[i++] = '\n';
     move[i++] = '\0';
 

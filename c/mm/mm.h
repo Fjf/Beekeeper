@@ -10,13 +10,10 @@
 #include <time.h>
 #include "utils.h"
 
-#define MM_TYPE_MIN 0
-#define MM_TYPE_MAX 1
-#define MM_INFINITY 100000.0f
+#define MM_INFINITY 10000000.0f
 
 struct mm_data {
     float mm_value;
-    bool mm_evaluated;
 };
 
 void minimax(struct node **proot, struct player_arguments *args);

@@ -302,7 +302,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
         child->move.next_to = node->board->tiles[location].type;
     } else {
         int *points = get_points_around(y, x);
-        for (int p = 0; p < 6; p++) {
+        for (unsigned char p = 0; p < 6; p++) {
             int point = points[p];
             if (child->board->tiles[point].type != EMPTY) {
                 child->move.direction = p;
@@ -311,7 +311,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
             }
         }
     }
-    child->move.tile = type;
+    child->move.tile = (unsigned char) type;
 }
 
 int points_around[BOARD_SIZE * BOARD_SIZE][6];
@@ -899,7 +899,6 @@ int generate_children(struct node *root, double end_time, int flags) {
     // Dont continue generating children if there is no more memory.
     if (max_nodes - n_nodes < 1000) {
         fprintf(stderr, "Not enough memory to hold amount of required nodes (%lld/%lld).\n", n_nodes, max_nodes);
-//        exit(1);
         return ERR_NOMEM;
     }
 

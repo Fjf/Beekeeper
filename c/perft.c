@@ -10,7 +10,7 @@
 #include <omp.h>
 
 int main(int argc, char** argv) {
-    int max_depth = 4;
+    int max_depth = 5;
     if (argc > 1) {
         max_depth = atoi(argv[1]);
     }

@@ -63,6 +63,7 @@ struct tt_entry *tt_retrieve(struct node *node, int player) {
                         | (node->board->max_x) << 5
                         | (node->board->max_y) << 5);
     if (entry->flag == -1 || entry->lock != lock || entry->sanity != sanity) return NULL;
+
     return entry;
 }
 

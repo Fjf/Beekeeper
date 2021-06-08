@@ -100,6 +100,7 @@ def print_ratings(fig=False):
     for key, val in items:
         print(key, val)
 
+
     if not fig:
         return
 #     items = """random|1|0|1.0|0 1200.1568605698535
@@ -128,11 +129,14 @@ def print_ratings(fig=False):
     plt.tight_layout()
     plt.show()
 
-
 def main():
     global data
     if os.path.exists("data.store"):
         data = pickle.load(open("data.store", "rb"))
+
+    for key, val in list(data.items()):
+        if key.endswith("|2"):
+            del data[key]
 
     print("Initial ratings")
     print_ratings(fig=True)
@@ -147,11 +151,11 @@ def main():
         Configuration("mm", t=0.01),
         Configuration("mcts", 1),
         # Configuration("mcts", 5),
-        # Configuration("mcts", 1, t=5),
+        Configuration("mcts", 1, t=5),
         # Configuration("mcts", 100),
-        Configuration("mcts", 1, True),
+        # Configuration("mcts", 1, True),
         # Configuration("mcts", 5, True),
-        Configuration("mcts", 1, False, f=True),
+        # Configuration("mcts", 1, False, f=True),
     ]
 
     for i in range(5):

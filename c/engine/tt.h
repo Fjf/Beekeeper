@@ -27,7 +27,7 @@ void zobrist_init();
 void zobrist_hash(struct board* board, int location, int old_location, int type);
 
 
-//#define TT_TABLE_SIZE (1024*1024*128)
+//#define TT_TABLE_SIZE (1024*1024*256)
 #define TT_TABLE_SIZE (1)
 
 struct tt_entry* tt_table;
