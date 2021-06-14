@@ -195,13 +195,6 @@ int main(int argc, char** argv) {
 
 //    print_board(tree->board);
 
-    int num;
-    if (argc == 2) {
-        num = atoi(argv[1]);
-    } else {
-        num = -1;
-    }
-
     omp_set_num_threads(1);
 
     struct timespec start, end;

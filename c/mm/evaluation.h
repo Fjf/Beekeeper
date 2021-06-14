@@ -12,9 +12,12 @@
 #include "../engine/node.h"
 
 struct eval_multi {
-    float queen;
-    float movement;
-    float used_tiles;
+    float queen_ant;
+    float queen_rest;
+    float movement_ant;
+    float movement_rest;
+    float used_tiles_ant;
+    float used_tiles_rest;
 } evaluation_multipliers;
 
 float unused_tiles(struct node* node);

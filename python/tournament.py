@@ -151,11 +151,11 @@ def main():
         Configuration("mm", t=0.01),
         Configuration("mcts", 1),
         # Configuration("mcts", 5),
-        Configuration("mcts", 1, t=5),
+        # Configuration("mcts", 1, t=5),
         # Configuration("mcts", 100),
-        # Configuration("mcts", 1, True),
+        Configuration("mcts", 1, True),
         # Configuration("mcts", 5, True),
-        # Configuration("mcts", 1, False, f=True),
+        Configuration("mcts", 1, False, f=True),
     ]
 
     for i in range(5):
@@ -167,7 +167,13 @@ def main():
             print_ratings(fig=False)
         pickle.dump(data, open("data.store", "wb"))
 
-        print_ratings(fig=False)
+    ndata = defaultdict(dd)
+    strpool = [str(p) for p in pool]
+    for k, v in data.items():
+        if k in strpool:
+            ndata[k] = v
+    data = ndata
+    print_ratings(fig=True)
 
 
 if __name__ == "__main__":

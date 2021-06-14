@@ -95,13 +95,13 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
         }
         switch (c) {
             case 'M':
-                evaluation_multipliers.movement = (float)atof(optarg);
+                evaluation_multipliers.movement_ant = (float)atof(optarg);
                 break;
             case 'Q':
-                evaluation_multipliers.queen = (float)atof(optarg);
+                evaluation_multipliers.queen_ant = (float)atof(optarg);
                 break;
             case 'U':
-                evaluation_multipliers.used_tiles = (float)atof(optarg);
+                evaluation_multipliers.used_tiles_ant = (float)atof(optarg);
                 break;
             case 'V':
                 arguments->p1.verbose = true;

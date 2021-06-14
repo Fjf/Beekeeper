@@ -4,34 +4,69 @@
 
 #include <stdlib.h>
 #include <board.h>
+#include <stdio.h>
+
+#ifndef MOVEMENT_REST
+#define MOVEMENT_REST 7.28f
+#endif
+#ifndef QUEEN_REST
+#define QUEEN_REST 0.25f
+#endif
+#ifndef USED_TILES_REST
+#define USED_TILES_REST 9.5f
+#endif
 
 
 struct eval_multi evaluation_multipliers = {
-        .movement = 7.28f,
-        .queen = 0.25f,
-        .used_tiles = 9.5f
+        .movement_ant = 7.28f,
+        .movement_rest = MOVEMENT_REST,
+        .queen_ant = 0.25f,
+        .queen_rest = QUEEN_REST,
+        .used_tiles_ant = 9.5f,
+        .used_tiles_rest = USED_TILES_REST
 };
 
 float unused_tiles(struct node* node) {
-    int value = 0;
+    float value = 0;
     struct player* p = &node->board->players[1];
-    value += p->queens_left + p->spiders_left + p->ants_left + p->grasshoppers_left + p->beetles_left;
+    value += (float) (p->queens_left + p->spiders_left + p->grasshoppers_left + p->beetles_left) * evaluation_multipliers.used_tiles_ant;
+    value += (float) (p->ants_left) * evaluation_multipliers.used_tiles_ant;
+
     p = &node->board->players[0];
-    value -= p->queens_left + p->spiders_left + p->ants_left + p->grasshoppers_left + p->beetles_left;
-    return (float)value;
+    value -= (float) (p->queens_left + p->spiders_left + p->grasshoppers_left + p->beetles_left) * evaluation_multipliers.used_tiles_ant;
+    value -= (float) (p->ants_left) * evaluation_multipliers.used_tiles_ant;
+    return value;
 }
 
 
-float relative_tile_value(unsigned char tile) {
-    float value = 1.f;
+float movement_tile_value(unsigned char tile) {
+    float value = evaluation_multipliers.movement_ant;
     if ((tile & TILE_MASK) == L_ANT) {
-        value = 2.f;
-    }
-    if ((tile & TILE_MASK) == L_QUEEN) {
-        value = 3.f;
+        value = evaluation_multipliers.movement_ant;
     }
     return value;
 }
+
+float queen_tile_value(unsigned char tile) {
+    float value = evaluation_multipliers.queen_ant;
+    if ((tile & TILE_MASK) == L_ANT) {
+        value = evaluation_multipliers.queen_ant;
+    }
+    return value;
+}
+
+
+float mvt(unsigned char tile) {
+    float v = 1.f;
+    if ((tile & TILE_MASK) == L_ANT) {
+        v = 2.f;
+    }
+    if ((tile & TILE_MASK) == L_QUEEN) {
+        v = 3.f;
+    }
+    return v;
+}
+
 
 bool mm_evaluate_expqueen(struct node* node) {
     struct mm_data* data = node->data;
@@ -72,6 +107,7 @@ bool mm_evaluate_expqueen(struct node* node) {
     int lx = 0, hx = BOARD_SIZE;
 #endif
 
+
     float free_counter = 0.f;
     for (int x = lx; x < hx; x++) {
         if (n_encountered == to_encounter) break;
@@ -82,7 +118,7 @@ bool mm_evaluate_expqueen(struct node* node) {
             n_encountered++;
 
             if (!node->board->tiles[y * BOARD_SIZE + x].free) {
-                float inc = relative_tile_value(tile);
+                float inc = mvt(tile);
                 if ((tile & COLOR_MASK) == LIGHT) {
                     free_counter -= inc;
                 } else {
@@ -96,7 +132,7 @@ bool mm_evaluate_expqueen(struct node* node) {
     for (int i = 0; i < node->board->n_stacked; i++) {
         struct tile_stack* ts = &node->board->stack[i];
         unsigned char tile = ts->type;
-        float inc = relative_tile_value(tile);
+        float inc = mvt(tile);
         if ((tile & COLOR_MASK) == LIGHT) {
             free_counter -= inc;
         } else {
@@ -139,7 +175,6 @@ bool mm_evaluate_variable(struct node* node) {
     // We want to have this information.
     update_can_move(node->board, node->move.location, node->move.previous_location);
 
-
 #ifdef TESTING
     float value = 0.;
 #else
@@ -161,7 +196,7 @@ bool mm_evaluate_variable(struct node* node) {
     }
 
 
-    value += unused_tiles(node) * evaluation_multipliers.used_tiles;
+    value += unused_tiles(node);
 
     int n_encountered = 0;
     int to_encounter = sum_hive_tiles(node->board);
@@ -185,7 +220,7 @@ bool mm_evaluate_variable(struct node* node) {
             n_encountered++;
 
             if (!node->board->tiles[y * BOARD_SIZE + x].free) {
-                float inc = relative_tile_value(tile);
+                float inc = movement_tile_value(tile);
                 if ((tile & COLOR_MASK) == LIGHT) {
                     free_counter -= inc;
                 } else {
@@ -199,7 +234,7 @@ bool mm_evaluate_variable(struct node* node) {
     for (int i = 0; i < node->board->n_stacked; i++) {
         struct tile_stack* ts = &node->board->stack[i];
         unsigned char tile = ts->type;
-        float inc = relative_tile_value(tile);
+        float inc = movement_tile_value(tile);
         if ((tile & COLOR_MASK) == LIGHT) {
             free_counter -= inc;
         } else {
@@ -207,7 +242,7 @@ bool mm_evaluate_variable(struct node* node) {
         }
     }
 
-    value += free_counter * evaluation_multipliers.movement;
+    value += free_counter * evaluation_multipliers.movement_ant;
 
     float queen_count = 0;
     if (node->board->light_queen_position != -1) {
@@ -217,7 +252,7 @@ bool mm_evaluate_variable(struct node* node) {
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 1, the value drops by 1
             if (node->board->tiles[points[i]].type != EMPTY)
-                queen_count--;
+                queen_count -= queen_tile_value(node->board->tiles[points[i]].type);
         }
     }
 
@@ -228,10 +263,10 @@ bool mm_evaluate_variable(struct node* node) {
         for (int i = 0; i < 6; i++) {
             // If there is a tile around the queen of player 2, the value increases by 1
             if (node->board->tiles[points[i]].type != EMPTY)
-                queen_count++;
+                queen_count += queen_tile_value(node->board->tiles[points[i]].type);
         }
     }
-    value += queen_count * evaluation_multipliers.queen;
+    value += queen_count;
 
     data->mm_value = value;
     return false;

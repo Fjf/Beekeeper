@@ -395,7 +395,11 @@ void mcts(struct node **tree, struct player_arguments *args) {
     int n_iterations = 0;
 
     // Generate random branches until time runs out
-    while (end_time > time(NULL)) {
+    while (true) {
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_time);
+        double now = (to_usec(cur_time) / 1e6);
+        if (now > end_time) break;
+
         n_iterations++;
 
         // Select a leaf based on MCTS rules.
