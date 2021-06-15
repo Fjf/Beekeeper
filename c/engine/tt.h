@@ -8,6 +8,7 @@
 
 #include "node.h"
 #include "board.h"
+#include <stdint.h>
 
 #define TT_FLAG_UPPER 0
 #define TT_FLAG_LOWER 1
@@ -15,14 +16,14 @@
 
 
 struct tt_entry {
-    long long lock;
+    int64_t lock;
     float score;
     char flag;
-    long sanity;
+    int64_t sanity;
     unsigned char depth;
 };
 
-long* zobrist_table;
+int64_t* zobrist_table;
 void zobrist_init();
 void zobrist_hash(struct board* board, int location, int old_location, int type);
 

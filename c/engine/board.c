@@ -8,9 +8,12 @@
 #include <string.h>
 #include <stdbool.h>
 
-
+/*
+ * This is used for the python link.
+ */
 unsigned int pboardsize = BOARD_SIZE;
 unsigned int ptilestacksize = TILE_STACK_SIZE;
+unsigned int pmaxturns = MAX_TURNS;
 
 /*
  * Initialize the board.
@@ -149,10 +152,10 @@ void translate_board(struct board *board) {
 
     // Copy data into temp array
     struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
-    void *temp = &t;
+    char *temp = (void*) &t;
 
     memcpy(temp + (to_y * BOARD_SIZE + to_x) * sizeof(struct tile),
-           ((void *) &board->tiles) + offset * sizeof(struct tile),
+           ((char *) &board->tiles) + offset * sizeof(struct tile),
            (size) * sizeof(struct tile)
     );
 
@@ -205,10 +208,10 @@ void translate_board_22(struct board *board) {
 
     // Copy data into temp array
     struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
-    void *temp = &t;
+    char *temp = (void*) &t;
 
     memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
-           ((void *) &board->tiles) + offset * sizeof(struct tile),
+           ((char *) &board->tiles) + offset * sizeof(struct tile),
            (size - (2 * BOARD_SIZE + 2)) * sizeof(struct tile)
     );
 

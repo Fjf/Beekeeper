@@ -156,8 +156,8 @@ int main(int argc, char** argv) {
 #endif
 
     struct arguments arguments = {0};
+    arguments.p1.time_to_move = arguments.p2.time_to_move = 0.1;
     parse_args(argc, argv, &arguments);
-
     print_args(&arguments);
 
     // Compute max amount of nodes available in memory.

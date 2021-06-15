@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(hive VERSION 0.1 DESCRIPTION "hive")
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_C_FLAGS "-std=gnu99 -O3 -march=native -fopenmp")
+set(CMAKE_C_FLAGS "-std=gnu99 -O3 -march=native -fopenmp -static")
 
 # Add main.cpp file of project root directory as source file
 set(LIB_FILES engine/board.c engine/list.c engine/moves.c engine/node.c engine/tt.c engine/utils.c)

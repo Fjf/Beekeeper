@@ -124,7 +124,8 @@ void update_can_move(struct board *board, int location, int previous_location) {
     board->has_updated = true;
 
     // For articulation it might be beneficial to always full update.
-    return full_update(board);
+    full_update(board);
+    return;
 
     board->tiles[location].free = true;
 
@@ -141,7 +142,8 @@ void update_can_move(struct board *board, int location, int previous_location) {
             int py = points[i] / BOARD_SIZE;
             if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
             if (n_neighbours == 1) {
-                return full_update(board);
+                full_update(board);
+                return;
             }
 
             n_neighbours++;
@@ -157,7 +159,8 @@ void update_can_move(struct board *board, int location, int previous_location) {
         if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
 
         if (n_neighbours == 1) {
-            return full_update(board);
+            full_update(board);
+            return;
         }
         n_neighbours++;
         // For all neighbours, update whether or not they can move.
@@ -359,10 +362,12 @@ void generate_placing_moves(struct node *node, int type) {
 #endif
 
     if (board->turn == 0) {
-        return add_child(node, initial_position, type, -1);
+        add_child(node, initial_position, type, -1);
+        return;
     }
     if (board->turn == 1) {
-        return add_child(node, initial_position + 1, type, -1);
+        add_child(node, initial_position + 1, type, -1);
+        return;
     }
 
     int n_encountered = 0;

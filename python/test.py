@@ -3,11 +3,12 @@ import datetime
 import random
 from ctypes import *
 
-f = "/home/duncan/CLionProjects/TheHive/c/cmake-build-debug/libhive.so"
-lib = CDLL(f)
+# f = "/home/duncan/CLionProjects/TheHive/c/cmake-build-debug/libhive.so"
+f = "C:\\Users\\Duncan\\CLionProjects\\hive_engine\\c\\cmake-build-debug\\libhive"
+lib = WinDLL(f)
 board_size = c_uint.in_dll(lib, "pboardsize").value
 tile_stack_size = c_uint.in_dll(lib, "ptilestacksize").value
-
+print(board_size, tile_stack_size)
 
 class TileStack(Structure):
     _fields_ = [
@@ -54,7 +55,7 @@ class Board(Structure):
         ('move_location_tracker', c_int),
 
         ('zobrist_hash', c_longlong),
-        ('hash_history', c_longlong * 100),
+        ('hash_history', c_longlong * 180),
 
         ('has_updated', c_bool),
     ]
@@ -73,8 +74,7 @@ List._fields_ = [
 
 class MMData(Structure):
     _fields_ = [
-        ('mm_value', c_double),
-        ('mm_evaluated', c_bool)
+        ('mm_value', c_float)
     ]
 
 
@@ -186,6 +186,7 @@ class Hive:
 
 
 def branching_factor(hive):
+    print("Starting computing branching factor.")
     start_time = datetime.datetime.now()
 
     total_nodes = 0
@@ -195,6 +196,7 @@ def branching_factor(hive):
     data_store = [[] for _ in range(n_moves)]
 
     for move in range(n_moves):
+        print("At move", move)
         hive.generate_moves()
         n_children = hive.node.contents.board.contents.move_location_tracker
 
@@ -327,12 +329,12 @@ def generate_graphs(hive):
 def main():
     hive = Hive()
 
-    # branching_factor(hive)
+    branching_factor(hive)
 
     # performance_factor(hive)
     # test(hive)
 
-    generate_graphs(hive)
+    # generate_graphs(hive)
 
 
 if __name__ == "__main__":

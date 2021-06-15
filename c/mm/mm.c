@@ -2,45 +2,6 @@
 // Created by duncan on 12-02-21.
 //
 
-//#define BEST_FIRST
-
-// Setting n-turns to 10
-// --------------------------------------------------------
-// Without best first msec: 23203.12500
-// With best first msec: 39859.37500
-
-// With CENTERED flag: ~20000 msec
-
-// With beetle movement checking bugfix: msec: 21937.50000
-
-// Small optimizations 17885.90929 (224 knodes)
-
-// Removed duplicate placing logic 4718.48 (274.28 knodes)
-// --------------------------------------------------------
-
-// Increasing n-turns to 15:
-// --------------------------------------------------------
-// Initial version: 17678ms (155knodes)
-
-// Trade-off version: 18000ms (158knodes)
-// This is significantly worse early on, but faster later on.
-
-// Recursion for connected components: 15000ms (170knodes)
-// No recurion                       : 16500ms (151knodes)
-
-// Vectorization and all optimization flags: 9600ms (270knodes)
-// No recursion with flags: ~9000ms (280knodes)
-
-// No double placement && Beetle movement optimization: 7229.5ms (362knodes)
-
-
-// --------------------------------------------------------
-// Changed evaluation function to be better, so total time is not comparable to above
-// Baseline 11089.0ms (808knodes)
-
-// Min-max computation optimization: 9859.5ms (943knodes)
-
-// Early return in can_move computation: 8862.81748ms (1026knodes)
 
 #include <math.h>
 #include <stdio.h>

@@ -3,15 +3,16 @@
 //
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include "tt.h"
 
 
 void zobrist_init() {
-    zobrist_table = malloc(BOARD_SIZE * BOARD_SIZE * N_UNIQUE_TILES * 2 * sizeof(long));
+    zobrist_table = malloc(BOARD_SIZE * BOARD_SIZE * N_UNIQUE_TILES * 2 * sizeof(int64_t));
     for (int i = 0; i < BOARD_SIZE * BOARD_SIZE * N_UNIQUE_TILES * 2; i++) {
-        long r1 = rand(), r2 = rand();
-        zobrist_table[i] = r1 + (r2 << 32);
+        int32_t r1 = rand(), r2 = rand();
+        zobrist_table[i] = r1 + ((int64_t) r2 << 32);
     }
 }
 
@@ -26,7 +27,7 @@ void zobrist_hash(struct board *board, int location, int old_location, int type)
 }
 
 void tt_store(struct node *node, float score, char flag, int depth, int player) {
-    long idx = node->board->zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
+    int64_t idx = node->board->zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
     struct tt_entry *entry = &tt_table[idx];
 
     if (entry->flag != -1) {
@@ -35,8 +36,8 @@ void tt_store(struct node *node, float score, char flag, int depth, int player) 
         // Simple depth related replacement scheme.
 //        if (entry->depth > depth) return;
     }
-    u_char bit_length = 10;
-    long long sanity = ((((node->board->dark_queen_position << bit_length)
+    unsigned char bit_length = 10;
+    int64_t sanity = ((((node->board->dark_queen_position << bit_length)
                           | node->board->light_queen_position) << bit_length)
                         | (node->board->min_x) << 5
                         | (node->board->min_y) << 5
@@ -51,12 +52,12 @@ void tt_store(struct node *node, float score, char flag, int depth, int player) 
 }
 
 struct tt_entry *tt_retrieve(struct node *node, int player) {
-    long idx = node->board->zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
+    int64_t idx = node->board->zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
     struct tt_entry *entry = &tt_table[idx];
-    long long lock = node->board->zobrist_hash / TT_TABLE_SIZE;
+    int64_t lock = node->board->zobrist_hash / TT_TABLE_SIZE;
 
-    u_char bit_length = 10;
-    long long sanity = ((((node->board->dark_queen_position << bit_length)
+    unsigned char bit_length = 10;
+    int64_t sanity = ((((node->board->dark_queen_position << bit_length)
                           | node->board->light_queen_position) << bit_length)
                         | (node->board->min_x) << 5
                         | (node->board->min_y) << 5
