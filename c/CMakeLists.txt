@@ -21,6 +21,6 @@ target_compile_definitions(hive_run PRIVATE CENTERED=1 MAX_TURNS=180)
 #add_executable(hive_test ${SOURCE_FILES})
 #target_compile_definitions(hive_test PRIVATE TESTING=1 CENTERED=1)
 
-add_compile_definitions(hive CENTERED=1)
+add_compile_definitions(hive CENTERED=1 MAX_TURNS=180)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/engine)
-add_library(hive SHARED ${LIB_FILES})
+add_library(hive SHARED ${LIB_FILES} mm/mm.c mm/evaluation.c mcts/mcts.c)

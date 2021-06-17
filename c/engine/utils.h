@@ -16,8 +16,9 @@
                        ((in) == ALG_MCTS ? "MCTS" :  \
                        ((in) == ALG_RANDOM ? "Random" : \
                        ((in) == ALG_MANUAL ? "Manual" : "Unknown"))))
-#define eval_to_str(in) ((in) == EVAL_QUEEN ? "Queen" : \
-                       ((in) == EVAL_VARIABLE ? "Movement" : "Unknown"))
+#define eval_to_str(in)((in) == EVAL_QUEEN ? "Queen" : \
+                       ((in) == EVAL_DISTANCE ? "Distance" : \
+                       ((in) == EVAL_VARIABLE ? "Variable" : "Unknown")))
 
 struct player_arguments {
     int algorithm;

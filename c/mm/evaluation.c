@@ -5,12 +5,13 @@
 #include <stdlib.h>
 #include <board.h>
 #include <stdio.h>
+#include <math.h>
 
 #ifndef MOVEMENT_REST
 #define MOVEMENT_REST 7.28f
 #endif
 #ifndef QUEEN_REST
-#define QUEEN_REST 0.25f
+#define QUEEN_REST 3.25f
 #endif
 #ifndef USED_TILES_REST
 #define USED_TILES_REST 9.5f
@@ -20,11 +21,12 @@
 struct eval_multi evaluation_multipliers = {
         .movement_ant = 7.28f,
         .movement_rest = MOVEMENT_REST,
-        .queen_ant = 0.25f,
+        .queen_ant = 3.25f,
         .queen_rest = QUEEN_REST,
         .used_tiles_ant = 9.5f,
         .used_tiles_rest = USED_TILES_REST
 };
+
 
 float unused_tiles(struct node* node) {
     float value = 0;
@@ -267,6 +269,128 @@ bool mm_evaluate_variable(struct node* node) {
         }
     }
     value += queen_count;
+
+    data->mm_value = value;
+    return false;
+}
+
+
+float distance_to_queen(struct board *board, int position, int color) {
+    float dtq = 0.f;
+    for (int y = board->min_y; y < board->max_y; y++) {
+        for (int x = board->min_x; x < board->max_x; x++) {
+            int pos = y * BOARD_SIZE + x;
+            int tile_type = board->tiles[pos].type;
+            if (tile_type == EMPTY || (tile_type & COLOR_MASK) != color) continue;
+
+            dtq += (float)(pos + position);
+        }
+    }
+    return dtq;
+}
+
+bool mm_evaluate_distance(struct node* node) {
+    struct mm_data* data = node->data;
+
+    // We want to have this information.
+    update_can_move(node->board, node->move.location, node->move.previous_location);
+
+#ifdef TESTING
+    float value = 0.;
+#else
+    float value = 0.f + (float)(rand() % 100) / 1000.f;
+#endif
+
+    int won = finished_board(node->board);
+    if (won == 1) {
+        data->mm_value = MM_INFINITY - (float)node->board->turn;
+        return true;
+    }
+    if (won == 2) {
+        data->mm_value = -MM_INFINITY + (float)node->board->turn;
+        return true;
+    }
+    if (won == 3) {
+        data->mm_value = 0;
+        return true;
+    }
+
+
+    value += unused_tiles(node);
+
+    int n_encountered = 0;
+    int to_encounter = sum_hive_tiles(node->board);
+
+#ifdef CENTERED
+    struct board* board = node->board;
+    int ly = board->min_y, hy = board->max_y + 1;
+    int lx = board->min_x, hx = board->max_x + 1;
+#else
+    int ly = 0, hy = BOARD_SIZE;
+    int lx = 0, hx = BOARD_SIZE;
+#endif
+
+    float free_counter = 0.f;
+    for (int x = lx; x < hx; x++) {
+        if (n_encountered == to_encounter) break;
+        for (int y = ly; y < hy; y++) {
+            if (n_encountered == to_encounter) break;
+            unsigned char tile = node->board->tiles[y * BOARD_SIZE + x].type;
+            if (tile == EMPTY) continue;
+            n_encountered++;
+
+            if (!node->board->tiles[y * BOARD_SIZE + x].free) {
+                float inc = movement_tile_value(tile);
+                if ((tile & COLOR_MASK) == LIGHT) {
+                    free_counter -= inc;
+                } else {
+                    free_counter += inc;
+                }
+            }
+        }
+    }
+
+    // Count the tiles on the stack too.
+    for (int i = 0; i < node->board->n_stacked; i++) {
+        struct tile_stack* ts = &node->board->stack[i];
+        unsigned char tile = ts->type;
+        float inc = movement_tile_value(tile);
+        if ((tile & COLOR_MASK) == LIGHT) {
+            free_counter -= inc;
+        } else {
+            free_counter += inc;
+        }
+    }
+
+    value += free_counter * evaluation_multipliers.movement_ant;
+
+    float queen_count = 0;
+    if (node->board->light_queen_position != -1) {
+        int x1 = node->board->light_queen_position % BOARD_SIZE;
+        int y1 = node->board->light_queen_position / BOARD_SIZE;
+        int* points = get_points_around(y1, x1);
+        for (int i = 0; i < 6; i++) {
+            // If there is a tile around the queen of player 1, the value drops by 1
+            if (node->board->tiles[points[i]].type != EMPTY)
+                queen_count -= queen_tile_value(node->board->tiles[points[i]].type);
+        }
+    }
+
+    if (node->board->dark_queen_position != -1) {
+        int x2 = node->board->dark_queen_position % BOARD_SIZE;
+        int y2 = node->board->dark_queen_position / BOARD_SIZE;
+        int* points = get_points_around(y2, x2);
+        for (int i = 0; i < 6; i++) {
+            // If there is a tile around the queen of player 2, the value increases by 1
+            if (node->board->tiles[points[i]].type != EMPTY)
+                queen_count += queen_tile_value(node->board->tiles[points[i]].type);
+        }
+    }
+    value += queen_count;
+
+    float dtql = distance_to_queen(node->board, node->board->light_queen_position, DARK);
+    float dtqd = distance_to_queen(node->board, node->board->dark_queen_position, LIGHT);
+    value += (dtql - dtqd) * 1.f;
 
     data->mm_value = value;
     return false;

@@ -149,6 +149,7 @@ bool mm(struct node *node, int player, float alpha, float beta, int depth, doubl
         }
     }
 
+
     if (next_sibling) {
         char flag = TT_FLAG_TRUE;
         if (best <= orig_alpha) {
@@ -162,7 +163,6 @@ bool mm(struct node *node, int player, float alpha, float beta, int depth, doubl
                 tt_store(node, best, flag, depth, root_player);
             }
         }
-
         data->mm_value = best;
         return true;
     }
@@ -293,8 +293,26 @@ struct node *mm_add_child(struct node *node, struct board *board) {
 void minimax(struct node **proot, struct player_arguments *args) {
     struct node *root = *proot;
 
+    if (root->board->move_location_tracker > 0) {
+        // Reallocate child data structs to ensure there is no old data here.
+        struct list* node;
+        node_foreach(root, node) {
+            struct node* child = container_of(node, struct node, node);
+            if (child->data != NULL) {
+                free(child->data);
+                child->data = NULL;
+            }
+
+            child->data = malloc(sizeof(struct mm_data));
+        }
+    }
+
     // Create struct for root node to store data.
     root->data = malloc(sizeof(struct mm_data));
+    if (root->data == NULL) {
+        fprintf(stderr, "No memory to allocate data structure.\n");
+        exit(ERR_NOMEM);
+    }
 
     int player = root->board->turn % 2;
     root_player = player;
@@ -309,6 +327,8 @@ void minimax(struct node **proot, struct player_arguments *args) {
         mm_evaluate = mm_evaluate_expqueen;
     } else if (args->evaluation_function == EVAL_VARIABLE) {
         mm_evaluate = mm_evaluate_variable;
+    } else if (args->evaluation_function == EVAL_DISTANCE) {
+        mm_evaluate = mm_evaluate_distance;
     }
 
 #ifdef TESTING
@@ -328,11 +348,13 @@ void minimax(struct node **proot, struct player_arguments *args) {
         clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_time);
         if (to_usec(cur_time) / 1e6 > end_time) break;
 
-        if (args->verbose)
+        if (args->verbose) {
             printf("Evaluating depth %d...", depth);
+            fflush(stdout);
+        }
 
-        fflush(stdout);
         float value = mm_par(root, player, -INFINITY, INFINITY, depth, end_time);
+
 
         if (args->verbose)
             printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated, n_table_returns);

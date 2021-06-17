@@ -5,8 +5,9 @@
 #ifndef HIVE_EVALUATION_H
 #define HIVE_EVALUATION_H
 
-#define EVAL_VARIABLE 2
 #define EVAL_QUEEN 1
+#define EVAL_VARIABLE 2
+#define EVAL_DISTANCE 3
 
 #include <stdbool.h>
 #include "../engine/node.h"
@@ -23,6 +24,7 @@ struct eval_multi {
 float unused_tiles(struct node* node);
 bool mm_evaluate_expqueen(struct node* node);
 bool mm_evaluate_variable(struct node* node);
+bool mm_evaluate_distance(struct node* node);
 
 bool (*mm_evaluate)(struct node*);
 
