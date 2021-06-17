@@ -86,7 +86,7 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
     int c;
     int errflg = 0;
     struct player_arguments *pa;
-    while ((c = getopt(argc, argv, ":A:a:C:c:t:T:e:E:PpFfvm:q:u:")) != -1) {
+    while ((c = getopt(argc, argv, ":A:a:C:c:t:T:e:E:PpFfvm:q:u:d:")) != -1) {
         if (c >= 97) {
             pa = &arguments->p2;
             c -= 32;
@@ -95,13 +95,16 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
         }
         switch (c) {
             case 'M':
-                evaluation_multipliers.movement_ant = (float)atof(optarg);
+                evaluation_multipliers.movement = (float)atof(optarg);
                 break;
             case 'Q':
-                evaluation_multipliers.queen_ant = (float)atof(optarg);
+                evaluation_multipliers.queen = (float)atof(optarg);
                 break;
             case 'U':
-                evaluation_multipliers.used_tiles_ant = (float)atof(optarg);
+                evaluation_multipliers.used_tiles = (float)atof(optarg);
+                break;
+            case 'D':
+                evaluation_multipliers.distance_to_queen = (float)atof(optarg);
                 break;
             case 'V':
                 arguments->p1.verbose = true;

@@ -24,7 +24,8 @@ class Configuration(object):
             params = [
                 "-m", self.params[0],
                 "-q", self.params[1],
-                "-u", self.params[2]
+                "-u", self.params[2],
+                "-d", self.params[3]
             ]
 
         if player1:
@@ -69,23 +70,14 @@ def objective(trial):
     m = trial.suggest_float('movement', 0, 10)
     q = trial.suggest_float('queen', 0, 10)
     u = trial.suggest_float('unused_tiles', 0, 10)
-    mr = trial.suggest_float('movement_rest', 0, 10)
-    qr = trial.suggest_float('queen_rest', 0, 10)
-    ur = trial.suggest_float('unused_tiles_rest', 0, 10)
+    d = trial.suggest_float('distance_to_queen', 0, 10)
 
     n_playouts = 100
     result = 0
 
-    # Compile with arguments
-    cc = ['make', 'clean', 'hive_run',
-          '-C', '/home/duncan/CLionProjects/TheHive/c/cmake-build-debug',
-          'C_DEFINES="-DMOVEMENT_REST=%.5f -DQUEEN_REST=%.5f -DUSED_TILES_REST=%.5f"' % (mr, qr, ur)]
-
-    subprocess.call(" ".join(cc), shell=True, stdout=subprocess.DEVNULL)
-
     for i in range(n_playouts // 2):
-        result += playout(base, Configuration((m, q, u), e=2))
-        result += (1 - playout(Configuration((m, q, u), e=2), base))
+        result += playout(base, Configuration((m, q, u, d), e=3))
+        result += (1 - playout(Configuration((m, q, u, d), e=3), base))
 
     return result / n_playouts
 
@@ -220,8 +212,6 @@ def plot():
     pq = []
     pu = []
     pmr = []
-    pqr = []
-    pur = []
     for m in re.finditer("Trial ([\d]+) finished with value: (\d\.[\d]+) and parameters: \{'movement': (\d\.[\d]+), 'queen': (\d\.[\d]+), 'unused_tiles': (\d\.[\d]+), 'movement_rest': (\d\.[\d]+), 'queen_rest': (\d\.[\d]+), 'unused_tiles_rest': (\d\.[\d]+)\}", data):
         trial.append(m.group(1))
         value.append(m.group(2))
@@ -229,8 +219,6 @@ def plot():
         pq.append(m.group(4))
         pu.append(m.group(5))
         pmr.append(m.group(6))
-        pqr.append(m.group(7))
-        pur.append(m.group(8))
 
     trial = [int(t) for t in trial]
     value = [float(v) for v in value]
@@ -238,16 +226,11 @@ def plot():
     pm = [float(v) for v in pm]
     pq = [float(v) for v in pq]
     pu = [float(v) for v in pu]
-    pmr = [float(v) for v in pmr]
-    pqr = [float(v) for v in pqr]
-    pur = [float(v) for v in pur]
 
     pm = np.convolve(pm, [.25, .5, .25], "same")
     pq = np.convolve(pq, [.25, .5, .25], "same")
     pu = np.convolve(pu, [.25, .5, .25], "same")
     pmr = np.convolve(pmr, [.25, .5, .25], "same")
-    pqr = np.convolve(pqr, [.25, .5, .25], "same")
-    pur = np.convolve(pur, [.25, .5, .25], "same")
 
     # fig, ax1 = plt.subplots()
     plt.plot(trial, value, c="black")
@@ -262,16 +245,14 @@ def plot():
     plt.plot(trial, pq)
     plt.plot(trial, pu)
     plt.plot(trial, pmr)
-    plt.plot(trial, pqr)
-    plt.plot(trial, pur)
     plt.xlabel("Trial")
     plt.ylabel("Parameter Value")
     plt.ylim((0, 10))
-    plt.legend(["Movement (A)", "Queen (A)", "Unused Tiles (A)", "Movement (R)", "Queen (R)", "Unused Tiles (R)"])
+    plt.legend(["Movement", "Queen", "Unused Tiles", "Distance to Queen"])
     plt.show()
 
 
 if __name__ == "__main__":
 
-    plot()
-    # main()
+    # plot()
+    main()
