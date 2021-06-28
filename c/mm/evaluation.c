@@ -25,6 +25,13 @@ struct eval_multi evaluation_multipliers = {
         .distance_to_queen = 1.0f
 };
 
+struct eval_multi dtq_multipliers = {
+        .movement = 0.25f,
+        .queen = 1.35f,
+        .used_tiles = 1.49f,
+        .distance_to_queen = 5.32f
+};
+
 
 float unused_tiles(struct node* node) {
     float value = 0;
@@ -299,7 +306,7 @@ bool mm_evaluate_distance(struct node* node) {
     }
 
 
-    value += unused_tiles(node) * evaluation_multipliers.used_tiles;
+    value += unused_tiles(node) * dtq_multipliers.used_tiles;
 
     int n_encountered = 0;
     int to_encounter = sum_hive_tiles(node->board);
@@ -345,7 +352,7 @@ bool mm_evaluate_distance(struct node* node) {
         }
     }
 
-    value += free_counter * evaluation_multipliers.movement;
+    value += free_counter * dtq_multipliers.movement;
 
     float queen_count = 0;
     if (node->board->light_queen_position != -1) {
@@ -369,11 +376,11 @@ bool mm_evaluate_distance(struct node* node) {
                 queen_count += 1;
         }
     }
-    value += queen_count * evaluation_multipliers.queen;
+    value += queen_count * dtq_multipliers.queen;
 
     float dtql = distance_to_queen(node->board, node->board->light_queen_position, DARK);
     float dtqd = distance_to_queen(node->board, node->board->dark_queen_position, LIGHT);
-    value += (dtql - dtqd) * evaluation_multipliers.distance_to_queen;
+    value += (dtql - dtqd) * dtq_multipliers.distance_to_queen;
 
     data->mm_value = value;
     return false;
