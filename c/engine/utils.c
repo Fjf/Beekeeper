@@ -65,7 +65,7 @@ void random_moves(struct node **tree, int n_moves) {
         struct node* node = *tree;
 
         generate_children(node, (time_t) INT_MAX, 0);
-        int choice = rand() % node->board->move_location_tracker;
+        int choice = rand() % node->board->n_children;
         struct list* head;
         int n = 0;
         node_foreach(node, head) {

@@ -10,17 +10,17 @@
 #include <omp.h>
 
 int main(int argc, char** argv) {
-    int max_depth = 5;
+    int max_depth = 8;
     if (argc > 1) {
         max_depth = atoi(argv[1]);
     }
-    omp_set_num_threads(4);
+    omp_set_num_threads(1);
 
     printf("Running perft with depth %d on %d threads.\n", max_depth, omp_get_max_threads());
 
     struct node* tree = game_init();
 
-    random_moves(&tree, 10);
+    random_moves(&tree, 0);
 
     int last = 0;
     struct timespec start, end;

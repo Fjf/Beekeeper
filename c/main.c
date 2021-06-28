@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
     dedicated_init = mcts_init;
 
 #ifdef TESTING
-    int n_moves = 1;
+    int n_children = 1;
 #else
     int n_moves = MAX_TURNS - 1;
 #endif

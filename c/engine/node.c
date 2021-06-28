@@ -57,7 +57,7 @@ void node_copy(struct node* dest, struct node* src) {
     memcpy(&dest->move, &src->move, sizeof(struct move));
     dest->board = init_board();
     memcpy(dest->board, src->board, sizeof(struct board));
-    dest->board->move_location_tracker = 0;
+    dest->board->n_children = 0;
 }
 
 

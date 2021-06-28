@@ -214,7 +214,7 @@ int mcts_playout(struct node *root, double end_time) {
 
         struct list *head, *temp;
         // Select random move to play MC(TS).
-        int random_choice = rand() % node->board->move_location_tracker;
+        int random_choice = rand() % node->board->n_children;
 
         int n = 0;
         node_foreach_safe(node, head, temp) {

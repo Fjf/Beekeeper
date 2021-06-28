@@ -256,7 +256,7 @@ void setup_puzzle(struct node** tree, int puzzle_number) {
     struct board* board = (*tree)->board;
     memset(board->tiles, 0, sizeof(board->tiles));
     board->zobrist_hash = 0;
-    board->move_location_tracker = 0;
+    board->n_children = 0;
 
     if (puzzle_number == 4) {
         puzzle_4(*tree);

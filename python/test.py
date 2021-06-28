@@ -4,6 +4,8 @@ import random
 from ctypes import *
 
 # f = "/home/duncan/CLionProjects/TheHive/c/cmake-build-debug/libhive.so"
+import numpy as np
+
 f = "C:\\Users\\Duncan\\CLionProjects\\hive_engine\\c\\cmake-build-debug\\libhive"
 lib = WinDLL(f)
 board_size = c_uint.in_dll(lib, "pboardsize").value
@@ -195,38 +197,49 @@ def branching_factor(hive):
     n_moves = 100
     data_store = [[] for _ in range(n_moves)]
 
-    for move in range(n_moves):
-        print("At move", move)
-        hive.generate_moves()
-        n_children = hive.node.contents.board.contents.move_location_tracker
+    for s in range(n_samples):
+        move = 0
+        for move in range(n_moves):
+            hive.generate_moves()
+            n_children = hive.node.contents.board.contents.move_location_tracker
 
-        data_store[move].append(n_children)
+            data_store[move].append(n_children)
 
-        total_nodes += n_children
-        if n_children == 0:
-            # Terminal state
-            break
-
-        random_child = random.randint(0, n_children - 1)
-
-        for i, child in enumerate(hive.children()):
-            if i == random_child:
-                lib.list_remove(byref(child.contents.node))
-                lib.node_free(hive.node)
-                hive.node = child
+            total_nodes += n_children
+            if n_children == 0:
+                # Terminal state
                 break
 
-    # hive.reinitialize()
+            random_child = random.randint(0, n_children - 1)
+
+            for i, child in enumerate(hive.children()):
+                if i == random_child:
+                    lib.list_remove(byref(child.contents.node))
+                    lib.node_free(hive.node)
+                    hive.node = child
+                    break
+        for move in range(move+1, n_moves):
+            data_store[move].append(np.nan)
+
+        hive.reinitialize()
 
     elapsed = (datetime.datetime.now() - start_time).total_seconds()
     print("Generated %d nodes in %.2f seconds (%.2f knodes/s)" % (total_nodes, elapsed, total_nodes / 1000 / elapsed))
 
+    for row in data_store:
+        print(len(row))
+
+    data_store = np.array(data_store)
+    print(data_store)
+    error = np.std(data_store, axis=1)
+    data = np.average(data_store, axis=1)
+
     import matplotlib.pyplot as plt
 
-    moves = [i for i in range(n_moves)]
-    data = [sum(data_store[i]) / n_samples for i in moves]
+    moves = np.arange(n_moves)
 
-    plt.plot(moves, data)
+    plt.errorbar(moves, data, yerr=error, ecolor='lightblue', alpha=0.8)
+    plt.fill_between(moves, data-error, data+error, alpha=0.8, color='lightblue')
     plt.title("Trend of available moves per turn. Played by a random agent.")
     plt.xlabel("Turn")
     plt.ylabel("Avg. Available Moves (over 500 samples)")

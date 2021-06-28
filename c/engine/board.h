@@ -110,7 +110,7 @@ struct board {
     char n_stacked;
     struct tile_stack stack[TILE_STACK_SIZE];
 
-    int move_location_tracker;
+    int n_children;
 
     long long zobrist_hash;
     long long hash_history[MAX_TURNS];

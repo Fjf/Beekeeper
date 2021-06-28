@@ -98,7 +98,7 @@ bool mm(struct node *node, int player, float alpha, float beta, int depth, doubl
         if (err) return false;
 
         struct list *head, *hold;
-        if (node->board->move_location_tracker == 0 || list_empty(&node->children)) {
+        if (node->board->n_children == 0 || list_empty(&node->children)) {
             mm_evaluate(node);
             best = data->mm_value;
         } else if (player == 0) { // Player 0 maximizes
@@ -144,7 +144,7 @@ bool mm(struct node *node, int player, float alpha, float beta, int depth, doubl
         // Cleanup children.
         node_foreach_safe(node, head, hold) {
             struct node *child = container_of(head, struct node, node);
-            node->board->move_location_tracker--;
+            node->board->n_children--;
             node_free(child);
         }
     }
@@ -178,8 +178,8 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
     if (err) {
         return 0;
     }
-    if (node->board->move_location_tracker == 0 || list_empty(&node->children)) {
-        fprintf(stderr, "Root node must have children, current: %d\n", node->board->move_location_tracker);
+    if (node->board->n_children == 0 || list_empty(&node->children)) {
+        fprintf(stderr, "Root node must have children, current: %d\n", node->board->n_children);
         exit(1);
     }
 
@@ -293,7 +293,7 @@ struct node *mm_add_child(struct node *node, struct board *board) {
 void minimax(struct node **proot, struct player_arguments *args) {
     struct node *root = *proot;
 
-    if (root->board->move_location_tracker > 0) {
+    if (root->board->n_children > 0) {
         // Reallocate child data structs to ensure there is no old data here.
         struct list* node;
         node_foreach(root, node) {
@@ -401,9 +401,9 @@ void minimax(struct node **proot, struct player_arguments *args) {
         // Forced win
         if (best_value > MM_INFINITY - MAX_TURNS || best_value < -MM_INFINITY + MAX_TURNS) {
             int t = (int)(MM_INFINITY - fabsf(best_value)) - root->board->turn;
-            printf("Evaluated %d children and best is #%d\n", root->board->move_location_tracker, t);
+            printf("Evaluated %d children and best is #%d\n", root->board->n_children, t);
         } else {
-            printf("Evaluated %d children and best is %.5f\n", root->board->move_location_tracker, best_value);
+            printf("Evaluated %d children and best is %.5f\n", root->board->n_children, best_value);
         }
     }
 

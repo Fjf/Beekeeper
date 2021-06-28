@@ -15,20 +15,20 @@ void do_pn_random_move(struct node **proot) {
     struct node *root = *proot;
 
     struct board *board = root->board;
-    if (board->move_location_tracker == -1) {
+    if (board->n_children == -1) {
         generate_moves(root, 0);
 
-        if (board->move_location_tracker == -1) {
+        if (board->n_children == -1) {
             fprintf(stderr, "No moves could be generated\n");
             exit(1);
         }
     }
 
-    if (board->move_location_tracker == 0) {
+    if (board->n_children == 0) {
         board->turn++;
         return;
     }
-    int selected = rand() % board->move_location_tracker;
+    int selected = rand() % board->n_children;
 
 
 
@@ -102,9 +102,9 @@ int initialize_node(struct node *root, int original_player_bit) {
     data->expanded = true;
 
     // If there are no moves available, increment turn and pass on to next player
-    if (root->board->move_location_tracker == 0) {
+    if (root->board->n_children == 0) {
         root->board->turn++;
-        root->board->move_location_tracker = 1;
+        root->board->n_children = 1;
 
         // Clone board and add as child (no moves equals this node results in the same board)
         struct board *board = malloc(sizeof(struct board));
@@ -207,7 +207,7 @@ void do_pn_tree_move(struct node **proot) {
 
     printf("Done with PNS\n");
 
-    if (root->board->move_location_tracker == 0) {
+    if (root->board->n_children == 0) {
         root->board->turn++;
         return;
     }

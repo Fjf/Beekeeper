@@ -185,10 +185,10 @@ void add_child(struct node *node, int location, int type, int previous_location)
         exit(1);
     }
     memcpy(board, node->board, sizeof(struct board));
-    board->move_location_tracker = 0;
+    board->n_children = 0;
 
     // Parent will track how many children it has this way.
-    node->board->move_location_tracker++;
+    node->board->n_children++;
     if (location == -1) {
         // No valid moves are available
         board->turn++;
@@ -933,7 +933,7 @@ void generate_moves(struct node *node, int flags) {
     int move = board->turn / 2;
 
     struct player *player = &board->players[player_idx];
-    board->move_location_tracker = 0;
+    board->n_children = 0;
     // By move 4 for each player, the queen has to be placed.
     if (move == 3 && player->queens_left == 1) {
         return generate_placing_moves(node, L_QUEEN | player_bit);
