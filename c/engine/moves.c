@@ -107,13 +107,13 @@ void full_update(struct board *board) {
         for (int y = ly; y < hy; y++) {
             if (n_updated == to_update) break;
             // Dont check empty tiles, or tiles which could already move before this.
-            if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
+            if (board->tiles[y * BOARD_SIZE + x] == EMPTY) continue;
 
 //            first_tile = y * BOARD_SIZE + x;
 
             // Allow everything at first, then let articulation fix this.
             n_updated++;
-            board->tiles[y * BOARD_SIZE + x].free = can_move(board, x, y);
+            board->free[y * BOARD_SIZE + x] = can_move(board, x, y);
         }
     }
 
@@ -131,20 +131,20 @@ void update_can_move(struct board *board, int location, int previous_location) {
     full_update(board);
     return;
 
-    board->tiles[location].free = true;
+    board->free[location] = true;
 
     int n_neighbours = 0;
     if (previous_location != -1) {
         // If the previous tile is not empty, this tile is not necessarily free.
-        if (board->tiles[previous_location].type == EMPTY)
-            board->tiles[previous_location].free = false;
+        if (board->tiles[previous_location] == EMPTY)
+            board->free[previous_location] = false;
 
         // Check around previous location
         int *points = get_points_around(previous_location / BOARD_SIZE, previous_location % BOARD_SIZE);
         for (int i = 0; i < 6; i++) {
             int px = points[i] % BOARD_SIZE;
             int py = points[i] / BOARD_SIZE;
-            if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
+            if (board->tiles[py * BOARD_SIZE + px] == EMPTY) continue;
             if (n_neighbours == 1) {
                 full_update(board);
                 return;
@@ -152,7 +152,7 @@ void update_can_move(struct board *board, int location, int previous_location) {
 
             n_neighbours++;
             // For all neighbours, update whether or not they can move.
-            board->tiles[py * BOARD_SIZE + px].free = can_move(board, px, py);
+            board->free[py * BOARD_SIZE + px] = can_move(board, px, py);
         }
     }
     int *points = get_points_around(location / BOARD_SIZE, location % BOARD_SIZE);
@@ -160,7 +160,7 @@ void update_can_move(struct board *board, int location, int previous_location) {
     for (int i = 0; i < 6; i++) {
         int px = points[i] % BOARD_SIZE;
         int py = points[i] / BOARD_SIZE;
-        if (board->tiles[py * BOARD_SIZE + px].type == EMPTY) continue;
+        if (board->tiles[py * BOARD_SIZE + px] == EMPTY) continue;
 
         if (n_neighbours == 1) {
             full_update(board);
@@ -168,7 +168,7 @@ void update_can_move(struct board *board, int location, int previous_location) {
         }
         n_neighbours++;
         // For all neighbours, update whether or not they can move.
-        board->tiles[py * BOARD_SIZE + px].free = can_move(board, px, py);
+        board->free[py * BOARD_SIZE + px] = can_move(board, px, py);
     }
 }
 
@@ -229,11 +229,11 @@ void add_child(struct node *node, int location, int type, int previous_location)
         }
     } else {
         ts = get_from_stack(board, previous_location, true);
-        board->tiles[previous_location].type = (ts == NULL ? EMPTY : ts->type);
+        board->tiles[previous_location] = (ts == NULL ? EMPTY : ts->type);
     }
 
     // If this move is on top of an existing tile, store this tile in the stack
-    if (board->tiles[location].type != EMPTY) {
+    if (board->tiles[location] != EMPTY) {
         for (int i = 0; i < TILE_STACK_SIZE; i++) {
             if (board->stack[i].location == -1) {
                 // Get highest tile from stack
@@ -241,7 +241,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
 
                 // Store in stack
                 board->stack[i].location = location;
-                board->stack[i].type = board->tiles[location].type;
+                board->stack[i].type = board->tiles[location];
                 board->stack[i].z = (ts == NULL ? 0 : ts->z + 1);
                 break;
             }
@@ -263,7 +263,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
 
     // Store hash history
     board->hash_history[board->turn] = board->zobrist_hash;
-    board->tiles[location].type = type;
+    board->tiles[location] = type;
     board->turn++;
 
     board->has_updated = false;
@@ -304,16 +304,16 @@ void add_child(struct node *node, int location, int type, int previous_location)
     child->move.location = location;
 
     // Add move notation for clarity
-    if (node->board->tiles[location].type != EMPTY) {
+    if (node->board->tiles[location] != EMPTY) {
         child->move.direction = 7;
-        child->move.next_to = node->board->tiles[location].type;
+        child->move.next_to = node->board->tiles[location];
     } else {
         int *points = get_points_around(y, x);
         for (unsigned char p = 0; p < 6; p++) {
             int point = points[p];
-            if (child->board->tiles[point].type != EMPTY) {
+            if (child->board->tiles[point] != EMPTY) {
                 child->move.direction = p;
-                child->move.next_to = child->board->tiles[point].type;
+                child->move.next_to = child->board->tiles[point];
                 break;
             }
         }
@@ -393,7 +393,7 @@ void generate_placing_moves(struct node *node, int type) {
             if (n_encountered == to_encounter) break;
 
             // Skip empty tiles
-            if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) continue;
+            if (board->tiles[y * BOARD_SIZE + x] == EMPTY) continue;
 
             n_encountered++;
             // Get points around this point
@@ -401,7 +401,7 @@ void generate_placing_moves(struct node *node, int type) {
             for (int p = 0; p < 6; p++) {
                 int point = points[p];
                 // Check if its empty
-                if (board->tiles[point].type != EMPTY) continue;
+                if (board->tiles[point] != EMPTY) continue;
 
                 // Check if we added this location earlier, if so, remove this (reduce amount of duplicate nodes)
                 if (is_added[point]) continue;
@@ -417,10 +417,10 @@ void generate_placing_moves(struct node *node, int type) {
                     int np_index = neighbor_points[np];
                     if (np_index < 0 || np_index >= BOARD_SIZE * BOARD_SIZE) continue;
 
-                    if (board->tiles[np_index].type == EMPTY) continue;
+                    if (board->tiles[np_index] == EMPTY) continue;
 
                     // Check if every tile around it has the same colour as the passed tile colour.
-                    if ((board->tiles[np_index].type & COLOR_MASK) != color) {
+                    if ((board->tiles[np_index] & COLOR_MASK) != color) {
                         invalid = 1;
                         break;
                     }
@@ -510,7 +510,7 @@ int connected_components(struct board *board, int index) {
         int *points = get_points_around(y, x);
         for (int n = 0; n < 6; n++) {
             // Skip this tile if theres nothing on it
-            if (board->tiles[points[n]].type == EMPTY
+            if (board->tiles[points[n]] == EMPTY
                 || visited[points[n]])
                 continue;
 
@@ -529,16 +529,16 @@ int connected_components(struct board *board, int index) {
 void generate_directional_grasshopper_moves(struct node *node, int orig_y, int orig_x, int x_incr, int y_incr) {
     struct board *board = node->board;
     int orig_pos = orig_y * BOARD_SIZE + orig_x;
-    int tile_type = board->tiles[orig_pos].type;
+    int tile_type = board->tiles[orig_pos];
 
     int x = orig_x + x_incr;
     int y = orig_y + y_incr;
     // It needs to jump at least 1 tile.
-    if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+    if (board->tiles[y * BOARD_SIZE + x] != EMPTY) {
         while (1) {
             x += x_incr;
             y += y_incr;
-            if (board->tiles[y * BOARD_SIZE + x].type == EMPTY) {
+            if (board->tiles[y * BOARD_SIZE + x] == EMPTY) {
                 add_child(node, y * BOARD_SIZE + x, tile_type, orig_pos);
                 break;
             }
@@ -562,7 +562,7 @@ bool has_neighbour(struct board *board, int location) {
     int y = location / BOARD_SIZE;
     int *points = get_points_around(y, x);
     for (int i = 0; i < 6; i++) {
-        if (board->tiles[points[i]].type != EMPTY) {
+        if (board->tiles[points[i]] != EMPTY) {
             return true;
         }
     }
@@ -570,12 +570,12 @@ bool has_neighbour(struct board *board, int location) {
 }
 
 bool tile_fits(struct board *board, int x, int y, int new_x, int new_y) {
-    bool tl = board->tiles[(y - 1) * BOARD_SIZE + (x - 1)].type == EMPTY;
-    bool tr = board->tiles[(y - 1) * BOARD_SIZE + (x + 0)].type == EMPTY;
-    bool l = board->tiles[(y + 0) * BOARD_SIZE + (x - 1)].type == EMPTY;
-    bool r = board->tiles[(y + 0) * BOARD_SIZE + (x + 1)].type == EMPTY;
-    bool bl = board->tiles[(y + 1) * BOARD_SIZE + (x + 0)].type == EMPTY;
-    bool br = board->tiles[(y + 1) * BOARD_SIZE + (x + 1)].type == EMPTY;
+    bool tl = board->tiles[(y - 1) * BOARD_SIZE + (x - 1)] == EMPTY;
+    bool tr = board->tiles[(y - 1) * BOARD_SIZE + (x + 0)] == EMPTY;
+    bool l = board->tiles[(y + 0) * BOARD_SIZE + (x - 1)] == EMPTY;
+    bool r = board->tiles[(y + 0) * BOARD_SIZE + (x + 1)] == EMPTY;
+    bool bl = board->tiles[(y + 1) * BOARD_SIZE + (x + 0)] == EMPTY;
+    bool br = board->tiles[(y + 1) * BOARD_SIZE + (x + 1)] == EMPTY;
 
     if (x - new_x == -1 && y - new_y == 0) {
         // Going to the right
@@ -605,8 +605,8 @@ void generate_ant_moves(struct node *node, int orig_y, int orig_x) {
     struct board *board = node->board;
 
     // Store tile for temporary removal
-    int tile_type = board->tiles[orig_y * BOARD_SIZE + orig_x].type;
-    board->tiles[orig_y * BOARD_SIZE + orig_x].type = EMPTY;
+    int tile_type = board->tiles[orig_y * BOARD_SIZE + orig_x];
+    board->tiles[orig_y * BOARD_SIZE + orig_x] = EMPTY;
 
     int ant_move_buffer[BOARD_SIZE * BOARD_SIZE];// = malloc(BOARD_SIZE * BOARD_SIZE * sizeof(int));
     int n_ant_moves = 0;
@@ -627,7 +627,7 @@ void generate_ant_moves(struct node *node, int orig_y, int orig_x) {
             int point = points[n];
 
             // Ants cannot stack.
-            if (board->tiles[point].type != EMPTY) continue;
+            if (board->tiles[point] != EMPTY) continue;
 
             // Skip this tile if it has no neighbours
             // Connected hive requirement.
@@ -646,7 +646,7 @@ void generate_ant_moves(struct node *node, int orig_y, int orig_x) {
             }
         }
     }
-    board->tiles[orig_y * BOARD_SIZE + orig_x].type = tile_type;
+    board->tiles[orig_y * BOARD_SIZE + orig_x] = tile_type;
 
     // Generate moves based on these valid ant moves.
     for (int i = 0; i < n_ant_moves; i++) {
@@ -663,15 +663,15 @@ void generate_queen_moves(struct node *node, int y, int x) {
     struct board *board = node->board;
 
     // Store tile for temporary removal
-    int tile_type = board->tiles[y * BOARD_SIZE + x].type;
+    int tile_type = board->tiles[y * BOARD_SIZE + x];
 
     // If this tile is on top of something, get that tile.
     // Only do this because the beetle calls this function, so it saves programming effort
     struct tile_stack *temp = get_from_stack(node->board, y * BOARD_SIZE + x, false);
     if (temp == NULL) {
-        board->tiles[y * BOARD_SIZE + x].type = EMPTY;
+        board->tiles[y * BOARD_SIZE + x] = EMPTY;
     } else {
-        board->tiles[y * BOARD_SIZE + x].type = temp->type;
+        board->tiles[y * BOARD_SIZE + x] = temp->type;
     }
 
     int *points = get_points_around(y, x);
@@ -679,7 +679,7 @@ void generate_queen_moves(struct node *node, int y, int x) {
         int point = points[p];
 
         // Get all tiles which are connected to the queen
-        if (board->tiles[point].type == EMPTY) continue;
+        if (board->tiles[point] == EMPTY) continue;
 
         int xx = point % BOARD_SIZE;
         int yy = point / BOARD_SIZE;
@@ -689,7 +689,7 @@ void generate_queen_moves(struct node *node, int y, int x) {
         // For all neighbors, if the neighbors neighbors == my neighbors -> valid move.
         int *neighbor_points = get_points_around(yy, xx);
         for (int i = 0; i < 6; i++) {
-            if (board->tiles[neighbor_points[i]].type != EMPTY) continue;
+            if (board->tiles[neighbor_points[i]] != EMPTY) continue;
 
             for (int j = 0; j < 6; j++) {
                 if (neighbor_points[i] == points[j]) {
@@ -702,7 +702,7 @@ void generate_queen_moves(struct node *node, int y, int x) {
         }
     }
 
-    board->tiles[y * BOARD_SIZE + x].type = tile_type;
+    board->tiles[y * BOARD_SIZE + x] = tile_type;
 }
 
 void generate_beetle_moves(struct node *node, int y, int x) {
@@ -714,7 +714,7 @@ void generate_beetle_moves(struct node *node, int y, int x) {
     int *points = get_points_around(y, x);
 
     // Store tile for temporary removal
-    int tile_type = board->tiles[y * BOARD_SIZE + x].type;
+    int tile_type = board->tiles[y * BOARD_SIZE + x];
 
     // If this tile is on top of something, get that tile.
     struct tile_stack *temp = get_from_stack(node->board, y * BOARD_SIZE + x, false);
@@ -722,31 +722,31 @@ void generate_beetle_moves(struct node *node, int y, int x) {
         // If you are not on top of something, you can move like a queen, or on top of something.
         generate_queen_moves(node, y, x);
 
-        board->tiles[y * BOARD_SIZE + x].type = EMPTY;
+        board->tiles[y * BOARD_SIZE + x] = EMPTY;
 
         for (int p = 0; p < 6; p++) {
             // Get all tiles which are connected to the beetle
-            if (board->tiles[points[p]].type == EMPTY) continue;
+            if (board->tiles[points[p]] == EMPTY) continue;
 
             add_child(node, points[p], tile_type, y * BOARD_SIZE + x);
         }
     } else {
         // Beetle on top of something has no restrictions on movement off of the tile.
-        board->tiles[y * BOARD_SIZE + x].type = temp->type;
+        board->tiles[y * BOARD_SIZE + x] = temp->type;
         for (int p = 0; p < 6; p++) {
             add_child(node, points[p], tile_type, y * BOARD_SIZE + x);
         }
     }
 
-    board->tiles[y * BOARD_SIZE + x].type = tile_type;
+    board->tiles[y * BOARD_SIZE + x] = tile_type;
 }
 
 void generate_spider_moves(struct node *node, int orig_y, int orig_x) {
     struct board *board = node->board;
 
     // Store tile for temporary removal
-    int tile_type = board->tiles[orig_y * BOARD_SIZE + orig_x].type;
-    board->tiles[orig_y * BOARD_SIZE + orig_x].type = EMPTY;
+    int tile_type = board->tiles[orig_y * BOARD_SIZE + orig_x];
+    board->tiles[orig_y * BOARD_SIZE + orig_x] = EMPTY;
 
     int *valid_moves = calloc(sizeof(int), BOARD_SIZE * BOARD_SIZE);
     int valid_moves_tracker = 0;
@@ -771,7 +771,7 @@ void generate_spider_moves(struct node *node, int orig_y, int orig_x) {
             // Generate a list containing all valid moves from the frontier onward.
             for (int p = 0; p < 6; p++) {
                 int point = points[p];
-                if (board->tiles[point].type == EMPTY) continue;
+                if (board->tiles[point] == EMPTY) continue;
                 int xx = point % BOARD_SIZE;
                 int yy = point / BOARD_SIZE;
 
@@ -780,7 +780,7 @@ void generate_spider_moves(struct node *node, int orig_y, int orig_x) {
                 // For all neighbors, if the neighbors neighbors == my neighbors -> valid move.
                 int *neighbor_points = get_points_around(yy, xx);
                 for (int i = 0; i < 6; i++) {
-                    if (board->tiles[neighbor_points[i]].type != EMPTY) continue;
+                    if (board->tiles[neighbor_points[i]] != EMPTY) continue;
                     for (int j = 0; j < 6; j++) {
                         if (neighbor_points[i] == points[j]) {
                             if (!tile_fits(board, x, y, points[j] % BOARD_SIZE, points[j] / BOARD_SIZE)) continue;
@@ -803,7 +803,7 @@ void generate_spider_moves(struct node *node, int orig_y, int orig_x) {
         frontier_p = next_frontier_p;
         next_frontier_p = 0;
     }
-    board->tiles[orig_y * BOARD_SIZE + orig_x].type = tile_type;
+    board->tiles[orig_y * BOARD_SIZE + orig_x] = tile_type;
 
     for (int i = 0; i < frontier_p; i++) {
         add_child(node, frontier[i], tile_type, orig_y * BOARD_SIZE + orig_x);
@@ -819,19 +819,18 @@ bool can_move(struct board *board, int x, int y) {
     if (ts != NULL) return true;
 
 
-    struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
+    char *tile = &board->tiles[y * BOARD_SIZE + x];
     int n_hive_tiles = sum_hive_tiles(board) - 1;
 
     // Store the tile type for later use
-    int tile_type = tile->type;
-    tile->type = ts == NULL ? EMPTY : ts->type;
-
+    char tile_type = *tile;
+    *tile = EMPTY;
 
     // Check if the points around this point consist of a single spanning tree.
     bool valid = true;
     int *points = get_points_around(y, x);
     for (int p = 0; p < 6; p++) {
-        if (board->tiles[points[p]].type == EMPTY) continue;
+        if (board->tiles[points[p]] == EMPTY) continue;
 
         // Count how many tiles are connected.
         int connect_count = connected_components(board, points[p]);
@@ -842,7 +841,7 @@ bool can_move(struct board *board, int x, int y) {
     }
 
     // Restore original tile value.
-    tile->type = tile_type;
+    *tile = tile_type;
     return valid;
 }
 
@@ -863,27 +862,27 @@ void generate_free_moves(struct node *node, int player_bit, int flags) {
 
     for (int y = ly; y < hy; y++) {
         for (int x = lx; x < hx; x++) {
-            struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
-            if (tile->type == EMPTY) continue;
+            uchar tile = board->tiles[y * BOARD_SIZE + x];
+            if (tile == EMPTY) continue;
             // Only move your own tiles
-            if ((tile->type & COLOR_MASK) != player_bit) continue;
+            if ((tile & COLOR_MASK) != player_bit) continue;
 
-            if (!tile->free) continue;
+            if (!board->free[y * BOARD_SIZE + x]) continue;
 
             // If this tile can be removed without breaking the hive, add it to the valid moves list.
-            if ((tile->type & TILE_MASK) == L_GRASSHOPPER) {
+            if ((tile & TILE_MASK) == L_GRASSHOPPER) {
                 generate_grasshopper_moves(node, y, x);
-            } else if ((tile->type & TILE_MASK) == L_BEETLE) {
+            } else if ((tile & TILE_MASK) == L_BEETLE) {
                 generate_beetle_moves(node, y, x);
-            } else if ((tile->type & TILE_MASK) == L_ANT) {
+            } else if ((tile & TILE_MASK) == L_ANT) {
                 // Dont move ants if this flag is set.
                 if ((flags & MOVE_NO_ANTS) > 0) {
                     continue;
                 }
                 generate_ant_moves(node, y, x);
-            } else if ((tile->type & TILE_MASK) == L_QUEEN) {
+            } else if ((tile & TILE_MASK) == L_QUEEN) {
                 generate_queen_moves(node, y, x);
-            } else if ((tile->type & TILE_MASK) == L_SPIDER) {
+            } else if ((tile & TILE_MASK) == L_SPIDER) {
                 generate_spider_moves(node, y, x);
             }
         }

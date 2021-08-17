@@ -37,6 +37,7 @@ struct node* game_pass(struct node* root);
 
 void node_init(struct node* node, void* data);
 void node_add_child(struct node* node, struct node* child);
+void node_free_children(struct node* root);
 void node_free(struct node* root);
 void node_copy(struct node* dest, struct node* src);
 char* string_move(struct node* node);

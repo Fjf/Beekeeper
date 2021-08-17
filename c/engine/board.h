@@ -8,6 +8,7 @@
 // Amount of tiles available per player.
 #include "list.h"
 #include "moves.h"
+#include "utils.h"
 
 #define N_ANTS 3
 #define N_GRASSHOPPERS 3
@@ -64,11 +65,6 @@ struct tile_stack {
     unsigned char z;
 };
 
-struct tile {
-    bool free;
-    unsigned char type;
-};
-
 struct player {
     unsigned char beetles_left;
     unsigned char grasshoppers_left;
@@ -96,7 +92,8 @@ struct player {
 #endif
 
 struct board {
-    struct tile tiles[BOARD_SIZE * BOARD_SIZE];
+    uchar tiles[BOARD_SIZE * BOARD_SIZE];
+    bool free[BOARD_SIZE * BOARD_SIZE];
     int turn;  // Use this to derive whose turn it is
 
     struct player players[2];

@@ -29,8 +29,7 @@ void node_add_child(struct node* node, struct node* child) {
 }
 
 
-void node_free(struct node* root) {
-    // Free children
+void node_free_children(struct node* root) {
     struct list* head = root->children.next;
     while (head != root->children.head) {
         struct node* child = container_of(head, struct node, node);
@@ -41,6 +40,11 @@ void node_free(struct node* root) {
 
         head = temp;
     }
+}
+
+void node_free(struct node* root) {
+    // Free children
+    node_free_children(root);
 
     if (root->data != NULL)
         free(root->data);
@@ -75,6 +79,9 @@ struct node* game_init() {
     tt_init();
     // Precompute points around all indices
     initialize_points_around();
+
+    // Randomized seed
+    srand((unsigned int) time(NULL));
 
     struct board *board = init_board();
     struct node* tree = dedicated_init();

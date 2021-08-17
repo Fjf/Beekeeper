@@ -29,7 +29,7 @@ float prioritization(struct node* node) {
         int* points = get_points_around(y, x);
         for (int i = 0; i < 6; i++) {
             int point = points[i];
-            count += (float)(board->tiles[point].type != EMPTY);
+            count += (float)(board->tiles[point] != EMPTY);
         }
     }
 
@@ -41,7 +41,7 @@ float prioritization(struct node* node) {
         int* points = get_points_around(y, x);
         for (int i = 0; i < 6; i++) {
             int point = points[i];
-            count -= (float)(board->tiles[point].type != EMPTY);
+            count -= (float)(board->tiles[point] != EMPTY);
         }
     }
 
@@ -97,11 +97,11 @@ float expensive_prioritization(struct node *node) {
             if (n_encountered == to_encounter) break;
             for (int y = ly; y < hy; y++) {
                 if (n_encountered == to_encounter) break;
-                unsigned char tile = node->board->tiles[y * BOARD_SIZE + x].type;
+                unsigned char tile = node->board->tiles[y * BOARD_SIZE + x];
                 if (tile == EMPTY) continue;
                 n_encountered++;
 
-                if (!node->board->tiles[y * BOARD_SIZE + x].free) {
+                if (!node->board->free[y * BOARD_SIZE + x]) {
                     float inc = 1.f;
                     if ((tile & TILE_MASK) == L_ANT) {
                         inc = 2.f;
@@ -121,7 +121,7 @@ float expensive_prioritization(struct node *node) {
             int *points = get_points_around(y1, x1);
             for (int i = 0; i < 6; i++) {
                 // If there is a tile around the queen of player 1, the value drops by 1
-                if (node->board->tiles[points[i]].type != EMPTY)
+                if (node->board->tiles[points[i]] != EMPTY)
                     value -= 10.0f;
             }
         }
@@ -132,7 +132,7 @@ float expensive_prioritization(struct node *node) {
             int *points = get_points_around(y2, x2);
             for (int i = 0; i < 6; i++) {
                 // If there is a tile around the queen of player 2, the value increases by 1
-                if (node->board->tiles[points[i]].type != EMPTY)
+                if (node->board->tiles[points[i]] != EMPTY)
                     value += 10.0f;
             }
         }

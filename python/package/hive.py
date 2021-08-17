@@ -1,13 +1,12 @@
 import ctypes
-import datetime
-import random
+import enum
+import os
 from ctypes import *
+from typing import Iterable
 
-f = "C:\\Users\\Duncan\\CLionProjects\\hive_engine\\c\\cmake-build-debug\\libhive"
-lib = WinDLL(f)
+lib = CDLL(os.path.join(os.getcwd(), "/home/duncan/CLionProjects/hive_engine/python/package/libhive.so"))
 board_size = c_uint.in_dll(lib, "pboardsize").value
 tile_stack_size = c_uint.in_dll(lib, "ptilestacksize").value
-print(board_size, tile_stack_size)
 
 
 class TileStack(Structure):
@@ -115,6 +114,7 @@ class PlayerArguments(Structure):
         ('evaluation_function', c_int),
     ]
 
+
 #
 # The Arguments structure stored for each player what algorithm they use and what parameters to use for this algorithm.
 #
@@ -124,6 +124,7 @@ class Arguments(Structure):
         ('p2', PlayerArguments),
     ]
 
+
 class Node(Structure):
     _fields_ = [
         ('children', List),
@@ -132,6 +133,9 @@ class Node(Structure):
         ('board', POINTER(Board)),
         ('data', c_uint)
     ]
+
+    def to_np(self):
+        return numpy.frombuffer(self.board.contents.tiles, float)
 
     def print(self):
         lib.print_board(self.board)
@@ -143,24 +147,64 @@ lib.list_get_node.restype = POINTER(Node)
 lib.default_init.restype = POINTER(Node)
 lib.init_board.restype = POINTER(Board)
 lib.performance_testing.restype = ctypes.c_int
+lib.random_moves.restype = POINTER(Node)
+lib.minimax.restype = POINTER(Node)
+lib.mcts.restype = POINTER(Node)
+
+
+class HiveState(enum.Enum):
+    UNDETERMINED = 0
+    WHITE_WON = 1
+    BLACK_WON = 2
+    DRAW_REPETITION = 3
+    DRAW_TURN_LIMIT = 4
+
+    def __str__(self):
+        m = [
+            "Undetermined",
+            "White Won",
+            "Black Won",
+            "Draw by Repetition",
+            "Draw by Turnlimit",
+        ]
+        return m[self.value]
 
 
 class Hive:
-    def __init__(self):
+    def __init__(self, track_history=False):
+        self.history: list[POINTER(Node)] = []
         self.node = lib.game_init()
+        self.track_history = track_history
 
     def generate_moves(self):
+        """
+        Generates the moves for the current root node
+
+        :return:
+        """
         lib.generate_moves(self.node)
 
     def print(self):
+        """
+        Prints the current board-state
+
+        :return:
+        """
         self.node.contents.print()
 
-    def finished(self):
-        return lib.finished_board(self.node.contents.board)
-
-    def children(self):
+    def finished(self) -> HiveState:
         """
-        A generator returning child pointers
+        Returns the boards finished state
+
+        :return:
+        """
+        result = lib.finished_board(self.node.contents.board)
+        return HiveState(result)
+
+    def children(self) -> Iterable[Node]:
+        """
+        A generator returning child pointers, wrap it with list() to use all children in a python list.
+
         :return:
         """
         if self.node.contents.board.contents.move_location_tracker == 0:
@@ -172,26 +216,70 @@ class Hive:
             # Get struct offset
             child = lib.list_get_node(head)
 
-            yield child
+            yield child.contents
 
             head = head.contents.next
 
+    def select_child(self, child: POINTER(Node)):
+        """
+        Selects a child to be used for the next step, it will free the current root node and replace it with
+          the passed child.
+
+        :param child: the new root node
+        :return:
+        """
+        if self.track_history:
+            copy = pointer(Node())
+            lib.node_copy(copy, self.node)
+            lib.list_empty(pointer(copy.contents.children))
+            self.history.append(copy)
+
+        lib.list_remove(pointer(child.contents.node))
+        lib.node_free(self.node)
+        self.node = child
+
     def ai_move(self, algorithm="random"):
+        """
+        Do an AI move based on passed algorithm
+
+        :param algorithm: one of [random, mm, mcts]
+        :return: the selected child based on the algorithms heuristics
+        """
         config = PlayerArguments()
         config.time_to_move = 0.01
         if algorithm == "random":
-            lib.random_moves(self.node, 1)
+            child = lib.random_moves(self.node, 1)
         elif algorithm == "mm":
-            lib.minimax(self.node, config)
+            child = lib.minimax(self.node, config)
         elif algorithm == "mcts":
-            lib.minimax(self.node, config)
+            child = lib.minimax(self.node, config)
         else:
             raise ValueError("Unknown algorithm type.")
 
+        self.select_child(child)
+
     def reinitialize(self):
+        """
+        Release the root node from previous games, and re-initialize all data required to start a new game.
+
+        :return:
+        """
         # Cleanup old node
         lib.node_free(self.node)
 
         node = lib.default_init()
         self.node = node
         self.node.contents.board = lib.init_board()
+
+    def test(self):
+        """
+        Quick test doing 20 random moves using the engine and printing the output.
+
+        :return:
+        """
+        for i in range(20):
+            self.ai_move()
+            self.print()
+            if self.finished() != HiveState.UNDETERMINED:
+                return
+

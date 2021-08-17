@@ -141,13 +141,6 @@ void mcts_test(struct node *tree) {
 
 
 int main(int argc, char **argv) {
-#ifdef TESTING
-    srand(11287501);
-    printf("Running test case (forced depth of 3, no randomization)\n");
-#else
-    srand((unsigned int) time(NULL));
-#endif
-
     struct arguments arguments = {0};
     arguments.p1.time_to_move = arguments.p2.time_to_move = 0.1;
     parse_args(argc, argv, &arguments);

@@ -8,6 +8,7 @@
 #include "node.h"
 #include "../mm/evaluation.h"
 
+#define uchar unsigned char
 #define ALG_MM 0
 #define ALG_MCTS 1
 #define ALG_RANDOM 2

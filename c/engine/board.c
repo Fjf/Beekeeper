@@ -53,8 +53,8 @@ void get_min_x_y(struct board *board, int *min_x, int *min_y) {
     *min_x = *min_y = BOARD_SIZE;
     for (int y = lower_y; y < BOARD_SIZE; y++) {
         for (int x = lower_x; x < *min_x; x++) {
-            struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
-            if (tile->type == EMPTY) continue;
+            uchar tile = board->tiles[y * BOARD_SIZE + x];
+            if (tile == EMPTY) continue;
 
             // Set min_y to the first non-empty tile row
             if (*min_y == BOARD_SIZE) *min_y = y;
@@ -70,8 +70,8 @@ void get_max_x_y(struct board *board, int *max_x, int *max_y) {
     *max_x = *max_y = 0;
     for (int y = upper_y; y >= 0; y--) {
         for (int x = upper_x; x >= *max_x; x--) {
-            struct tile *tile = &board->tiles[y * BOARD_SIZE + x];
-            if (tile->type == EMPTY) continue;
+            uchar tile = board->tiles[y * BOARD_SIZE + x];
+            if (tile == EMPTY) continue;
 
             // Set min_y to the first non-empty tile row
             if (*max_y == 0) *max_y = y;
@@ -89,7 +89,7 @@ void force_set_bounds(struct board *board) {
     // Set min Y
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
-            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+            if (board->tiles[y * BOARD_SIZE + x] != EMPTY) {
                 board->min_y = y;
                 break;
             }
@@ -100,7 +100,7 @@ void force_set_bounds(struct board *board) {
     // Set max Y
     for (int y = BOARD_SIZE - 1; y >= 0; y--) {
         for (int x = 0; x < BOARD_SIZE; x++) {
-            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+            if (board->tiles[y * BOARD_SIZE + x] != EMPTY) {
                 board->max_y = y;
                 break;
             }
@@ -109,7 +109,7 @@ void force_set_bounds(struct board *board) {
     }
     for (int x = 0; x < BOARD_SIZE; x++) {
         for (int y = 0; y < BOARD_SIZE; y++) {
-            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+            if (board->tiles[y * BOARD_SIZE + x] != EMPTY) {
                 board->min_x = x;
                 break;
             }
@@ -118,7 +118,7 @@ void force_set_bounds(struct board *board) {
     }
     for (int x = BOARD_SIZE - 1; x >= 0; x--) {
         for (int y = 0; y < BOARD_SIZE; y++) {
-            if (board->tiles[y * BOARD_SIZE + x].type != EMPTY) {
+            if (board->tiles[y * BOARD_SIZE + x] != EMPTY) {
                 board->max_x = x;
                 break;
             }
@@ -151,17 +151,17 @@ void translate_board(struct board *board) {
     }
 
     // Copy data into temp array
-    struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
+    char t[BOARD_SIZE * BOARD_SIZE] = {0};
     char *temp = (void*) &t;
 
-    memcpy(temp + (to_y * BOARD_SIZE + to_x) * sizeof(struct tile),
-           ((char *) &board->tiles) + offset * sizeof(struct tile),
-           (size) * sizeof(struct tile)
+    memcpy(temp + (to_y * BOARD_SIZE + to_x) * sizeof(char),
+           ((char *) &board->tiles) + offset * sizeof(char),
+           (size) * sizeof(char)
     );
 
-    memset(&board->tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
+    memset(&board->tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(char));
     // Copy data back into main array after clearing data.
-    memcpy(&board->tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
+    memcpy(&board->tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(char));
 
     int xdiff = to_x - board->min_x;
     int ydiff = to_y - board->min_y;
@@ -181,8 +181,8 @@ void translate_board_22(struct board *board) {
     int min_y = BOARD_SIZE;
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < min_x; x++) {
-            struct tile tile = board->tiles[y * BOARD_SIZE + x];
-            if (tile.type == EMPTY) continue;
+            uchar tile = board->tiles[y * BOARD_SIZE + x];
+            if (tile == EMPTY) continue;
 
             // Set min_y to the first non-empty tile row
             if (min_y == BOARD_SIZE) min_y = y;
@@ -207,17 +207,17 @@ void translate_board_22(struct board *board) {
     }
 
     // Copy data into temp array
-    struct tile t[BOARD_SIZE * BOARD_SIZE] = {0};
+    char t[BOARD_SIZE * BOARD_SIZE] = {0};
     char *temp = (void*) &t;
 
-    memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(struct tile),
-           ((char *) &board->tiles) + offset * sizeof(struct tile),
-           (size - (2 * BOARD_SIZE + 2)) * sizeof(struct tile)
+    memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(char),
+           ((char *) &board->tiles) + offset * sizeof(char),
+           (size - (2 * BOARD_SIZE + 2)) * sizeof(char)
     );
 
-    memset(&board->tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
+    memset(&board->tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(char));
     // Copy data back into main array after clearing data.
-    memcpy(&board->tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(struct tile));
+    memcpy(&board->tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(char));
 }
 
 
@@ -227,7 +227,7 @@ int count_tiles_around(struct board *board, int position) {
     int count = 0;
     int *points = get_points_around(y, x);
     for (int p = 0; p < 6; p++) {
-        if (board->tiles[points[p]].type != EMPTY) {
+        if (board->tiles[points[p]] != EMPTY) {
             count++;
         }
     }
@@ -239,7 +239,7 @@ bool is_surrounded(struct board *board, int y, int x) {
     int p;
     int *points = get_points_around(y, x);
     for (p = 0; p < 6; p++) {
-        if (board->tiles[points[p]].type == EMPTY) {
+        if (board->tiles[points[p]] == EMPTY) {
             break;
         }
     }
@@ -252,7 +252,7 @@ bool is_surrounded(struct board *board, int y, int x) {
  * Checks if the board is in a finished position
  * Meaning; either one of the two queens is completely surrounded.
  * Returns 1 if player 1 won, 2 if player 2 won, 0 if nobody won yet.
- * Or 3 if its a draw by force (both queens surrounded), or by repetition.
+ * Or 3 if its a draw by force (both queens surrounded), or 4 by repetition.
  */
 int finished_board(struct board *board) {
     int x, y;
@@ -287,7 +287,7 @@ int finished_board(struct board *board) {
     }
 
     // Draw due to turn limit
-    if (board->turn == MAX_TURNS - 1) return 3;
+    if (board->turn == MAX_TURNS - 1) return 4;
 
     return res;
 }
@@ -315,9 +315,9 @@ void print_board(struct board *board) {
         for (int x = 0; x < BOARD_SIZE; x++) {
             printf(" ");
 
-            struct tile tile = board->tiles[y * BOARD_SIZE + x];
-            int type = tile.type & (COLOR_MASK | TILE_MASK);
-            int n = (tile.type & NUMBER_MASK) >> NUMBER_SHIFT;
+            uchar tile = board->tiles[y * BOARD_SIZE + x];
+            int type = tile & (COLOR_MASK | TILE_MASK);
+            int n = (tile & NUMBER_MASK) >> NUMBER_SHIFT;
             if (type == EMPTY) {
                 printf(" ");
             } else if (type == L_ANT) {
@@ -364,7 +364,7 @@ void print_matrix(struct board* board) {
     printf("---------\n");
     for (int i = 0; i < BOARD_SIZE - 0; i++) {
         for (int j = 0; j < BOARD_SIZE - 0; j++) {
-            int t = board->tiles[i * BOARD_SIZE + j].type;
+            char t = board->tiles[i * BOARD_SIZE + j];
             printf("%d ", t & TILE_MASK);
         }
         printf("\n");

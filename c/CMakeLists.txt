@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(hive VERSION 0.1 DESCRIPTION "hive")
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_C_FLAGS "-std=gnu99 -O3 -march=native -fopenmp -static")
+set(CMAKE_C_FLAGS "-std=gnu99 -O3 -march=native -fopenmp")
 
 # Set include directories for builds
 include_directories(.)
@@ -17,11 +17,6 @@ target_compile_definitions(hive_run PRIVATE CENTERED=1 MAX_TURNS=180)
 
 add_executable(perft ${LIB_FILES} perft.c engine/utils.h)
 target_compile_definitions(hive_run PRIVATE CENTERED=1 MAX_TURNS=180)
-
-
-# Testing executable with TESTING compile flag
-#add_executable(hive_test ${SOURCE_FILES})
-#target_compile_definitions(hive_test PRIVATE TESTING=1 CENTERED=1)
 
 add_compile_definitions(hive CENTERED=1 MAX_TURNS=180)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/engine)

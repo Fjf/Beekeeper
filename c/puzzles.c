@@ -20,10 +20,10 @@ void set_board_information(struct board* board) {
     for (int i = board->min_x; i < board->max_x + 1; i++) {
         for (int j = board->min_y; j < board->max_y + 1; j++) {
             int idx = j * BOARD_SIZE + i;
-            if (board->tiles[idx].type == EMPTY)
+            if (board->tiles[idx] == EMPTY)
                 continue;
-            int color = board->tiles[idx].type & COLOR_MASK;
-            int type = board->tiles[idx].type & TILE_MASK;
+            int color = board->tiles[idx] & COLOR_MASK;
+            int type = board->tiles[idx] & TILE_MASK;
             int player = color >> COLOR_SHIFT;
 
             if (type == L_GRASSHOPPER)
@@ -78,22 +78,22 @@ void puzzle_4(struct node* tree) {
 
     board->turn = white_to_move + 9;
 
-    board->tiles[0 * BOARD_SIZE + 3].type = make_tile(L_GRASSHOPPER, 1);
-    board->tiles[0 * BOARD_SIZE + 4].type = make_tile(L_ANT, 2);
+    board->tiles[0 * BOARD_SIZE + 3] = make_tile(L_GRASSHOPPER, 1);
+    board->tiles[0 * BOARD_SIZE + 4] = make_tile(L_ANT, 2);
 
-    board->tiles[1 * BOARD_SIZE + 0].type = make_tile(D_ANT, 2);
-    board->tiles[1 * BOARD_SIZE + 1].type = make_tile(D_GRASSHOPPER, 2);
-    board->tiles[1 * BOARD_SIZE + 3].type = make_tile(L_SPIDER, 2);
-    board->tiles[1 * BOARD_SIZE + 4].type = make_tile(D_QUEEN, 1);
-    board->tiles[1 * BOARD_SIZE + 5].type = make_tile(L_ANT, 1);
+    board->tiles[1 * BOARD_SIZE + 0] = make_tile(D_ANT, 2);
+    board->tiles[1 * BOARD_SIZE + 1] = make_tile(D_GRASSHOPPER, 2);
+    board->tiles[1 * BOARD_SIZE + 3] = make_tile(L_SPIDER, 2);
+    board->tiles[1 * BOARD_SIZE + 4] = make_tile(D_QUEEN, 1);
+    board->tiles[1 * BOARD_SIZE + 5] = make_tile(L_ANT, 1);
 
-    board->tiles[2 * BOARD_SIZE + 2].type = make_tile(L_ANT, 3);
-    board->tiles[2 * BOARD_SIZE + 3].type = make_tile(D_SPIDER, 1);
-    board->tiles[2 * BOARD_SIZE + 5].type = make_tile(L_SPIDER, 1);
+    board->tiles[2 * BOARD_SIZE + 2] = make_tile(L_ANT, 3);
+    board->tiles[2 * BOARD_SIZE + 3] = make_tile(D_SPIDER, 1);
+    board->tiles[2 * BOARD_SIZE + 5] = make_tile(L_SPIDER, 1);
 
-    board->tiles[3 * BOARD_SIZE + 2].type = make_tile(D_GRASSHOPPER, 1);
-    board->tiles[3 * BOARD_SIZE + 3].type = make_tile(D_BEETLE, 2);
-    board->tiles[3 * BOARD_SIZE + 5].type = make_tile(D_BEETLE, 1);
+    board->tiles[3 * BOARD_SIZE + 2] = make_tile(D_GRASSHOPPER, 1);
+    board->tiles[3 * BOARD_SIZE + 3] = make_tile(D_BEETLE, 2);
+    board->tiles[3 * BOARD_SIZE + 5] = make_tile(D_BEETLE, 1);
     board->stack[0].location = 3 * BOARD_SIZE + 3;
     board->stack[0].z = 0;
     board->stack[0].type = make_tile(L_QUEEN, 1);
@@ -101,7 +101,7 @@ void puzzle_4(struct node* tree) {
     board->stack[1].z = 1;
     board->stack[1].type = make_tile(L_BEETLE, 1);
 
-    board->tiles[4 * BOARD_SIZE + 3].type = make_tile(D_ANT, 1);
+    board->tiles[4 * BOARD_SIZE + 3] = make_tile(D_ANT, 1);
 
     board->n_stacked = 2;
 }
@@ -113,30 +113,30 @@ void puzzle_5(struct node* tree) {
 
     board->turn = white_to_move + 9;
 
-    board->tiles[0 * BOARD_SIZE + 4].type = make_tile(L_BEETLE, 1);
+    board->tiles[0 * BOARD_SIZE + 4] = make_tile(L_BEETLE, 1);
     board->stack[0].location = 0 * BOARD_SIZE + 4;
     board->stack[0].z = 0;
     board->stack[0].type = make_tile(D_GRASSHOPPER, 2);
-    board->tiles[0 * BOARD_SIZE + 5].type = make_tile(D_SPIDER, 2);
+    board->tiles[0 * BOARD_SIZE + 5] = make_tile(D_SPIDER, 2);
 
-    board->tiles[1 * BOARD_SIZE + 0].type = make_tile(D_SPIDER, 1);
-    board->tiles[1 * BOARD_SIZE + 1].type = make_tile(D_ANT, 1);
-    board->tiles[1 * BOARD_SIZE + 2].type = make_tile(L_ANT, 1);
-    board->tiles[1 * BOARD_SIZE + 4].type = make_tile(D_QUEEN, 1);
+    board->tiles[1 * BOARD_SIZE + 0] = make_tile(D_SPIDER, 1);
+    board->tiles[1 * BOARD_SIZE + 1] = make_tile(D_ANT, 1);
+    board->tiles[1 * BOARD_SIZE + 2] = make_tile(L_ANT, 1);
+    board->tiles[1 * BOARD_SIZE + 4] = make_tile(D_QUEEN, 1);
 
-    board->tiles[2 * BOARD_SIZE + 1].type = make_tile(D_BEETLE, 2);
+    board->tiles[2 * BOARD_SIZE + 1] = make_tile(D_BEETLE, 2);
     board->stack[1].location = 2 * BOARD_SIZE + 1;
     board->stack[1].z = 0;
     board->stack[1].type = make_tile(L_QUEEN, 1);
-    board->tiles[2 * BOARD_SIZE + 3].type = make_tile(D_GRASSHOPPER, 1);
-    board->tiles[2 * BOARD_SIZE + 4].type = make_tile(L_GRASSHOPPER, 1);
+    board->tiles[2 * BOARD_SIZE + 3] = make_tile(D_GRASSHOPPER, 1);
+    board->tiles[2 * BOARD_SIZE + 4] = make_tile(L_GRASSHOPPER, 1);
 
-    board->tiles[3 * BOARD_SIZE + 1].type = make_tile(D_ANT, 2);
-    board->tiles[4 * BOARD_SIZE + 2].type = make_tile(D_BEETLE, 1);
-    board->tiles[5 * BOARD_SIZE + 2].type = make_tile(L_ANT, 3);
-    board->tiles[5 * BOARD_SIZE + 3].type = make_tile(L_ANT, 2);
+    board->tiles[3 * BOARD_SIZE + 1] = make_tile(D_ANT, 2);
+    board->tiles[4 * BOARD_SIZE + 2] = make_tile(D_BEETLE, 1);
+    board->tiles[5 * BOARD_SIZE + 2] = make_tile(L_ANT, 3);
+    board->tiles[5 * BOARD_SIZE + 3] = make_tile(L_ANT, 2);
 
-    board->tiles[6 * BOARD_SIZE + 3].type = make_tile(D_ANT, 3);
+    board->tiles[6 * BOARD_SIZE + 3] = make_tile(D_ANT, 3);
 
     board->n_stacked = 2;
 }
@@ -149,38 +149,38 @@ void puzzle_10(struct node* tree) {
 
     board->turn = white_to_move + 9;
 
-    board->tiles[0 * BOARD_SIZE + 1].type = make_tile(L_SPIDER, 1);
-    board->tiles[0 * BOARD_SIZE + 3].type = make_tile(L_GRASSHOPPER, 3);
-    board->tiles[0 * BOARD_SIZE + 4].type = make_tile(D_ANT, 1);
-    board->tiles[0 * BOARD_SIZE + 5].type = make_tile(L_GRASSHOPPER, 2);
+    board->tiles[0 * BOARD_SIZE + 1] = make_tile(L_SPIDER, 1);
+    board->tiles[0 * BOARD_SIZE + 3] = make_tile(L_GRASSHOPPER, 3);
+    board->tiles[0 * BOARD_SIZE + 4] = make_tile(D_ANT, 1);
+    board->tiles[0 * BOARD_SIZE + 5] = make_tile(L_GRASSHOPPER, 2);
 
-    board->tiles[1 * BOARD_SIZE + 0].type = make_tile(L_SPIDER, 2);
-    board->tiles[1 * BOARD_SIZE + 2].type = make_tile(D_SPIDER, 1);
-    board->tiles[1 * BOARD_SIZE + 3].type = make_tile(D_ANT, 2);
-    board->tiles[1 * BOARD_SIZE + 6].type = make_tile(L_GRASSHOPPER, 1);
+    board->tiles[1 * BOARD_SIZE + 0] = make_tile(L_SPIDER, 2);
+    board->tiles[1 * BOARD_SIZE + 2] = make_tile(D_SPIDER, 1);
+    board->tiles[1 * BOARD_SIZE + 3] = make_tile(D_ANT, 2);
+    board->tiles[1 * BOARD_SIZE + 6] = make_tile(L_GRASSHOPPER, 1);
 
-    board->tiles[2 * BOARD_SIZE + 1].type = make_tile(D_GRASSHOPPER, 2);
-    board->tiles[2 * BOARD_SIZE + 2].type = make_tile(L_ANT, 3);
-    board->tiles[2 * BOARD_SIZE + 3].type = make_tile(L_QUEEN, 1);
-    board->tiles[2 * BOARD_SIZE + 4].type = make_tile(L_BEETLE, 2);
+    board->tiles[2 * BOARD_SIZE + 1] = make_tile(D_GRASSHOPPER, 2);
+    board->tiles[2 * BOARD_SIZE + 2] = make_tile(L_ANT, 3);
+    board->tiles[2 * BOARD_SIZE + 3] = make_tile(L_QUEEN, 1);
+    board->tiles[2 * BOARD_SIZE + 4] = make_tile(L_BEETLE, 2);
     board->stack[0].location = 2 * BOARD_SIZE + 4;
     board->stack[0].z = 0;
     board->stack[0].type = make_tile(D_ANT, 3);
     board->stack[1].location = 2 * BOARD_SIZE + 4;
     board->stack[1].z = 1;
     board->stack[1].type = make_tile(D_BEETLE, 2);
-    board->tiles[2 * BOARD_SIZE + 7].type = make_tile(L_ANT, 2);
+    board->tiles[2 * BOARD_SIZE + 7] = make_tile(L_ANT, 2);
 
-    board->tiles[3 * BOARD_SIZE + 3].type = make_tile(L_BEETLE, 1);
+    board->tiles[3 * BOARD_SIZE + 3] = make_tile(L_BEETLE, 1);
     board->stack[2].location = 3 * BOARD_SIZE + 3;
     board->stack[2].z = 0;
     board->stack[2].type = make_tile(D_GRASSHOPPER, 1);
     board->stack[3].location = 3 * BOARD_SIZE + 3;
     board->stack[3].z = 1;
     board->stack[3].type = make_tile(D_BEETLE, 1);
-    board->tiles[3 * BOARD_SIZE + 7].type = make_tile(L_ANT, 1);
+    board->tiles[3 * BOARD_SIZE + 7] = make_tile(L_ANT, 1);
 
-    board->tiles[4 * BOARD_SIZE + 7].type = make_tile(D_QUEEN, 1);
+    board->tiles[4 * BOARD_SIZE + 7] = make_tile(D_QUEEN, 1);
 
     board->n_stacked = 4;
 }
@@ -192,28 +192,28 @@ void puzzle_11(struct node* tree) {
 
     board->turn = white_to_move + 9;
 
-    board->tiles[3 * BOARD_SIZE + 3].type = make_tile(L_ANT, 1);
-    board->tiles[1 * BOARD_SIZE + 1].type = make_tile(D_SPIDER, 2);
-    board->tiles[3 * BOARD_SIZE + 4].type = make_tile(L_BEETLE, 2);
-    board->tiles[4 * BOARD_SIZE + 5].type = make_tile(L_ANT, 3);
-    board->tiles[5 * BOARD_SIZE + 6].type = make_tile(D_ANT, 1);
-    board->tiles[2 * BOARD_SIZE + 3].type = make_tile(D_QUEEN, 1);
-    board->tiles[1 * BOARD_SIZE + 2].type = make_tile(L_GRASSHOPPER, 2);
-    board->tiles[2 * BOARD_SIZE + 4].type = make_tile(L_BEETLE, 1);
-    board->tiles[1 * BOARD_SIZE + 3].type = make_tile(L_SPIDER, 1);
-    board->tiles[3 * BOARD_SIZE + 6].type = make_tile(D_GRASSHOPPER, 2);
-    board->tiles[2 * BOARD_SIZE + 5].type = make_tile(L_GRASSHOPPER, 3);
-    board->tiles[0 * BOARD_SIZE + 3].type = make_tile(D_GRASSHOPPER, 1);
-    board->tiles[3 * BOARD_SIZE + 2].type = make_tile(D_BEETLE, 1);
+    board->tiles[3 * BOARD_SIZE + 3] = make_tile(L_ANT, 1);
+    board->tiles[1 * BOARD_SIZE + 1] = make_tile(D_SPIDER, 2);
+    board->tiles[3 * BOARD_SIZE + 4] = make_tile(L_BEETLE, 2);
+    board->tiles[4 * BOARD_SIZE + 5] = make_tile(L_ANT, 3);
+    board->tiles[5 * BOARD_SIZE + 6] = make_tile(D_ANT, 1);
+    board->tiles[2 * BOARD_SIZE + 3] = make_tile(D_QUEEN, 1);
+    board->tiles[1 * BOARD_SIZE + 2] = make_tile(L_GRASSHOPPER, 2);
+    board->tiles[2 * BOARD_SIZE + 4] = make_tile(L_BEETLE, 1);
+    board->tiles[1 * BOARD_SIZE + 3] = make_tile(L_SPIDER, 1);
+    board->tiles[3 * BOARD_SIZE + 6] = make_tile(D_GRASSHOPPER, 2);
+    board->tiles[2 * BOARD_SIZE + 5] = make_tile(L_GRASSHOPPER, 3);
+    board->tiles[0 * BOARD_SIZE + 3] = make_tile(D_GRASSHOPPER, 1);
+    board->tiles[3 * BOARD_SIZE + 2] = make_tile(D_BEETLE, 1);
     board->stack[0].location = 3 * BOARD_SIZE + 2;
     board->stack[0].z = 0;
     board->stack[0].type = make_tile(L_GRASSHOPPER, 1);
-    board->tiles[2 * BOARD_SIZE + 1].type = make_tile(L_QUEEN, 1);
-    board->tiles[1 * BOARD_SIZE + 0].type = make_tile(D_GRASSHOPPER, 3);
-    board->tiles[3 * BOARD_SIZE + 1].type = make_tile(D_ANT, 2);
-    board->tiles[4 * BOARD_SIZE + 2].type = make_tile(L_ANT, 2);
-    board->tiles[5 * BOARD_SIZE + 3].type = make_tile(D_SPIDER, 1);
-    board->tiles[2 * BOARD_SIZE + 0].type = make_tile(D_BEETLE, 2);
+    board->tiles[2 * BOARD_SIZE + 1] = make_tile(L_QUEEN, 1);
+    board->tiles[1 * BOARD_SIZE + 0] = make_tile(D_GRASSHOPPER, 3);
+    board->tiles[3 * BOARD_SIZE + 1] = make_tile(D_ANT, 2);
+    board->tiles[4 * BOARD_SIZE + 2] = make_tile(L_ANT, 2);
+    board->tiles[5 * BOARD_SIZE + 3] = make_tile(D_SPIDER, 1);
+    board->tiles[2 * BOARD_SIZE + 0] = make_tile(D_BEETLE, 2);
 
     board->n_stacked = 1;
 }
@@ -224,30 +224,30 @@ void puzzle_13(struct node* tree) {
     struct board* board = tree->board;
 
     board->turn = white_to_move + 9;
-    board->tiles[4 * BOARD_SIZE + 4].type = make_tile(D_GRASSHOPPER, 1);
-    board->tiles[5 * BOARD_SIZE + 5].type = make_tile(D_QUEEN, 1);
-    board->tiles[6 * BOARD_SIZE + 6].type = make_tile(L_SPIDER, 2);
-    board->tiles[2 * BOARD_SIZE + 2].type = make_tile(D_ANT, 3);
-    board->tiles[1 * BOARD_SIZE + 1].type = make_tile(D_BEETLE, 1);
-    board->tiles[0 * BOARD_SIZE + 0].type = make_tile(L_ANT, 3);
-    board->tiles[3 * BOARD_SIZE + 4].type = make_tile(L_GRASSHOPPER, 1);
-    board->tiles[5 * BOARD_SIZE + 6].type = make_tile(L_BEETLE, 2);
+    board->tiles[4 * BOARD_SIZE + 4] = make_tile(D_GRASSHOPPER, 1);
+    board->tiles[5 * BOARD_SIZE + 5] = make_tile(D_QUEEN, 1);
+    board->tiles[6 * BOARD_SIZE + 6] = make_tile(L_SPIDER, 2);
+    board->tiles[2 * BOARD_SIZE + 2] = make_tile(D_ANT, 3);
+    board->tiles[1 * BOARD_SIZE + 1] = make_tile(D_BEETLE, 1);
+    board->tiles[0 * BOARD_SIZE + 0] = make_tile(L_ANT, 3);
+    board->tiles[3 * BOARD_SIZE + 4] = make_tile(L_GRASSHOPPER, 1);
+    board->tiles[5 * BOARD_SIZE + 6] = make_tile(L_BEETLE, 2);
     board->stack[0].location = 5 * BOARD_SIZE + 6;
     board->stack[0].z = 0;
     board->stack[0].type = make_tile(L_BEETLE, 1);
-    board->tiles[0 * BOARD_SIZE + 1].type = make_tile(L_ANT, 2);
-    board->tiles[3 * BOARD_SIZE + 5].type = make_tile(L_SPIDER, 1);
-    board->tiles[2 * BOARD_SIZE + 5].type = make_tile(D_ANT, 2);
-    board->tiles[1 * BOARD_SIZE + 4].type = make_tile(D_SPIDER, 1);
-    board->tiles[1 * BOARD_SIZE + 5].type = make_tile(L_GRASSHOPPER, 2);
-    board->tiles[3 * BOARD_SIZE + 2].type = make_tile(D_BEETLE, 2);
+    board->tiles[0 * BOARD_SIZE + 1] = make_tile(L_ANT, 2);
+    board->tiles[3 * BOARD_SIZE + 5] = make_tile(L_SPIDER, 1);
+    board->tiles[2 * BOARD_SIZE + 5] = make_tile(D_ANT, 2);
+    board->tiles[1 * BOARD_SIZE + 4] = make_tile(D_SPIDER, 1);
+    board->tiles[1 * BOARD_SIZE + 5] = make_tile(L_GRASSHOPPER, 2);
+    board->tiles[3 * BOARD_SIZE + 2] = make_tile(D_BEETLE, 2);
     board->stack[1].location = 3 * BOARD_SIZE + 2;
     board->stack[1].z = 0;
     board->stack[1].type = make_tile(L_QUEEN, 1);
-    board->tiles[4 * BOARD_SIZE + 3].type = make_tile(D_ANT, 1);
-    board->tiles[2 * BOARD_SIZE + 1].type = make_tile(D_GRASSHOPPER, 2);
-    board->tiles[4 * BOARD_SIZE + 2].type = make_tile(L_ANT, 1);
-    board->tiles[4 * BOARD_SIZE + 1].type = make_tile(D_GRASSHOPPER, 3);
+    board->tiles[4 * BOARD_SIZE + 3] = make_tile(D_ANT, 1);
+    board->tiles[2 * BOARD_SIZE + 1] = make_tile(D_GRASSHOPPER, 2);
+    board->tiles[4 * BOARD_SIZE + 2] = make_tile(L_ANT, 1);
+    board->tiles[4 * BOARD_SIZE + 1] = make_tile(D_GRASSHOPPER, 3);
 
     board->n_stacked = 2;
 }
