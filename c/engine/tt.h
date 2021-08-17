@@ -23,7 +23,7 @@ struct tt_entry {
     unsigned char depth;
 };
 
-int64_t* zobrist_table;
+extern int64_t* zobrist_table;
 void zobrist_init();
 void zobrist_hash(struct board* board, int location, int old_location, int type);
 
@@ -31,7 +31,8 @@ void zobrist_hash(struct board* board, int location, int old_location, int type)
 //#define TT_TABLE_SIZE (1024*1024*256)
 #define TT_TABLE_SIZE (1)
 
-struct tt_entry* tt_table;
+extern struct tt_entry* tt_table;
+
 void tt_init();
 void tt_store(struct node* node, float score, char flag, int depth, int player);
 struct tt_entry* tt_retrieve(struct node* node, int player);

@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include "tt.h"
 
+// Global defines for transposition table.
+struct tt_entry* tt_table;
+int64_t* zobrist_table;
+
 
 void zobrist_init() {
     zobrist_table = malloc(BOARD_SIZE * BOARD_SIZE * N_UNIQUE_TILES * 2 * sizeof(int64_t));

@@ -40,6 +40,6 @@ void print_args(struct arguments *arguments);
 
 int performance_testing(struct node *tree, int depth);
 int performance_testing_parallel(struct node* tree, int depth, int par_depth);
-void random_moves(struct node **tree, int n_moves);
+struct node * random_moves(struct node *tree, int n_moves);
 
 #endif //HIVE_UTILS_H

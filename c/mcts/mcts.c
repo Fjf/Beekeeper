@@ -363,9 +363,7 @@ void mcts_cascade_result(struct node* root, struct node* leaf, int win) {
 }
 
 
-void mcts(struct node **tree, struct player_arguments *args) {
-    struct node *root = *tree;
-
+struct node* mcts(struct node *root, struct player_arguments *args) {
     // Create struct to store data if it doesnt exist
     struct mcts_data *parent_data;
     if (root->data == NULL) {
@@ -459,13 +457,9 @@ void mcts(struct node **tree, struct player_arguments *args) {
     }
 
     if (best == NULL) {
-        root->board->turn++;
-    } else {
-        list_remove(&best->node);
-        node_free(root);
-
-        *tree = best;
+        best = game_pass(root);
     }
+    return best;
 }
 
 void print_mcts_data(struct mcts_data *pData) {

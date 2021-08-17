@@ -22,7 +22,7 @@ struct node *mcts_init();
 struct node *mcts_add_child(struct node *node, struct board *board);
 
 
-void mcts(struct node **tree, struct player_arguments *args);
+struct node* mcts(struct node *tree, struct player_arguments *args);
 int mcts_playout(struct node *root, double end_time);
 int mcts_playout_prio(struct node *root, double end_time);
 

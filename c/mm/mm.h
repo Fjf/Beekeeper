@@ -16,7 +16,7 @@ struct mm_data {
     float mm_value;
 };
 
-void minimax(struct node **proot, struct player_arguments *args);
+struct node* minimax(struct node *root, struct player_arguments *args);
 struct node* mm_init();
 struct node* mm_add_child(struct node* node, struct board* board);
 

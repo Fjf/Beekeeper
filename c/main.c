@@ -13,10 +13,7 @@
 #include "mm/mm.h"
 #include "pns/pns.h"
 #include "engine/list.h"
-#include "timing/timing.h"
-#include "mm/evaluation.h"
 #include "mcts/mcts.h"
-#include "puzzles.h"
 
 /* winrate: PN vs random (fixed depth PN no disproof)
  *  PN  -  draws  - random
@@ -36,30 +33,26 @@
  *    10  -    0   -   0
  */
 
-void manual(struct node** proot) {
-    struct node* root = *proot;
-    struct list* head;
+struct node *manual(struct node *root) {
+    struct list *head;
 
     generate_children(root, time(NULL) + 1000000000, 0);
 
     char move[20];
     while (true) {
         printf("Type a move:\n");
-        char* fgetres = fgets(move, 20, stdin);
+        char *fgetres = fgets(move, 20, stdin);
         if (fgetres == NULL) continue; // NOTE: Maybe not very good
 
         printf("%s", move);
 
         node_foreach(root, head) {
             struct node *child = container_of(head, struct node, node);
-            char* cmove = string_move(child);
+            char *cmove = string_move(child);
             int res = strcmp(move, cmove);
             free(cmove);
             if (res == 0) {
-                list_remove(&child->node);
-                node_free(root);
-                *proot = child;
-                return;
+                return child;
             }
         }
         printf("That is not a valid move!\nPick one from:\n");
@@ -124,7 +117,7 @@ void ptest(struct node *tree) {
  *
  */
 void mcts_test(struct node *tree) {
-    struct mcts_data* data = tree->data;
+    struct mcts_data *data = tree->data;
     data->keep = true;
 
     time_t t = time(NULL) + 100000;
@@ -147,7 +140,7 @@ void mcts_test(struct node *tree) {
 }
 
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 #ifdef TESTING
     srand(11287501);
     printf("Running test case (forced depth of 3, no randomization)\n");
@@ -173,7 +166,7 @@ int main(int argc, char** argv) {
     int n_moves = MAX_TURNS - 1;
 #endif
 
-    struct node* tree = game_init();
+    struct node *tree = game_init();
 
     assert(tree->board != NULL);
 
@@ -202,16 +195,26 @@ int main(int argc, char** argv) {
     for (int i = 0; i < n_moves; i++) {
         int player = tree->board->turn % 2;
 
-        struct player_arguments* pa = (player == 0 ? &arguments.p1 : &arguments.p2);
+        struct player_arguments *pa = (player == 0 ? &arguments.p1 : &arguments.p2);
+
+        struct node *child;
         if (pa->algorithm == ALG_MCTS) {
-            mcts(&tree, pa);
-        } else if (pa->algorithm == ALG_MM){
-            minimax(&tree, pa);
+            child = mcts(tree, pa);
+        } else if (pa->algorithm == ALG_MM) {
+            child = minimax(tree, pa);
         } else if (pa->algorithm == ALG_RANDOM) {
-            random_moves(&tree, 1);
+            child = random_moves(tree, 1);
         } else if (pa->algorithm == ALG_MANUAL) {
-            manual(&tree);
+            child = manual(tree);
+        } else {
+            fprintf(stderr, "Invalid algorithm passed, exiting.\n");
+            exit(1);
         }
+
+        // Clean up nodes
+        list_remove(&child->node);
+        node_free(tree);
+        tree = child;
 
         if (pa->verbose)
             print_board(tree->board);
@@ -225,7 +228,7 @@ int main(int argc, char** argv) {
 
         // Copy node except for children
         // Doing this forces re-computation of tree every iteration.
-        struct node* copy = dedicated_init();
+        struct node *copy = dedicated_init();
         node_copy(copy, tree);
 
         node_free(tree);

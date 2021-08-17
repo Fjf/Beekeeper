@@ -13,8 +13,8 @@
 
 #include "list.h"
 
-unsigned long long int max_nodes;
-unsigned long long int n_nodes;
+extern unsigned long long int max_nodes;
+extern unsigned long long int n_nodes;
 
 struct move {
     unsigned char tile;
@@ -33,6 +33,8 @@ struct node {
 };
 
 struct node *game_init();
+struct node* game_pass(struct node* root);
+
 void node_init(struct node* node, void* data);
 void node_add_child(struct node* node, struct node* child);
 void node_free(struct node* root);

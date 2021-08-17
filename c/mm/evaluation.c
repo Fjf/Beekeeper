@@ -17,13 +17,14 @@
 #define USED_TILES_REST 9.5f
 #endif
 
-
+// Global defines.
 struct eval_multi evaluation_multipliers = {
         .movement = 7.28f,
         .queen = 3.25f,
         .used_tiles = 9.5f,
         .distance_to_queen = 1.0f
 };
+bool (*mm_evaluate)(struct node*);
 
 struct eval_multi dtq_multipliers = {
         .movement = 0.25f,

@@ -6,6 +6,10 @@
 #include "tt.h"
 
 
+// Global defines
+struct node *(*dedicated_add_child)(struct node *node, struct board *board);
+struct node *(*dedicated_init)();
+
 struct node *default_add_child(struct node *node, struct board *board) {
     struct node *child = default_init();
 

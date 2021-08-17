@@ -17,13 +17,14 @@ struct eval_multi {
     float movement;
     float used_tiles;
     float distance_to_queen;
-} evaluation_multipliers;
+};
+extern struct eval_multi evaluation_multipliers;
 
 float unused_tiles(struct node* node);
 bool mm_evaluate_expqueen(struct node* node);
 bool mm_evaluate_variable(struct node* node);
 bool mm_evaluate_distance(struct node* node);
 
-bool (*mm_evaluate)(struct node*);
+extern bool (*mm_evaluate)(struct node*);
 
 #endif //HIVE_EVALUATION_H

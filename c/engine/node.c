@@ -60,6 +60,13 @@ void node_copy(struct node* dest, struct node* src) {
     dest->board->n_children = 0;
 }
 
+struct node* game_pass(struct node* root) {
+    struct node* copy = mm_init();
+    copy->board = malloc(sizeof(struct board));
+    memcpy(copy->board, root->board, sizeof(struct board));
+    copy->board->turn++;
+    return copy;
+}
 
 struct node* game_init() {
     // Initialize zobrist hashing table

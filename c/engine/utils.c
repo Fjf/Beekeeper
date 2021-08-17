@@ -41,10 +41,10 @@ int performance_testing_parallel(struct node *tree, int depth, int par_depth) {
                 struct node *child = container_of(head, struct node, node);
                 int r = performance_testing(child, depth - 1);
 
-                #pragma omp atomic
+#pragma omp atomic
                 ret += r;
 
-                #pragma omp critical (free)
+#pragma omp critical (free)
                 node_free(child);
             }
         }
@@ -59,14 +59,11 @@ int performance_testing_parallel(struct node *tree, int depth, int par_depth) {
 }
 
 
-
-void random_moves(struct node **tree, int n_moves) {
+struct node *random_moves(struct node *node, int n_moves) {
     for (int i = 0; i < n_moves; i++) {
-        struct node* node = *tree;
-
         generate_children(node, (time_t) INT_MAX, 0);
         int choice = rand() % node->board->n_children;
-        struct list* head;
+        struct list *head;
         int n = 0;
         node_foreach(node, head) {
             if (choice == n++) {
@@ -74,11 +71,10 @@ void random_moves(struct node **tree, int n_moves) {
             }
         }
 
-        struct node* child = container_of(head, struct node, node);
-        list_remove(head);
-        node_free(node);
-        *tree = child;
+        struct node *child = container_of(head, struct node, node);
+        node = child;
     }
+    return node;
 }
 
 
@@ -95,16 +91,16 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
         }
         switch (c) {
             case 'M':
-                evaluation_multipliers.movement = (float)atof(optarg);
+                evaluation_multipliers.movement = (float) atof(optarg);
                 break;
             case 'Q':
-                evaluation_multipliers.queen = (float)atof(optarg);
+                evaluation_multipliers.queen = (float) atof(optarg);
                 break;
             case 'U':
-                evaluation_multipliers.used_tiles = (float)atof(optarg);
+                evaluation_multipliers.used_tiles = (float) atof(optarg);
                 break;
             case 'D':
-                evaluation_multipliers.distance_to_queen = (float)atof(optarg);
+                evaluation_multipliers.distance_to_queen = (float) atof(optarg);
                 break;
             case 'V':
                 arguments->p1.verbose = true;
@@ -159,7 +155,7 @@ void parse_args(int argc, char *const *argv, struct arguments *arguments) {
 
 void print_args(struct arguments *arguments) {
     for (int i = 0; i < 2; i++) {
-        struct player_arguments* pa = &arguments->p1;
+        struct player_arguments *pa = &arguments->p1;
         if (i == 1) {
             pa = &arguments->p2;
         }
@@ -172,7 +168,8 @@ void print_args(struct arguments *arguments) {
                "\tMCTS Constant: %.2f\n"
                "\tTime-to-move: %.2f\n"
                "\tMCTS-Prioritization: %d\n"
-               "\tMCTS-FirstPlayUrgency: %d\n", i+1, algo, eval, pa->mcts_constant, pa->time_to_move, pa->prioritization,
+               "\tMCTS-FirstPlayUrgency: %d\n", i + 1, algo, eval, pa->mcts_constant, pa->time_to_move,
+               pa->prioritization,
                pa->first_play_urgency);
     }
 }

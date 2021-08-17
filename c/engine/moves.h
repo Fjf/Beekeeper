@@ -7,7 +7,7 @@
 
 #include "board.h"
 #include "node.h"
-#include "../mm/mm.h"
+#include "mm/mm.h"
 #include <time.h>
 
 #define MOVE_NO_ANTS 1 << 0
@@ -40,7 +40,7 @@ void update_can_move(struct board *board, int location, int previous_location);
 struct node* default_add_child(struct node* node, struct board* board);
 struct node* default_init();
 
-struct node *(*dedicated_add_child)(struct node *node, struct board *board);
-struct node *(*dedicated_init)();
+extern struct node *(*dedicated_add_child)(struct node *node, struct board *board);
+extern struct node *(*dedicated_init)();
 
 #endif //THEHIVE_MOVES_H

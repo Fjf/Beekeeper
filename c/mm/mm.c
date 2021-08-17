@@ -106,7 +106,7 @@ bool mm(struct node *node, int player, float alpha, float beta, int depth, doubl
             best = -INFINITY;
             node_foreach(node, head) {
                 struct node *child = container_of(head, struct node, node);
-                struct mm_data* child_data = child->data;
+                struct mm_data *child_data = child->data;
 
                 bool cont = mm(child, !player, alpha, beta, depth - 1, end_time);
                 if (!cont) {
@@ -123,7 +123,7 @@ bool mm(struct node *node, int player, float alpha, float beta, int depth, doubl
             best = INFINITY;
             node_foreach(node, head) {
                 struct node *child = container_of(head, struct node, node);
-                struct mm_data* child_data = child->data;
+                struct mm_data *child_data = child->data;
 
                 bool cont = mm(child, !player, alpha, beta, depth - 1, end_time);
                 if (!cont) {
@@ -226,7 +226,7 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
         best = -INFINITY;
         node_foreach(node, head) {
             struct node *child = container_of(head, struct node, node);
-            struct mm_data* child_data = child->data;
+            struct mm_data *child_data = child->data;
 
             if (cont) {
                 cont = mm(child, !player, alpha, beta, depth - 1, end_time);
@@ -237,7 +237,7 @@ float mm_par(struct node *node, int player, float alpha, float beta, int depth, 
         best = INFINITY;
         node_foreach(node, head) {
             struct node *child = container_of(head, struct node, node);
-            struct mm_data* child_data = child->data;
+            struct mm_data *child_data = child->data;
 
             if (cont) {
                 cont = mm(child, !player, alpha, beta, depth - 1, end_time);
@@ -290,14 +290,15 @@ struct node *mm_add_child(struct node *node, struct board *board) {
 }
 
 
-void minimax(struct node **proot, struct player_arguments *args) {
-    struct node *root = *proot;
-
+struct node *minimax(struct node *root, struct player_arguments *args) {
+    /*
+     * Runs minimax on the given Hive node, will return the best child of the given root node.
+     */
     if (root->board->n_children > 0) {
         // Reallocate child data structs to ensure there is no old data here.
-        struct list* node;
+        struct list *node;
         node_foreach(root, node) {
-            struct node* child = container_of(node, struct node, node);
+            struct node *child = container_of(node, struct node, node);
             if (child->data != NULL) {
                 free(child->data);
                 child->data = NULL;
@@ -357,7 +358,8 @@ void minimax(struct node **proot, struct player_arguments *args) {
 
 
         if (args->verbose)
-            printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated, n_table_returns);
+            printf("(%d nodes, %d leaf, %d evaluated, %d table hits)\n", n_created, leaf_nodes, n_evaluated,
+                   n_table_returns);
 
         // Sorting the list by MM-value increases likelihood of finding better moves earlier.
         // In turn, this improves alpha-beta pruning worse subtrees earlier.
@@ -381,7 +383,8 @@ void minimax(struct node **proot, struct player_arguments *args) {
     }
 
     if (args->verbose)
-        printf("Evaluated %d nodes (%.5f knodes/s)\n", n_total_evaluated, (n_total_evaluated / args->time_to_move) / 1000);
+        printf("Evaluated %d nodes (%.5f knodes/s)\n", n_total_evaluated,
+               (n_total_evaluated / args->time_to_move) / 1000);
 
     struct list *head;
     float best_value = player == 0 ? -INFINITY : INFINITY;
@@ -400,7 +403,7 @@ void minimax(struct node **proot, struct player_arguments *args) {
     if (args->verbose) {
         // Forced win
         if (best_value > MM_INFINITY - MAX_TURNS || best_value < -MM_INFINITY + MAX_TURNS) {
-            int t = (int)(MM_INFINITY - fabsf(best_value)) - root->board->turn;
+            int t = (int) (MM_INFINITY - fabsf(best_value)) - root->board->turn;
             printf("Evaluated %d children and best is #%d\n", root->board->n_children, t);
         } else {
             printf("Evaluated %d children and best is %.5f\n", root->board->n_children, best_value);
@@ -408,11 +411,7 @@ void minimax(struct node **proot, struct player_arguments *args) {
     }
 
     if (best == NULL) {
-        root->board->turn++;
-    } else {
-        list_remove(&best->node);
-        node_free(root);
-
-        *proot = best;
+        best = game_pass(root);
     }
+    return best;
 }

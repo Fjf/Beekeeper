@@ -1,3 +1,5 @@
-tkinter
 matplotlib
 optuna
+numpy
+pytorch-lightning
+
