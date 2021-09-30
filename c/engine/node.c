@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "node.h"
 #include "board.h"
 #include "tt.h"
@@ -72,16 +73,38 @@ struct node* game_pass(struct node* root) {
     return copy;
 }
 
-struct node* game_init() {
-    // Initialize zobrist hashing table
-    zobrist_init();
-    // Initialize transposition table (set flag to -1 to know if its empty)
-    tt_init();
-    // Precompute points around all indices
-    initialize_points_around();
 
-    // Randomized seed
-    srand((unsigned int) time(NULL));
+// http://www.concentric.net/~Ttwang/tech/inthash.htm
+unsigned long mix(unsigned long a, unsigned long b, unsigned long c) {
+    a=a-b;  a=a-c;  a=a^(c >> 13);
+    b=b-c;  b=b-a;  b=b^(a << 8);
+    c=c-a;  c=c-b;  c=c^(b >> 13);
+    a=a-b;  a=a-c;  a=a^(c >> 12);
+    b=b-c;  b=b-a;  b=b^(a << 16);
+    c=c-a;  c=c-b;  c=c^(b >> 5);
+    a=a-b;  a=a-c;  a=a^(c >> 3);
+    b=b-c;  b=b-a;  b=b^(a << 10);
+    c=c-a;  c=c-b;  c=c^(b >> 15);
+    return c;
+}
+
+unsigned long seed;
+struct node* game_init() {
+
+    // Initialize zobrist hashing table
+    if (zobrist_table == NULL)
+        zobrist_init();
+    if (tt_table == NULL) {
+        // Initialize transposition table (set flag to -1 to know if its empty)
+        tt_init();
+
+        seed = mix(clock(), time(NULL), getpid());
+        // Precompute points around all indices
+        initialize_points_around();
+
+        // Randomized seed
+        srand(seed);
+    }
 
     struct board *board = init_board();
     struct node* tree = dedicated_init();

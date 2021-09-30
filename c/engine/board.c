@@ -287,7 +287,7 @@ int finished_board(struct board *board) {
     }
 
     // Draw due to turn limit
-    if (board->turn == MAX_TURNS - 1) return 4;
+    if (board->turn == MAX_TURNS - 2) return 4;
 
     return res;
 }

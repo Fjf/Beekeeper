@@ -30,6 +30,7 @@ void find_articulation(struct board *board, int idx, int parent);
 void articulation(struct board* board, int index);
 
 void print_cc_stats();
+int to_tile_index(uchar tile);
 
 int generate_children(struct node *root, double end_time, int flags);
 

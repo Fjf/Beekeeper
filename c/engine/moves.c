@@ -322,7 +322,6 @@ void add_child(struct node *node, int location, int type, int previous_location)
 }
 
 int points_around[BOARD_SIZE * BOARD_SIZE][6];
-
 void initialize_points_around() {
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
@@ -910,7 +909,7 @@ int generate_children(struct node *root, double end_time, int flags) {
         return ERR_NOMEM;
     }
 
-    if (root->board->turn == MAX_TURNS - 1) {
+    if (root->board->turn == MAX_TURNS) {
         return ERR_NOMOVES;
     }
 

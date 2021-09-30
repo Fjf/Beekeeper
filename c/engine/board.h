@@ -58,7 +58,7 @@
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-
+// Tile stack location is -1 if there is no tile in the stack.
 struct tile_stack {
     unsigned char type;
     int location;
@@ -76,10 +76,11 @@ struct player {
 /*
  *  All the tiles fit in a diagonal square
  *
- *          X X X X
- *         X X   X
- *        X   X X
- *       X X X X
+ *          X X X X X
+ *         X X     X
+ *        X   X   X
+ *       X     X X
+ *      X X X X X
  */
 
 // Add a padding around the board to simplify edge conditions
@@ -110,7 +111,7 @@ struct board {
     int n_children;
 
     long long zobrist_hash;
-    long long hash_history[MAX_TURNS];
+    long long hash_history[MAX_TURNS + 1];
 
     bool has_updated;
 };

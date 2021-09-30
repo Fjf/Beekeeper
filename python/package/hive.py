@@ -1,12 +1,24 @@
 import ctypes
-import enum
 import os
+from collections import defaultdict
 from ctypes import *
 from typing import Iterable
 
-lib = CDLL(os.path.join(os.getcwd(), "/home/duncan/CLionProjects/hive_engine/python/package/libhive.so"))
-board_size = c_uint.in_dll(lib, "pboardsize").value
-tile_stack_size = c_uint.in_dll(lib, "ptilestacksize").value
+import numpy as np
+
+from utils import HiveState
+
+lib = CDLL(os.path.join(os.getcwd(), "libhive.so"))
+# lib = CDLL("/home/duncan/CLionProjects/hive_engine/c/cmake-build-debug/libhive.so")
+BOARD_SIZE = c_uint.in_dll(lib, "pboardsize").value
+TILE_STACK_SIZE = c_uint.in_dll(lib, "ptilestacksize").value
+
+MAX_TURNS = c_uint.in_dll(lib, "pmaxturns").value
+TILE_MASK = ((1 << 5) - 1)
+COLOR_MASK = (1 << 5)
+NUMBER_MASK = (3 << 7)
+
+N_TILES = 22
 
 
 class TileStack(Structure):
@@ -14,13 +26,6 @@ class TileStack(Structure):
         ('type', c_ubyte),
         ('location', c_int),
         ('z', c_ubyte)
-    ]
-
-
-class Tile(Structure):
-    _fields_ = [
-        ('free', c_bool),
-        ('type', c_ubyte)
     ]
 
 
@@ -36,7 +41,8 @@ class Player(Structure):
 
 class Board(Structure):
     _fields_ = [
-        ('tiles', Tile * board_size * board_size),
+        ('tiles', c_ubyte * BOARD_SIZE * BOARD_SIZE),
+        ('free', c_bool * BOARD_SIZE * BOARD_SIZE),
         ('turn', c_int),
         ('players', Player * 2),
 
@@ -49,7 +55,7 @@ class Board(Structure):
         ('max_y', c_int),
 
         ('n_stacked', c_byte),
-        ('stack', TileStack * tile_stack_size),
+        ('stack', TileStack * TILE_STACK_SIZE),
 
         ('move_location_tracker', c_int),
 
@@ -58,6 +64,34 @@ class Board(Structure):
 
         ('has_updated', c_bool),
     ]
+
+    def to_np(self):
+        data = np.zeros((5, 26, 26), dtype=c_ubyte)
+
+        # Fill zero array with raw binary data from library
+        data[0, :, :] = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
+
+        # Compute highest tile in each stack
+        m = defaultdict(int)
+        for tile in self.stack:
+            z, location, tile_type = tile.z, tile.location, tile.type
+            if location == -1:
+                continue
+            m[location] = max(m[location], z)
+
+        # Move current tiles to the point above the highest in the stack
+        for location, m in m.items():
+            x, y = location % 26, location // 26
+            data[m + 1, x, y] = data[0, x, y]
+
+        # Fill the rest of the stacks with the correct tiles
+        for tile in self.stack:
+            z, location, tile_type = tile.z, tile.location, tile.type
+            if location == -1:
+                continue
+            x, y = location % 26, location // 26
+            data[z, x, y] = tile_type
+        return data
 
 
 class List(Structure):
@@ -79,9 +113,9 @@ class MMData(Structure):
 
 class Move(Structure):
     _fields_ = [
-        ('tile', c_byte),
-        ('next_to', c_byte),
-        ('direction', c_byte),
+        ('tile', c_ubyte),
+        ('next_to', c_ubyte),
+        ('direction', c_ubyte),
         ('previous_location', c_int),
         ('location', c_int),
     ]
@@ -103,6 +137,8 @@ class Move(Structure):
 #   0 - Queen surrounding prioritization
 #   1 - Opponent tile blocking prioritization
 #
+
+
 class PlayerArguments(Structure):
     _fields_ = [
         ('algorithm', c_int),
@@ -118,6 +154,8 @@ class PlayerArguments(Structure):
 #
 # The Arguments structure stored for each player what algorithm they use and what parameters to use for this algorithm.
 #
+
+
 class Arguments(Structure):
     _fields_ = [
         ('p1', PlayerArguments),
@@ -135,7 +173,50 @@ class Node(Structure):
     ]
 
     def to_np(self):
-        return numpy.frombuffer(self.board.contents.tiles, float)
+        return self.board.contents.to_np()
+
+    def encode(self):
+        move: Move = self.move
+        tile = move.tile
+        next_to = move.next_to
+        direction = move.direction
+
+        tile_idx = lib.to_tile_index(next_to)
+        return ((tile & TILE_MASK) * 22 + tile_idx) * 7 + direction
+
+    def generate_moves(self):
+        """
+        Generates the moves for the current root node
+
+        :return:
+        """
+        res = lib.generate_children(pointer(self), ctypes.c_double(1e64), 0)
+        if res != 0:
+            print(f"Error: generate_children returned {res}, exiting.")
+            exit(1)
+
+    def get_children(self):
+        """
+        A generator for all children of this node.
+
+        :return:
+        """
+        if self.board.contents.move_location_tracker == 0:
+            self.generate_moves()
+
+        head = self.children.next
+
+        while ctypes.addressof(head.contents) != ctypes.addressof(self.children.head):
+            # Get struct offset
+            child = lib.list_get_node(head)
+
+            yield child.contents
+
+            head = head.contents.next
+
+    def finished(self) -> HiveState:
+        result = lib.finished_board(self.board)
+        return HiveState(result)
 
     def print(self):
         lib.print_board(self.board)
@@ -149,40 +230,27 @@ lib.init_board.restype = POINTER(Board)
 lib.performance_testing.restype = ctypes.c_int
 lib.random_moves.restype = POINTER(Node)
 lib.minimax.restype = POINTER(Node)
+
 lib.mcts.restype = POINTER(Node)
-
-
-class HiveState(enum.Enum):
-    UNDETERMINED = 0
-    WHITE_WON = 1
-    BLACK_WON = 2
-    DRAW_REPETITION = 3
-    DRAW_TURN_LIMIT = 4
-
-    def __str__(self):
-        m = [
-            "Undetermined",
-            "White Won",
-            "Black Won",
-            "Draw by Repetition",
-            "Draw by Turnlimit",
-        ]
-        return m[self.value]
 
 
 class Hive:
     def __init__(self, track_history=False):
+        # TODO: Combine history and history idx into a single list. (easier management)
         self.history: list[POINTER(Node)] = []
+        self.history_idx: list[int] = []
         self.node = lib.game_init()
         self.track_history = track_history
+        self.turn_limit = MAX_TURNS
 
-    def generate_moves(self):
-        """
-        Generates the moves for the current root node
+    def __del__(self):
+        for node in self.history:
+            lib.node_free(node)
+        lib.node_free(self.node)
+        # ...
 
-        :return:
-        """
-        lib.generate_moves(self.node)
+    def turn(self):
+        return self.node.contents.board.contents.turn
 
     def print(self):
         """
@@ -198,8 +266,7 @@ class Hive:
 
         :return:
         """
-        result = lib.finished_board(self.node.contents.board)
-        return HiveState(result)
+        return self.node.contents.finished()
 
     def children(self) -> Iterable[Node]:
         """
@@ -207,36 +274,30 @@ class Hive:
 
         :return:
         """
-        if self.node.contents.board.contents.move_location_tracker == 0:
-            self.generate_moves()
+        yield from self.node.contents.get_children()
 
-        head = self.node.contents.children.next
-
-        while ctypes.addressof(head.contents) != ctypes.addressof(self.node.contents.children.head):
-            # Get struct offset
-            child = lib.list_get_node(head)
-
-            yield child.contents
-
-            head = head.contents.next
-
-    def select_child(self, child: POINTER(Node)):
+    def select_child(self, child: Node, n=None):
         """
         Selects a child to be used for the next step, it will free the current root node and replace it with
           the passed child.
 
+        :param n: the index of the child
         :param child: the new root node
         :return:
         """
+
         if self.track_history:
-            copy = pointer(Node())
+            if n is not None:
+                self.history_idx.append(n)
+
+            copy = lib.default_init()
             lib.node_copy(copy, self.node)
             lib.list_empty(pointer(copy.contents.children))
             self.history.append(copy)
 
-        lib.list_remove(pointer(child.contents.node))
+        lib.list_remove(pointer(child.node))
         lib.node_free(self.node)
-        self.node = child
+        self.node = pointer(child)
 
     def ai_move(self, algorithm="random"):
         """
@@ -246,17 +307,19 @@ class Hive:
         :return: the selected child based on the algorithms heuristics
         """
         config = PlayerArguments()
-        config.time_to_move = 0.01
+        config.time_to_move = 0.1
+        config.verbose = False
+        config.evaluation_function = 3
         if algorithm == "random":
             child = lib.random_moves(self.node, 1)
         elif algorithm == "mm":
-            child = lib.minimax(self.node, config)
+            child = lib.minimax(self.node, pointer(config))
         elif algorithm == "mcts":
-            child = lib.minimax(self.node, config)
+            child = lib.mcts(self.node, pointer(config))
         else:
             raise ValueError("Unknown algorithm type.")
 
-        self.select_child(child)
+        self.select_child(child.contents)
 
     def reinitialize(self):
         """
@@ -264,6 +327,13 @@ class Hive:
 
         :return:
         """
+        if self.track_history:
+            # Free all history nodes
+            for node in self.history:
+                lib.node_free(node)
+            self.history = []
+            self.history_idx = []
+
         # Cleanup old node
         lib.node_free(self.node)
 
@@ -282,4 +352,3 @@ class Hive:
             self.print()
             if self.finished() != HiveState.UNDETERMINED:
                 return
-

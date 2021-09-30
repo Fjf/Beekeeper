@@ -8,8 +8,8 @@
 #include "tt.h"
 
 // Global defines for transposition table.
-struct tt_entry* tt_table;
-int64_t* zobrist_table;
+struct tt_entry* tt_table = NULL;
+int64_t* zobrist_table = NULL;
 
 
 void zobrist_init() {
