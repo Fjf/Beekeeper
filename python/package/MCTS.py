@@ -11,75 +11,74 @@ For every board it will:
  - Set policy[i] to the newly retrieved child_value.
 """
 
-
-from ctypes import POINTER
+from ctypes import POINTER, pointer
 
 import numpy as np
 import torch
 
-from hive import Node
+from hive import Node, lib, PlayerArguments, MCTSData
 from utils import remove_tile_idx, HiveState
-
-
-
-
-class MCTSNode:
-    def __init__(self, node: POINTER(Node)):
-        self.node = node
 
 
 class HiveMCTS:
     def __init__(self, iterations=100):
         self.iterations = iterations
+        self.pargs = PlayerArguments()
+        self.pargs.mcts_constant = 2
 
-    def select_best(self, node):
-        # TODO: Implement for best node selection using UCT.
-        ...
+    def select_best(self, root: POINTER(Node)):
+        return lib.mcts_select_leaf(root, pointer(self.pargs))
 
-    @staticmethod
-    def process(node: POINTER(Node), policy, network, p1=True):
+    def process(self, root: POINTER(Node), policy, network):
         """
         Processes a node with a policy and returns the MCTS-augmented policy.
         :param p1:
         :param network:
-        :param node:
+        :param root:
         :param policy:
         :return:
         """
-        # TODO: Use the amount of iterations to build a tree for MCTS + updating policy vectors.
 
-        children = node.contents.get_children()
-        updated_policy = torch.zeros(len(policy))
+        # Prepare MCTS and keep all children in memory always.
+        lib.mcts_prepare(root, pointer(self.pargs))
+        root.contents.data.contents.keep = True
+        root.contents.generate_moves()
 
-        best = -1
-        for i, child in enumerate(list(children)):
-            idx = child.encode()
+        # Do N iterations of MCTS, building the tree based on the NN output.
+        for i in range(self.iterations):
+            leaf = self.select_best(root)
 
-            # Fetch array from internal memory and remove the tile number.
-            arr = child.to_np()
-            arr = remove_tile_idx(arr)
-            arr = arr.reshape(1, 5, 26, 26)
+            state = leaf.contents.finished()
 
-            # Convert data to tensorflow usable format
-            data = torch.Tensor(arr)
-
-            state = child.finished()
             if state == HiveState.UNDETERMINED:
-                # Get tensor of preferred outputs by priority.
-                _, value = network(data)
-                updated_policy[idx] = value
+                # Add the children of this leaf to the pool for next MCTS iteration to search through
+                leaf.contents.generate_moves()
+                # Tell MCTS to not free this node after passing it
+                leaf.contents.data.contents.keep = True
+
+                # Fetch array from internal memory and remove the tile number.
+                arr = remove_tile_idx(leaf.contents.to_np()).reshape(1, 5, 26, 26)
+                # Convert data to tensorflow usable format
+                tensor = torch.Tensor(arr)
+
+                # Get predicted game value from network
+                _, value = network(tensor)
+                value = value[0]  # Batch size is 1 so extract the value
+
+                # Round neural net value to a win/loss
+                value = HiveState.WHITE_WON.value if value > 0.5 else HiveState.BLACK_WON.value
             else:
                 # If it is a terminal state, force update the policy vector.
-                if state == HiveState.WHITE_WON:
-                    value = 1
-                elif state == HiveState.BLACK_WON:
-                    value = 0
-                else:
-                    value = 0.5
-                updated_policy[idx] = value
+                value = state.value
 
-            if value > best:
-                best = value
+            lib.mcts_cascade_result(root, leaf, value)
 
-        updated_policy[-1] = best
+        # Create a new policy to fill with MCTS updated values
+        updated_policy = torch.zeros(len(policy))
+
+        for node in root.contents.get_children():
+            data: POINTER(MCTSData) = node.data
+            games = data.contents.white + data.contents.black
+            updated_policy[node.encode()] = (data.contents.white / games) if games != 0 else 0.5
+
         return updated_policy

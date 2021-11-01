@@ -41,6 +41,7 @@ void node_free_children(struct node* root) {
 
         head = temp;
     }
+    root->board->n_children = 0;
 }
 
 void node_free(struct node* root) {

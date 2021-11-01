@@ -1,5 +1,7 @@
 import logging
-import multiprocessing
+import pickle
+
+from mpi4py import MPI
 import random
 import socket
 import time
@@ -7,9 +9,12 @@ from collections import defaultdict
 from timeit import default_timer
 
 import joblib as joblib
+import torch
 from joblib import delayed
 
-from hive import Hive, HiveState
+from hive import Hive, HiveState, PlayerArguments
+from hive_nn import HiveNN
+from simulator import HiveSimulator
 from train import School
 import sys
 
@@ -45,6 +50,27 @@ def threading_test():
             print(ix)
 
     print("Elapsed:", default_timer() - start)
+
+
+def mcts_test():
+    results = defaultdict(list)
+    config = PlayerArguments()
+    config.time_to_move = 1
+    config.verbose = False
+    config.mcts_constant = 0
+
+    for i in range(100):
+        hive = Hive()
+        while hive.finished() == HiveState.UNDETERMINED:
+            print("At turn", hive.turn())
+            if hive.turn() % 2 == 0:
+                hive.ai_move("mcts", config)
+            else:
+                hive.ai_move("random")
+        print("Hoi")
+        results[hive.finished()].append(hive.turn())
+
+    print(results)
 
 
 def winrate_test():
@@ -83,6 +109,13 @@ def winrate_test():
 
 
 def main():
+    # TODO: Read from commandline/config file
+    n_sims = 500
+
+    # Give workers their own logic
+    if rank != MASTER_THREAD:
+        return main_worker(n_sims=n_sims, mcts_iterations=100)
+
     logger = setup_logger()
     logger.debug("Python version")
     logger.debug(sys.version)
@@ -92,11 +125,26 @@ def main():
         exit(1)
 
     logger.info("Initializing school")
-    school = School()
+    school = School(simulations=n_sims)
 
     logger.info("Starting training")
-    school.train(100, simulations=100)
+    school.train(100, pretraining=False)
+
+
+def main_worker(n_sims=100, mcts_iterations=100):
+    while True:
+        data = comm.bcast(None, root=MASTER_THREAD)
+        networks = pickle.loads(data)
+        simulator = HiveSimulator(mcts_iterations=mcts_iterations)
+
+        for i in range(rank - 1, n_sims, comm.Get_size() - 1):
+            data = simulator.parallel_play(i, *networks)
+            comm.send(data, MASTER_THREAD)
 
 
 if __name__ == "__main__":
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    MASTER_THREAD = 0
+    assert(comm.Get_size() > 1)
     main()

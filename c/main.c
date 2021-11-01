@@ -214,18 +214,10 @@ int main(int argc, char **argv) {
 
         int won = finished_board(tree->board);
         if (won) {
-
+            print_board(tree->board);
             printf("Player %d won in move %d\n", won, tree->board->turn);
             break;
         }
-
-        // Copy node except for children
-        // Doing this forces re-computation of tree every iteration.
-        struct node *copy = dedicated_init();
-        node_copy(copy, tree);
-
-        node_free(tree);
-        tree = copy;
     }
 
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);

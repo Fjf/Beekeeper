@@ -189,7 +189,7 @@ int mcts_playout(struct node *root, double end_time) {
             return won;
         }
 
-        // Draw if no children could be generated due to time constraints
+        // Draw if no children could be generated due to time/mem constraints
         int generated_children = generate_children(node, end_time, 0);
         if (generated_children != 0) {
             if (!parent_data->keep) {
@@ -197,9 +197,9 @@ int mcts_playout(struct node *root, double end_time) {
                 node_free(node);
             }
             if (generated_children == ERR_NOMEM) {
-                return 4;
+                return 5;
             }
-            return 3;
+            return 4;
 
             // This is to force draws to not exist anymore.
             int dc = count_tiles_around(node->board, node->board->dark_queen_position);
@@ -363,8 +363,9 @@ void mcts_cascade_result(struct node* root, struct node* leaf, int win) {
 }
 
 
-struct node* mcts(struct node *root, struct player_arguments *args) {
-    // Create struct to store data if it doesnt exist
+void mcts_prepare(struct node* root, struct player_arguments* args) {
+    if (args->verbose)
+        printf("Initializing data structures for root node.\n");
     struct mcts_data *parent_data;
     if (root->data == NULL) {
         // Initialize counters to 0.
@@ -377,18 +378,25 @@ struct node* mcts(struct node *root, struct player_arguments *args) {
         parent_data->keep = true;
     }
 
-
     // Register mcts node add function
     dedicated_add_child = mcts_add_child;
     dedicated_init = mcts_init;
+}
+
+struct node* mcts(struct node *root, struct player_arguments *args) {
+    // Create struct to store data if it doesnt exist
+    mcts_prepare(root, args);
+
+    struct list *head;
 
     struct timespec cur_time;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_time);
     double end_time = (to_usec(cur_time) / 1e6) + args->time_to_move;
 
-    generate_children(root, end_time, 0);
+    if (args->verbose)
+        printf("Generating initial children.\n");
 
-    struct list *head;
+    generate_children(root, end_time, 0);
 
     int n_iterations = 0;
 
@@ -414,35 +422,36 @@ struct node* mcts(struct node *root, struct player_arguments *args) {
         } else {
             win = mcts_playout(mcts_leaf, end_time);
         }
-        if (win == 4) {
+        if (win == 5) {
             printf("Early memory termination.\n");
             break;
         }
+
         mcts_cascade_result(root, mcts_leaf, win);
-//        struct list* head;
-//        printf("-----------\n");
-//        node_foreach(root, head) {
-//            struct node* child = container_of(head, struct node, node);
-//            print_mcts_data(child->data);
-//        }
 
         // Free the new node if there is not enough memory for this node.
         if (max_nodes - n_nodes < 2000) {
-            node_free(mcts_leaf);
+            struct node* parent = container_of(mcts_leaf->node.head, struct node, children);
+            node_free_children(parent);
         }
     }
-    printf("samples/s: %.2f\n", (n_iterations / args->time_to_move));
+    if (args->verbose)
+        printf("Generated samples/s: %.2f\n", (n_iterations / args->time_to_move));
+
 
 #ifdef DEBUG
     printf("Final stats:\n");
 #endif
+
+    if (args->verbose)
+        printf("Selecting best child.\n");
+
     float best_ratio = 0.0f;
     struct node *best = NULL;
 
     node_foreach(root, head) {
         struct node *child = container_of(head, struct node, node);
         struct mcts_data *data = child->data;
-
 
         float ratio = (float) (data->p0 + 1) / (float) (data->p1 + 1);
         if (root->board->turn % 2 == 1) ratio = 1 / ratio;
@@ -456,9 +465,16 @@ struct node* mcts(struct node *root, struct player_arguments *args) {
         }
     }
 
+    if (args->verbose)
+        printf("Selected best child.\n");
+
+
     if (best == NULL) {
         best = game_pass(root);
     }
+
+    node_free_children(best);
+
     return best;
 }
 

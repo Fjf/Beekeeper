@@ -3,3 +3,4 @@ optuna
 numpy
 pytorch-lightning
 joblib
+mpi4py

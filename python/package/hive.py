@@ -111,6 +111,16 @@ class MMData(Structure):
     ]
 
 
+class MCTSData(Structure):
+    _fields_ = [
+        ('white', c_uint),
+        ('black', c_uint),
+        ('draw', c_uint),
+        ('keep', c_bool),
+        ('priority', c_float),
+    ]
+
+
 class Move(Structure):
     _fields_ = [
         ('tile', c_ubyte),
@@ -169,7 +179,7 @@ class Node(Structure):
         ('node', List),
         ('move', Move),
         ('board', POINTER(Board)),
-        ('data', c_uint)
+        ('data', POINTER(MCTSData))
     ]
 
     def to_np(self):
@@ -230,16 +240,19 @@ lib.init_board.restype = POINTER(Board)
 lib.performance_testing.restype = ctypes.c_int
 lib.random_moves.restype = POINTER(Node)
 lib.minimax.restype = POINTER(Node)
+lib.mcts_select_leaf.restype = POINTER(Node)
 
 lib.mcts.restype = POINTER(Node)
 
 
-class Hive:
+class Hive(object):
     def __init__(self, track_history=False):
         # TODO: Combine history and history idx into a single list. (easier management)
         self.history: list[POINTER(Node)] = []
         self.history_idx: list[int] = []
+
         self.node = lib.game_init()
+
         self.track_history = track_history
         self.turn_limit = MAX_TURNS
 
@@ -247,7 +260,6 @@ class Hive:
         for node in self.history:
             lib.node_free(node)
         lib.node_free(self.node)
-        # ...
 
     def turn(self):
         return self.node.contents.board.contents.turn
@@ -297,19 +309,25 @@ class Hive:
 
         lib.list_remove(pointer(child.node))
         lib.node_free(self.node)
+        # Ensure no dangling children.
+        lib.node_free_children(pointer(child))
         self.node = pointer(child)
 
-    def ai_move(self, algorithm="random"):
+    def ai_move(self, algorithm="random", config: PlayerArguments = None):
         """
         Do an AI move based on passed algorithm
 
+        :param config: optional configuration for the algorithm.
         :param algorithm: one of [random, mm, mcts]
         :return: the selected child based on the algorithms heuristics
         """
-        config = PlayerArguments()
-        config.time_to_move = 0.1
-        config.verbose = False
-        config.evaluation_function = 3
+
+        if not config:
+            config = PlayerArguments()
+            config.time_to_move = 0.1
+            config.verbose = False
+            config.evaluation_function = 3
+
         if algorithm == "random":
             child = lib.random_moves(self.node, 1)
         elif algorithm == "mm":

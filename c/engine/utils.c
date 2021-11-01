@@ -62,16 +62,23 @@ int performance_testing_parallel(struct node *tree, int depth, int par_depth) {
 struct node *random_moves(struct node *node, int n_moves) {
     for (int i = 0; i < n_moves; i++) {
         generate_children(node, (time_t) INT_MAX, 0);
+
         int choice = rand() % node->board->n_children;
         struct list *head;
+        struct node *child = NULL;
         int n = 0;
         node_foreach(node, head) {
             if (choice == n++) {
+                child = container_of(head, struct node, node);
                 break;
             }
         }
 
-        struct node *child = container_of(head, struct node, node);
+        if (child == NULL) {
+            fprintf(stderr, "No random child selected?\n");
+            exit(1);
+        }
+
         node = child;
     }
     return node;
