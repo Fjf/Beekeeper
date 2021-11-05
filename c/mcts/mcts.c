@@ -283,7 +283,6 @@ struct node* mcts_select_leaf(struct node* root, struct player_arguments* args) 
     struct node* mcts_leaf = root;
     struct list* head;
 
-    int depth = 0;
     while (!list_empty(&mcts_leaf->children)) {
         struct node *best = NULL;
         double best_value = -INFINITY;
