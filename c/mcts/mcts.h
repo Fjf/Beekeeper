@@ -10,9 +10,8 @@
 #include "utils.h"
 
 struct mcts_data {
-    unsigned int p0;
-    unsigned int p1;
-    unsigned int draw;
+    double value;
+    uint n_sims;
     bool keep;
     float prio;
 };

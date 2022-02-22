@@ -29,10 +29,14 @@ struct node *(*dedicated_add_child)(struct node *node, struct board *board) = de
 struct node *(*dedicated_init)() = default_init;
 
 int to_tile_index(unsigned char tile) {
-    int color = (tile & COLOR_MASK) >> COLOR_SHIFT;
-    int sum = color * N_TILES;
     int type = tile & TILE_MASK;
-    int n    = ((tile & NUMBER_MASK) >> NUMBER_SHIFT) - 1;
+    if (type == EMPTY) {
+        return 0;
+    }
+
+    int color = (tile & COLOR_MASK) >> COLOR_SHIFT;
+    int sum = color * N_TILES + 1; // +1, 0 is empty tile.
+    int n = ((tile & NUMBER_MASK) >> NUMBER_SHIFT) - 1;
 
     if (type == L_ANT) return sum + n;
     sum += N_ANTS;
@@ -199,6 +203,8 @@ void add_child(struct node *node, int location, int type, int previous_location)
 
         struct node *child = dedicated_add_child(node, board);
 
+        child->move.location = 0;
+        child->move.previous_location = 0;
         child->move.direction = 7;
         child->move.next_to = 0;
         child->move.tile = 0;
@@ -302,6 +308,10 @@ void add_child(struct node *node, int location, int type, int previous_location)
     struct node *child = dedicated_add_child(node, board);
     child->move.previous_location = previous_location;
     child->move.location = location;
+
+    // Initialize values to 0.
+    child->move.direction = 0;
+    child->move.next_to = 0;
 
     // Add move notation for clarity
     if (node->board->tiles[location] != EMPTY) {
@@ -909,7 +919,7 @@ int generate_children(struct node *root, double end_time, int flags) {
         return ERR_NOMEM;
     }
 
-    if (root->board->turn == MAX_TURNS) {
+    if (root->board->turn == MAX_TURNS - 1) {
         return ERR_NOMOVES;
     }
 

@@ -6,17 +6,25 @@ from typing import Iterable
 
 import numpy as np
 
-from utils import HiveState
+from games.Game import Game, GameNode
+from games.utils import GameState
 
-lib = CDLL(os.path.join(os.getcwd(), "libhive.so"))
-# lib = CDLL("/home/duncan/CLionProjects/hive_engine/c/cmake-build-debug/libhive.so")
+lib = CDLL(os.path.join(os.path.dirname(os.path.realpath(__file__)), "libhive.so"))
 BOARD_SIZE = c_uint.in_dll(lib, "pboardsize").value
 TILE_STACK_SIZE = c_uint.in_dll(lib, "ptilestacksize").value
 
 MAX_TURNS = c_uint.in_dll(lib, "pmaxturns").value
 TILE_MASK = ((1 << 5) - 1)
 COLOR_MASK = (1 << 5)
+COLOR_SHIFT = 5
 NUMBER_MASK = (3 << 7)
+NUMBER_SHIFT = 6
+
+TILE_ANT = 1
+TILE_GRASSHOPPER = 2
+TILE_BEETLE = 3
+TILE_SPIDER = 4
+TILE_QUEEN = 5
 
 N_TILES = 22
 
@@ -65,11 +73,29 @@ class Board(Structure):
         ('has_updated', c_bool),
     ]
 
-    def to_np(self):
-        data = np.zeros((5, 26, 26), dtype=c_ubyte)
-
+    def to_np(self, player):
+        """
+        Convert internal array representation to numpy array
+        It will always display the board from white's perspective.
+        :return:
+        """
+        n_planes = 2
+        height = 1
         # Fill zero array with raw binary data from library
-        data[0, :, :] = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
+        planes = np.zeros((n_planes, height, BOARD_SIZE, BOARD_SIZE), dtype=c_ubyte)
+        planes[0] = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
+        planes[1] = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
+
+
+        data_color = (planes[0] & COLOR_MASK) >> COLOR_SHIFT
+
+        planes[0][data_color == player] = 0
+        planes[1][data_color != player] = 0
+
+        # Remove color from the data as it is now split into planes
+        planes &= 223
+
+        return planes.reshape((n_planes, BOARD_SIZE, BOARD_SIZE))
 
         # Compute highest tile in each stack
         m = defaultdict(int)
@@ -80,9 +106,9 @@ class Board(Structure):
             m[location] = max(m[location], z)
 
         # Move current tiles to the point above the highest in the stack
-        for location, m in m.items():
+        for location, height in m.items():
             x, y = location % 26, location // 26
-            data[m + 1, x, y] = data[0, x, y]
+            data[height + 1, x, y] = data[0, x, y]
 
         # Fill the rest of the stacks with the correct tiles
         for tile in self.stack:
@@ -91,6 +117,7 @@ class Board(Structure):
                 continue
             x, y = location % 26, location // 26
             data[z, x, y] = tile_type
+
         return data
 
 
@@ -113,9 +140,8 @@ class MMData(Structure):
 
 class MCTSData(Structure):
     _fields_ = [
-        ('white', c_uint),
-        ('black', c_uint),
-        ('draw', c_uint),
+        ('value', c_double),
+        ('n_sims', c_uint),
         ('keep', c_bool),
         ('priority', c_float),
     ]
@@ -173,34 +199,40 @@ class Arguments(Structure):
     ]
 
 
-class Node(Structure):
-    _fields_ = [
-        ('children', List),
-        ('node', List),
-        ('move', Move),
-        ('board', POINTER(Board)),
-        ('data', POINTER(MCTSData))
-    ]
+class HiveNode(GameNode):
+    encoding = "relative"
+    encodings = ["relative", "absolute"]
 
-    def to_np(self):
-        return self.board.contents.to_np()
+    def __init__(self):
+        self.node = Node()
+
+    def to_np(self, player):
+        return self.node.board.contents.to_np(player)
 
     def encode(self):
-        move: Move = self.move
+        move: Move = self.node.move
         tile = move.tile
-        next_to = move.next_to
-        direction = move.direction
+        my_idx = lib.to_tile_index(tile & ~COLOR_MASK) - 1  # Range 0:11  (only my tiles (-1 because cannot be empty))
 
-        tile_idx = lib.to_tile_index(next_to)
-        return ((tile & TILE_MASK) * 22 + tile_idx) * 7 + direction
+        if Node.encoding == "absolute":
+            location = move.location
+            return my_idx * 26 * 26 + location
+        elif Node.encoding == "relative":
+            next_to = move.next_to
+            direction = move.direction
 
-    def generate_moves(self):
+            # Returns number of the tile in this order; A3 G3 B2 S2 Q1 -> max idx = 11*2 (W + B)
+            tile_idx = lib.to_tile_index(next_to)  # Range 0:23  (all tiles + empty)
+
+            return (my_idx * 23 + tile_idx) * 7 + direction
+
+    def generate_children(self):
         """
         Generates the moves for the current root node
 
         :return:
         """
-        res = lib.generate_children(pointer(self), ctypes.c_double(1e64), 0)
+        res = lib.generate_moves(pointer(self.node), ctypes.c_double(1e64), 0)
         if res != 0:
             print(f"Error: generate_children returned {res}, exiting.")
             exit(1)
@@ -211,12 +243,12 @@ class Node(Structure):
 
         :return:
         """
-        if self.board.contents.move_location_tracker == 0:
-            self.generate_moves()
+        if self.node.board.contents.move_location_tracker == 0:
+            self.generate_children()
 
-        head = self.children.next
+        head = self.node.children.next
 
-        while ctypes.addressof(head.contents) != ctypes.addressof(self.children.head):
+        while ctypes.addressof(head.contents) != ctypes.addressof(self.node.children.head):
             # Get struct offset
             child = lib.list_get_node(head)
 
@@ -224,12 +256,22 @@ class Node(Structure):
 
             head = head.contents.next
 
-    def finished(self) -> HiveState:
-        result = lib.finished_board(self.board)
-        return HiveState(result)
+    def finished(self) -> GameState:
+        result = lib.finished_board(self.node.board)
+        return GameState(result)
 
     def print(self):
-        lib.print_board(self.board)
+        lib.print_board(self.node.board)
+
+
+class Node(Structure):
+    _fields_ = [
+        ('children', List),
+        ('node', List),
+        ('move', Move),
+        ('board', POINTER(Board)),
+        ('data', POINTER(MCTSData))
+    ]
 
 
 # Set return types for all functions we're using here.
@@ -241,20 +283,55 @@ lib.performance_testing.restype = ctypes.c_int
 lib.random_moves.restype = POINTER(Node)
 lib.minimax.restype = POINTER(Node)
 lib.mcts_select_leaf.restype = POINTER(Node)
-
+lib.mcts_cascade_result.argtypes = [POINTER(Node), POINTER(Node), c_double]
+lib.count_tiles_around.restype = ctypes.c_int
 lib.mcts.restype = POINTER(Node)
 
+lib.string_move.argtypes = [POINTER(Node)]
+lib.string_move.restype = c_char_p
 
-class Hive(object):
-    def __init__(self, track_history=False):
+
+class Hive(Game):
+    encodings = {
+        "absolute": 11 * 26 * 26,
+        "relative": 11 * 23 * 7
+    }
+
+    def __init__(self, encoding="relative"):
+        super().__init__()
+
         # TODO: Combine history and history idx into a single list. (easier management)
         self.history: list[POINTER(Node)] = []
         self.history_idx: list[int] = []
 
         self.node = lib.game_init()
 
-        self.track_history = track_history
+        # Set the encoding to the desired one.
+        if encoding not in Node.encodings:
+            raise NotImplemented(f"Encoding {encoding} not implemented.")
+
+        Node.encoding = encoding
+
+        self.input_space = 26 * 26  # Board size is 26x26
+        self.action_space = self.encodings[encoding]
+
         self.turn_limit = MAX_TURNS
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        hive = cls.__new__(cls)
+        memo[id(self)] = hive
+
+        for h in self.history:
+            node = pointer(Node())
+            lib.node_copy(node, h)
+            hive.history.append(node)
+
+        for h in self.history_idx:
+            hive.history_idx.append(h)
+
+        lib.node_copy(hive.node, self.node)
+        return hive
 
     def __del__(self):
         for node in self.history:
@@ -272,7 +349,7 @@ class Hive(object):
         """
         self.node.contents.print()
 
-    def finished(self) -> HiveState:
+    def finished(self) -> GameState:
         """
         Returns the boards finished state
 
@@ -288,7 +365,7 @@ class Hive(object):
         """
         yield from self.node.contents.get_children()
 
-    def select_child(self, child: Node, n=None):
+    def select_child(self, child: Node):
         """
         Selects a child to be used for the next step, it will free the current root node and replace it with
           the passed child.
@@ -298,14 +375,10 @@ class Hive(object):
         :return:
         """
 
-        if self.track_history:
-            if n is not None:
-                self.history_idx.append(n)
-
-            copy = lib.default_init()
-            lib.node_copy(copy, self.node)
-            lib.list_empty(pointer(copy.contents.children))
-            self.history.append(copy)
+        copy = lib.default_init()
+        lib.node_copy(copy, self.node)
+        lib.list_empty(pointer(copy.contents.children))
+        self.history.append(copy)
 
         lib.list_remove(pointer(child.node))
         lib.node_free(self.node)
@@ -345,12 +418,11 @@ class Hive(object):
 
         :return:
         """
-        if self.track_history:
-            # Free all history nodes
-            for node in self.history:
-                lib.node_free(node)
-            self.history = []
-            self.history_idx = []
+        # Free all history nodes
+        for node in self.history:
+            lib.node_free(node)
+        self.history = []
+        self.history_idx = []
 
         # Cleanup old node
         lib.node_free(self.node)
@@ -368,5 +440,15 @@ class Hive(object):
         for i in range(20):
             self.ai_move()
             self.print()
-            if self.finished() != HiveState.UNDETERMINED:
+            if self.finished() != GameState.UNDETERMINED:
                 return
+
+    def count_queen_test(self):
+        tiles = 0
+        if self.node.contents.board.contents.dark_queen_position != -1:
+            tiles += lib.count_tiles_around(self.node.contents.board,
+                                            self.node.contents.board.contents.dark_queen_position)
+        if self.node.contents.board.contents.light_queen_position != -1:
+            tiles -= lib.count_tiles_around(self.node.contents.board,
+                                            self.node.contents.board.contents.light_queen_position)
+        return tiles

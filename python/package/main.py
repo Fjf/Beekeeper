@@ -1,22 +1,17 @@
+import argparse
 import logging
 import pickle
-
-from mpi4py import MPI
-import random
 import socket
-import time
-from collections import defaultdict
-from timeit import default_timer
 
-import joblib as joblib
-import torch
-from joblib import delayed
-
-from hive import Hive, HiveState, PlayerArguments
-from hive_nn import HiveNN
-from simulator import HiveSimulator
-from train import School
+import pytorch_lightning
 import sys
+import traceback
+from mpi4py import MPI
+from torch.utils.tensorboard import SummaryWriter
+
+from games.Game import Game
+from simulator import Simulator
+from train import School, Perspectives
 
 
 def setup_logger():
@@ -32,119 +27,86 @@ def setup_logger():
     return logger
 
 
-def threading_test():
-    def compute(i):
-        time.sleep(i / 100)
-        hive = Hive(track_history=True)
-        while hive.finished() == HiveState.UNDETERMINED:
-            hive.ai_move("random")
-
-        print("Process", i)
-        return hive.history, hive.history_idx
-
-    start = default_timer()
-
-    results = joblib.Parallel(n_jobs=6)(delayed(compute)(i) for i in range(20))
-    for ix, i in enumerate(results):
-        if not (i == results[0]).all():
-            print(ix)
-
-    print("Elapsed:", default_timer() - start)
-
-
-def mcts_test():
-    results = defaultdict(list)
-    config = PlayerArguments()
-    config.time_to_move = 1
-    config.verbose = False
-    config.mcts_constant = 0
-
-    for i in range(100):
-        hive = Hive()
-        while hive.finished() == HiveState.UNDETERMINED:
-            print("At turn", hive.turn())
-            if hive.turn() % 2 == 0:
-                hive.ai_move("mcts", config)
-            else:
-                hive.ai_move("random")
-        print("Hoi")
-        results[hive.finished()].append(hive.turn())
-
-    print(results)
-
-
-def winrate_test():
-    def find_winning(h):
-        for child in h.children():
-            if child.finished() == HiveState.WHITE_WON:
-                return child
-        return None
-
-    def random_no_lose(h):
-        for _ in range(100):
-            children = list(h.children())
-            i = random.randint(0, len(children) - 1)
-            if children[i].finished() != HiveState.BLACK_WON:
-                return children[i]
-
-        i = random.randint(0, len(h.children()))
-        return children[i]
-
-    results = defaultdict(int)
-    for i in range(100):
-        hive = Hive()
-        while hive.finished() == HiveState.UNDETERMINED:
-            if hive.turn() % 2 == 0:
-                child = find_winning(hive)
-                if not child:
-                    child = random_no_lose(hive)
-
-                hive.select_child(child)
-            else:
-                hive.ai_move("random")
-        results[hive.finished()] += 1
-
-    result_formatted = "\n\t".join(f"{k}: {v}" for k, v in results.items())
-    print(result_formatted)
+def setup_parser():
+    parser = argparse.ArgumentParser(description="Parallelized AlphaZero implementation of Hive.")
+    parser.add_argument("--n_sims", "-n", type=int, default=200,
+                        help="The amount of game-simulations to do for each data step.")
+    parser.add_argument("--mcts_iterations", "-m", type=int, default=400,
+                        help="The amount of MCTS playouts to do per move.")
+    parser.add_argument("--n_model_updates", "-u", type=int, default=100,
+                        help="The amount of model updates to do during training before terminating.")
+    parser.add_argument("--n_data_reuse", "-d", type=int, default=1,
+                        help="The amount of data generation iterations being used for a single training update.")
+    subclasses = [s.__name__ for s in Game.__subclasses__()]
+    parser.add_argument("--game", "-g", type=str, choices=subclasses, default=subclasses[0],
+                        help="The current game to play.")
+    return parser
 
 
 def main():
-    # TODO: Read from commandline/config file
-    n_sims = 500
-
-    # Give workers their own logic
-    if rank != MASTER_THREAD:
-        return main_worker(n_sims=n_sims, mcts_iterations=100)
-
     logger = setup_logger()
-    logger.debug("Python version")
-    logger.debug(sys.version)
+    parser = setup_parser()
+    args = parser.parse_args()
 
     if "login" in socket.gethostname():
         logger.error("Cannot execute on the login node.")
         exit(1)
 
-    logger.info("Initializing school")
-    school = School(simulations=n_sims)
+    n_sims = args.n_sims
+    mcts_iterations = args.mcts_iterations
+    n_model_updates = args.n_model_updates
+
+    # Fetch game and corresponding neural network from subclasses automatically.
+    game = [s for s in Game.__subclasses__()
+            if s.__name__ == args.game][0]
+    network = [s for s in pytorch_lightning.LightningModule.__subclasses__()
+               if args.game.lower() in s.__name__.lower()][0]
+
+    # Give workers their own logic
+    if rank != MASTER_THREAD:
+        return main_worker(game, n_sims=n_sims, mcts_iterations=mcts_iterations)
+
+    # Setup tensorboard on Master process
+    writer = SummaryWriter('runs/hive_experiment_1')
+
+    logger.debug("Python version")
+    logger.debug(sys.version)
+
+    logger.info(f"Initializing school for {game.__name__} with PL: {network.__name__}")
+    school = School(game, network, simulations=n_sims, n_old_data=args.n_data_reuse)
 
     logger.info("Starting training")
-    school.train(100, pretraining=False)
+    school.train(n_model_updates, pretraining=False)
 
 
-def main_worker(n_sims=100, mcts_iterations=100):
+def main_worker(game, n_sims=100, mcts_iterations=100):
     while True:
         data = comm.bcast(None, root=MASTER_THREAD)
         networks = pickle.loads(data)
-        simulator = HiveSimulator(mcts_iterations=mcts_iterations)
+        simulator = Simulator(game, mcts_iterations=mcts_iterations)
 
         for i in range(rank - 1, n_sims, comm.Get_size() - 1):
-            data = simulator.parallel_play(i, *networks)
-            comm.send(data, MASTER_THREAD)
+            network1, network2 = networks
+
+            if i % 2 == 1:
+                perspective = Perspectives.PLAYER1
+            else:
+                perspective = Perspectives.PLAYER2
+
+            # Swap neural networks to let training network experience both perspectives.
+            if perspective == Perspectives.PLAYER2:
+                network1, network2 = network2, network1
+
+            data = simulator.parallel_play(perspective, network1, network2)
+            comm.send((i, *data), MASTER_THREAD)
 
 
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     MASTER_THREAD = 0
-    assert(comm.Get_size() > 1)
-    main()
+    assert (comm.Get_size() > 1)
+    try:
+        main()
+    except Exception as e:  # noqa
+        traceback.print_exc()

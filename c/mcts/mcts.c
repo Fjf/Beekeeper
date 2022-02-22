@@ -158,7 +158,8 @@ struct node *mcts_init() {
     struct node *root = malloc(sizeof(struct node));
     struct mcts_data *data = malloc(sizeof(struct mcts_data));
 
-    data->draw = data->p0 = data->p1 = 0;
+    data->value = 0.;
+    data->n_sims = 0;
     data->keep = false;
 
     node_init(root, (void *) data);
@@ -283,7 +284,6 @@ struct node* mcts_select_leaf(struct node* root, struct player_arguments* args) 
     struct node* mcts_leaf = root;
     struct list* head;
 
-    int depth = 0;
     while (!list_empty(&mcts_leaf->children)) {
         struct node *best = NULL;
         double best_value = -INFINITY;
@@ -292,12 +292,12 @@ struct node* mcts_select_leaf(struct node* root, struct player_arguments* args) 
         bool first_play_urgency_active = false;
         struct mcts_data* parent_data = mcts_leaf->data;
         if (args->first_play_urgency) {
-            unsigned int n_parent_simulations = parent_data->p0 + parent_data->p1 + parent_data->draw;
-            if (n_parent_simulations == 0) {
+            if (parent_data->n_sims == 0) {
                 first_play_urgency_active = true;
             }
         }
 
+        assert(mcts_leaf->board->n_children != 0);
 
         node_foreach(mcts_leaf, head) {
             struct node *child = container_of(head, struct node, node);
@@ -313,28 +313,33 @@ struct node* mcts_select_leaf(struct node* root, struct player_arguments* args) 
                 continue;
             }
 
-            double n_simulations = (double) (data->p0 + data->p1 + data->draw);
-
             // If there is no first-play urgency, ensure every child has at least one simulation.
-            if (n_simulations == 0) {
+            if (data->n_sims == 0) {
                 best = child;
                 break;
             }
 
-            double n_wins = (double) (root->board->turn % 2 == 0 ? data->p0 : data->p1);
-            double parent_simulations = (double) (parent_data->p0 + parent_data->p1 + parent_data->draw);
+            // Player two has a goodness of  v - n
+            double value = root->board->turn % 2 == 0 ? data->value : data->n_sims - data->value;
 
             // Default case uses UCB1 formula.
             double c = args->mcts_constant;
-            double value = n_wins / n_simulations + c * sqrt(log(parent_simulations) / n_simulations);
+
+            value = value / data->n_sims + c * sqrt(log(parent_data->n_sims) / data->n_sims);
             if (best_value < value) {
                 best_value = value;
                 best = child;
             }
         }
 
-        // best cannot be NULL here.
-        assert(best != NULL);
+        if (best == NULL) {
+            node_foreach(mcts_leaf, head) {
+                struct node *child = container_of(head, struct node, node);
+                struct mcts_data *data = child->data;
+                printf("%d %.5f\n", data->n_sims, data->value);
+            }
+            assert(best != NULL);
+        }
         mcts_leaf = best;
     }
 
@@ -342,18 +347,17 @@ struct node* mcts_select_leaf(struct node* root, struct player_arguments* args) 
 }
 
 
-void mcts_cascade_result(struct node* root, struct node* leaf, int win) {
+void mcts_cascade_result(struct node* root, struct node* leaf, double value) {
     struct node* node = leaf;
 
     while (1) {
         struct mcts_data* data = node->data;
-        if (win == 1) {
-            data->p0++;
-        } else if (win == 2) {
-            data->p1++;
+        if (node->board->turn % 2 == 1) {
+            data->value += value;
         } else {
-            data->draw++;
+            data->value += 1 - value;
         }
+        data->n_sims += 1;
 
         if (node == root) return;
 
@@ -370,7 +374,8 @@ void mcts_prepare(struct node* root, struct player_arguments* args) {
     if (root->data == NULL) {
         // Initialize counters to 0.
         parent_data = malloc(sizeof(struct mcts_data));
-        parent_data->draw = parent_data->p0 = parent_data->p1 = 0;
+        parent_data->value = 0;
+        parent_data->n_sims = 0;
         parent_data->keep = true;
         root->data = parent_data;
     } else {
@@ -427,7 +432,12 @@ struct node* mcts(struct node *root, struct player_arguments *args) {
             break;
         }
 
-        mcts_cascade_result(root, mcts_leaf, win);
+        double value;
+        if (win == 1) value = 1;
+        else if (win == 2) value = 0;
+        else value = .5;
+
+        mcts_cascade_result(root, mcts_leaf, value);
 
         // Free the new node if there is not enough memory for this node.
         if (max_nodes - n_nodes < 2000) {
@@ -446,20 +456,23 @@ struct node* mcts(struct node *root, struct player_arguments *args) {
     if (args->verbose)
         printf("Selecting best child.\n");
 
-    float best_ratio = 0.0f;
+    double best_ratio = 0.0;
     struct node *best = NULL;
 
     node_foreach(root, head) {
         struct node *child = container_of(head, struct node, node);
         struct mcts_data *data = child->data;
 
-        float ratio = (float) (data->p0 + 1) / (float) (data->p1 + 1);
-        if (root->board->turn % 2 == 1) ratio = 1 / ratio;
-
+        double value = root->board->turn % 2 == 0 ? data->value : data->n_sims - data->value;
+        double ratio = value / data->n_sims;
+        char* mve = string_move(child);
+        printf("%.2f/%d = %.2f for %s\n", data->value, data->n_sims, ratio, mve);
+        free(mve);
         if (ratio > best_ratio) {
 #ifdef DEBUG
             printf("%d/%d/%d\n", data->p0, data->p1, data->draw);
 #endif
+
             best_ratio = ratio;
             best = child;
         }
@@ -479,5 +492,5 @@ struct node* mcts(struct node *root, struct player_arguments *args) {
 }
 
 void print_mcts_data(struct mcts_data *pData) {
-    printf("w: %d, l: %d, d: %d (keep: %d)\n", pData->p0, pData->p1, pData->draw, pData->keep);
+    printf("v: %.5f, sims: %d (keep: %d)\n", pData->value, pData->n_sims, pData->keep);
 }

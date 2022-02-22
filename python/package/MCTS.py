@@ -10,26 +10,82 @@ For every board it will:
  - Compute policy vector index i
  - Set policy[i] to the newly retrieved child_value.
 """
-
+import logging
 from ctypes import POINTER, pointer
 
+import math
 import numpy as np
 import torch
 
-from hive import Node, lib, PlayerArguments, MCTSData
-from utils import remove_tile_idx, HiveState
+from games.Game import Game, GameNode
+from games.hive.hive import Node, lib, PlayerArguments, MCTSData
+from games.utils import GameState
 
 
-class HiveMCTS:
+class MCTS:
     def __init__(self, iterations=100):
         self.iterations = iterations
-        self.pargs = PlayerArguments()
-        self.pargs.mcts_constant = 2
+        self.mcts_constant = 1
+        self.logger = logging.getLogger("Hive")
 
-    def select_best(self, root: POINTER(Node)):
-        return lib.mcts_select_leaf(root, pointer(self.pargs))
+    @staticmethod
+    def prepare_mcts(root: GameNode):
+        root.mcts.value = 0
+        root.mcts.n_sims = 0
 
-    def process(self, root: POINTER(Node), policy, network):
+    def select_best(self, root: GameNode, network) -> GameNode:
+        parent = root
+
+        while True:
+            parent_sims = parent.mcts.n_sims
+
+            best_value, best = 0, None
+            # Iterate all children of this parent, to find the best child to explore.
+            children = parent.get_children()
+
+            if len(children) == 0:
+                # Parent has no more children (terminal condition)
+                return parent
+
+            # First time reaching this node.
+            if parent.mcts.policy is None:
+                # Initialize policy vector
+                arr = parent.to_np(parent.turn() % 2)
+                tensor = torch.Tensor(arr.reshape(1, *arr.shape))
+
+                policy, value = network(tensor)
+                policy = policy[0]  # Extract first from batch
+                parent.mcts.policy = policy
+
+                # Initialize children.
+                for child in children:
+                    child.mcts.value = policy[child.encode()]
+                    child.mcts.n_sims = 1
+                return parent
+
+            for child in children:
+                value = child.mcts.value
+                n_sims = child.mcts.n_sims
+
+                value = value / n_sims + self.mcts_constant * math.sqrt(math.log(parent_sims) / n_sims)
+                if best_value < value:
+                    best_value, best = value, child
+
+            assert (best is not None)
+            parent = best
+
+    @staticmethod
+    def cascade_value(leaf: GameNode, value: int, multiplier=1):
+        while leaf is not None:
+            # Scale the values down to probabilities in the range (0, 1) instead of (-1, 1)
+            leaf.mcts.value += (value + 1) / 2 * multiplier
+            leaf.mcts.n_sims += 1 * multiplier
+
+            leaf = leaf.parent
+            # Invert value every step (good move for p1 is bad for p2)
+            value = - value
+
+    def process(self, root: Game, policy, network):
         """
         Processes a node with a policy and returns the MCTS-augmented policy.
         :param p1:
@@ -39,46 +95,45 @@ class HiveMCTS:
         :return:
         """
 
-        # Prepare MCTS and keep all children in memory always.
-        lib.mcts_prepare(root, pointer(self.pargs))
-        root.contents.data.contents.keep = True
-        root.contents.generate_moves()
-
         # Do N iterations of MCTS, building the tree based on the NN output.
         for i in range(self.iterations):
-            leaf = self.select_best(root)
+            leaf = self.select_best(root.node, network)
+            state = leaf.finished()
 
-            state = leaf.contents.finished()
-
-            if state == HiveState.UNDETERMINED:
-                # Add the children of this leaf to the pool for next MCTS iteration to search through
-                leaf.contents.generate_moves()
-                # Tell MCTS to not free this node after passing it
-                leaf.contents.data.contents.keep = True
-
-                # Fetch array from internal memory and remove the tile number.
-                arr = remove_tile_idx(leaf.contents.to_np()).reshape(1, 5, 26, 26)
-                # Convert data to tensorflow usable format
-                tensor = torch.Tensor(arr)
+            if state == GameState.UNDETERMINED:
+                # Fetch array from internal memory
+                arr = leaf.to_np(leaf.turn() % 2)
+                tensor = torch.Tensor(arr.reshape(1, *arr.shape))
 
                 # Get predicted game value from network
                 _, value = network(tensor)
-                value = value[0]  # Batch size is 1 so extract the value
-
-                # Round neural net value to a win/loss
-                value = HiveState.WHITE_WON.value if value > 0.5 else HiveState.BLACK_WON.value
+                value = value.item()  # Tensor should have one value so extract the value
             else:
                 # If it is a terminal state, force update the policy vector.
-                value = state.value
+                if state == GameState.WHITE_WON:
+                    value = 1.
+                elif state == GameState.BLACK_WON:
+                    value = -1
+                else:
+                    value = 0
 
-            lib.mcts_cascade_result(root, leaf, value)
+            # Invert leaf value
+            if leaf.turn() % 2 == 0:
+                value = -value
+
+            self.cascade_value(leaf, value)
 
         # Create a new policy to fill with MCTS updated values
-        updated_policy = torch.zeros(len(policy))
+        updated_policy = torch.zeros(policy.shape)
+        updated_policy += 0.000001
 
-        for node in root.contents.get_children():
-            data: POINTER(MCTSData) = node.data
-            games = data.contents.white + data.contents.black
-            updated_policy[node.encode()] = (data.contents.white / games) if games != 0 else 0.5
+        tot_sims = sum(node.mcts.n_sims for node in root.children())
+        for node in root.children():
+            games = node.mcts.n_sims
 
-        return updated_policy
+            assert (games != 0)
+
+            updated_policy[node.encode()] = games / tot_sims
+
+        updated_policy = torch.pow(updated_policy, 2)
+        return updated_policy / torch.sum(updated_policy)

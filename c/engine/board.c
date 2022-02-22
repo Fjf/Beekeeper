@@ -287,7 +287,7 @@ int finished_board(struct board *board) {
     }
 
     // Draw due to turn limit
-    if (board->turn >= MAX_TURNS - 2) {
+    if (board->turn >= MAX_TURNS - 1) {
         int l = count_tiles_around(board, board->light_queen_position);
         int d = count_tiles_around(board, board->dark_queen_position);
         return d > l ? 1 : 2;

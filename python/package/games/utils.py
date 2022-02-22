@@ -15,7 +15,7 @@ def flip(x):
     return res
 
 
-class HiveState(enum.Enum):
+class GameState(enum.Enum):
     UNDETERMINED = 0
     WHITE_WON = 1
     BLACK_WON = 2

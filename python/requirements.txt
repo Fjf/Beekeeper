@@ -4,3 +4,9 @@ numpy
 pytorch-lightning
 joblib
 mpi4py
+gym
+ray
+ray[rllib]
+ray[tune]
+brotli
+tensorflow

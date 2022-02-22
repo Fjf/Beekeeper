@@ -1,42 +1,43 @@
-import cProfile
 import copy
 import logging
-import pickle
-import random
-from collections import defaultdict
 import os
+import pickle
 from datetime import datetime
-from typing import Optional
+from typing import Type
 
+import pytorch_lightning
 import torch
-from joblib import delayed, Parallel
 from mpi4py import MPI
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-from MCTS import HiveMCTS
-from hive import Hive, HiveState, lib
-from hive_dataset import HiveDataset
-from hive_nn import HiveNN
-from simulator import HiveSimulator
-from utils import remove_tile_idx
+from games.Game import Game
+from games.hive.hive import GameState
+from games.hive.hive_dataset import HiveDataset
+from simulator import Simulator, Perspectives
 
 
 class School:
-    def __init__(self, simulations=100):
-        self.pretraining = False
+    def __init__(self, game: Type[Game], network: Type[pytorch_lightning.LightningModule], simulations=100,
+                 n_old_data=1):
         self.logger = logging.getLogger("Hive")
-        nn_input_size = 26 * 26  # Board size is 26x26
-        nn_action_space = 11 * 22 * 7  # 11 tiles can go next to 22 tiles in 7 directions
 
-        self.updating_network = HiveNN(nn_input_size, nn_action_space)
-        self.stable_network = HiveNN(nn_input_size, nn_action_space)
+        self.pretraining = False
+
+        self.game = game
+        self.simulator = Simulator(game, 0)
+
+        self.logger.info(f"Initializing training and stable network ({game.input_space} -> {game.action_space}).")
+        self.updating_network = network(game.input_space, game.action_space)
+        self.stable_network = copy.deepcopy(self.updating_network)
 
         self.simulations = simulations
 
-        self.n_old_data = 10
+        self.n_old_data = n_old_data
         self.old_data_storage = []
         self.comm = MPI.COMM_WORLD
+        self.logger.info("Done initializing trainer.")
 
     def generate_data(self):
         # If you are pretraining, play against the fixed opponent instead.
@@ -53,11 +54,32 @@ class School:
 
         # Gather data from all workers
         data = []
-        for i in range(self.simulations):
+        print("Gathering data")
+        for _ in tqdm(range(self.simulations)):
             data.append(self.comm.recv())
-
         self.logger.debug(f"Spent {datetime.now() - start} to simulate {self.simulations} games.")
         return data
+
+    @staticmethod
+    def get_win(result: GameState, perspective):
+        if (result == GameState.WHITE_WON and perspective == Perspectives.PLAYER1) \
+                or (result == GameState.BLACK_WON and perspective == Perspectives.PLAYER2):
+            return 1
+        if (result == GameState.BLACK_WON and perspective == Perspectives.PLAYER1) \
+                or (result == GameState.WHITE_WON and perspective == Perspectives.PLAYER2):
+            return 0
+        return 0.5
+
+    def winrate(self, p1, p2, n_games=100):
+        wins = 0
+        for i in range(n_games):
+            perspective = Perspectives.PLAYER1 if i % 2 == 0 else Perspectives.PLAYER2
+            game = self.game()
+            _, result = self.simulator.play(game, p1, p2, mcts=False)
+
+            wins += self.get_win(result, perspective)
+
+        return wins / n_games
 
     def train(self, updates=100, pretraining=False, stored_model_filename: str = None):
         """
@@ -69,45 +91,36 @@ class School:
         :return:
         """
         self.pretraining = pretraining
+        assert (not self.pretraining), "Pretraining is not yet implemented."
+
         if stored_model_filename is not None:
             self.updating_network = torch.load(stored_model_filename)
 
+        network_iter = 0
+
         for u in range(updates):
-            data = self.generate_data()
+            filename = f"example{u}.data"
+            if not os.path.isfile(filename):
+                data = self.generate_data()
 
-            # Combine the results of each thread into single packet arrays.
-            # TODO: Refactor
-            tensors = []
-            taken_moves = []
-            outcomes = []
+                # Combine the results of each thread into single packet arrays.
+                # TODO: Refactor
+                tensors = []
+                policy_vectors = []
+                outcomes = []
 
-            results = defaultdict(int)
-            for tensor, moves, result in data:
-                tensors += tensor
-                taken_moves += moves
+                for i, tensor, policy_vector, result, perspective in data:
+                    tensors += tensor
+                    policy_vectors += policy_vector
+                    outcomes += [torch.Tensor([result])] * len(tensor)
 
-                # TODO: refactor
-                if result == HiveState.WHITE_WON:
-                    res = 1.
-                elif result == HiveState.BLACK_WON:
-                    res = 0.
-                else:
-                    res = 0.5
-
-                outcomes += [torch.Tensor([res])] * len(tensor)
-                results[result] += 1
-
-            # Pretty print the results of the simulated games.
-            result_formatted = "\n\t".join(f"{k}: {v}" for k, v in results.items())
-            winrate = results[HiveState.WHITE_WON] / sum(results[state] for state in HiveState)
-            self.logger.info(f"Result of 100 runs: {result_formatted} ({winrate}).")
-
-            # When encountering a 90% winrate during pretraining the actual reinforcement learning can start.
-            if pretraining and winrate > 0.9:
-                pretraining = False
-
-            if not pretraining and winrate > 0.6:
-                self.stable_network = copy.deepcopy(self.updating_network)
+                torch.save(list(zip(tensors, policy_vectors, outcomes)), filename)
+            else:
+                tensors, policy_vectors, outcomes = zip(*torch.load(filename))
+                tensors = list(tensors)
+                policy_vectors = list(policy_vectors)
+                outcomes = list(outcomes)
+                print(len(tensors), len(policy_vectors), len(outcomes))
 
             self.logger.info(f"{len(tensors)} boards added to dataset.")
             if len(tensors) == 0:
@@ -115,7 +128,7 @@ class School:
                 continue
 
             # Initialize dataset for training loop
-            dataset = HiveDataset(tensors, taken_moves, outcomes)
+            dataset = HiveDataset(tensors, policy_vectors, outcomes)
 
             # Store older data for N updates
             self.old_data_storage.append(dataset)
@@ -123,40 +136,33 @@ class School:
                 self.old_data_storage = self.old_data_storage[1:]
 
             aggregated_dataset = HiveDataset([], [], [])
-            for data in self.old_data_storage:
-                aggregated_dataset += data
+            for old_data in self.old_data_storage:
+                aggregated_dataset += old_data
 
             self.logger.info(f"Training on {len(aggregated_dataset)} boards.")
-            dataloader = DataLoader(aggregated_dataset, batch_size=64)
+            dataloader = DataLoader(aggregated_dataset, batch_size=16, shuffle=True)
 
-            trainer = Trainer(gpus=1, max_epochs=10, default_root_dir="checkpoints")
+            trainer = Trainer(gpus=1, max_epochs=30, default_root_dir="checkpoints")
             trainer.fit(self.updating_network, dataloader)
 
+            print("#######################################################\n"
+                  "# Board states - Policy vector - Perspective - Outcome\n"
+                  "#######################################################\n")
+            for i in range(20):
+                board = dataset.boards[i][:35]
+                board = torch.reshape(board, (7, 5))
+                print(torch.rot90(board))
+                print(dataset.expected[i], dataset.outcomes[i].item())
+                pi, v = self.updating_network(dataset.boards[i].reshape(1, *dataset.boards[i].shape))
+                print(pi, v)
+
+
+            winrate = self.winrate(self.updating_network, self.stable_network)
+            self.logger.info(f"Current performance: {winrate * 100}% wr")
+            if winrate > 0.6:
+                self.logger.info(f"Updating network, iteration {network_iter}.")
+                torch.save(self.stable_network, f"iteration_{network_iter}.pt")
+                self.stable_network = copy.deepcopy(self.updating_network)
+                network_iter += 1
+
             # torch.cuda.empty_cache()
-            # torch.save(self.updating_network, "tensor.pt")
-
-    @staticmethod
-    def test(p1, p2):
-        hive = Hive()
-
-        results = defaultdict(int)
-
-        n_samples = 100
-        for i in range(n_samples):
-            hive.reinitialize()
-
-            res = HiveState.UNDETERMINED
-            # Play for N turns
-            for t in range(hive.turn_limit - 1):
-                if i % 2 == 0:
-                    HiveSimulator.nn_move(p1, hive, mcts=True)
-                else:
-                    hive.ai_move("random")
-                    # nn_move(p2, hive, mcts=False, p1=False)
-                res = hive.finished()
-                if res != HiveState.UNDETERMINED:
-                    break
-
-            results[res] += 1
-
-        return results
