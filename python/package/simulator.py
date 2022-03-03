@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import Optional
+from typing import Optional, Type
 
 import pytorch_lightning
 import torch
@@ -11,7 +11,7 @@ from games.utils import GameState, Perspectives
 
 
 class Simulator:
-    def __init__(self, game, mcts_iterations=100):
+    def __init__(self, game: Type[Game], mcts_iterations=100):
         self.do_mcts = True
         self.game = game
         self.mcts_object = MCTS(mcts_iterations)
@@ -140,18 +140,23 @@ class Simulator:
 
             # Convert all data to be usable
             if perspective == nn_perspective:
-                arr = node.to_np(nn_perspective)
-                tensors.append(torch.Tensor(arr))
+                tensors.append(torch.Tensor(node.to_np(nn_perspective)))
                 policy_vectors.append(policy_vector)
 
-        # Convert game outcome to numerical value.
-        result_value = 0
+        # Convert game outcome to numerical value vector.
+        result_values = torch.zeros(len(tensors))
         if (result == GameState.WHITE_WON and nn_perspective == Perspectives.PLAYER1) \
                 or (result == GameState.BLACK_WON and nn_perspective == Perspectives.PLAYER2):
-            result_value = 1
+            result_values += 1
         if (result == GameState.BLACK_WON and nn_perspective == Perspectives.PLAYER1) \
                 or (result == GameState.WHITE_WON and nn_perspective == Perspectives.PLAYER2):
-            result_value = -1
+            result_values -= -1
+
+        # Invert tensors
+        inverted_tensors = game.get_inverted(tensors)
+        tensors += inverted_tensors
+        policy_vectors += policy_vectors
+        result_values += (result_values * -1)
 
         # TODO: Wrap this in a namedtuple
-        return tensors, policy_vectors, result_value, nn_perspective
+        return tensors, policy_vectors, result_values, nn_perspective

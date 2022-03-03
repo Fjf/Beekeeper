@@ -2,6 +2,7 @@ import random
 from typing import List
 
 import numpy as np
+import torch
 from scipy.signal import convolve2d
 
 from games.Game import Game, GameNode
@@ -100,6 +101,13 @@ class TicTacToe(Game):
         self.history = []
         self.node = TicTacToeNode(None)
         self.history.append(self.node)  # Add first node too.
+
+    def get_inverted(self, boards: List[torch.Tensor]) -> List[torch.Tensor]:
+        output = []
+        for board in boards:
+            new_board = -board
+            new_board[-1] += 1  # Last number is [0,1] [-0 + 1 = 1, -1 + 1 = 0]
+        return output
 
     def turn(self) -> int:
         return self.node.turn()

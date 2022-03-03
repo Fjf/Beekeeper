@@ -22,12 +22,12 @@ from simulator import Simulator
 
 class School:
     def __init__(self, game: Type[Game], network: Type[pytorch_lightning.LightningModule], simulations=100,
-                 n_old_data=1):
+                 n_old_data=1, model_dir="model", data_dir="data"):
         self.logger = logging.getLogger("Hive")
         self.network_type = network
 
-        self.data_dir = "data/"
-        self.model_dir = ""
+        self.data_dir = data_dir
+        self.model_dir = model_dir
 
         self.pretraining = False
 
@@ -67,7 +67,13 @@ class School:
         return data
 
     @staticmethod
-    def get_win(result: GameState, perspective):
+    def get_win(result: GameState, perspective: Perspectives) -> float:
+        """
+        Given a GameState and perspective, it will give a value from 0, 0.5, and 1, for a loss, draw, or win.
+        :param result: the final gamestate
+        :param perspective: the perspective for which to compute the game value
+        :return: the converted game value.
+        """
         if (result == GameState.WHITE_WON and perspective == Perspectives.PLAYER1) \
                 or (result == GameState.BLACK_WON and perspective == Perspectives.PLAYER2):
             return 1
@@ -76,7 +82,16 @@ class School:
             return 0
         return 0.5
 
-    def winrate(self, p1, p2, n_games=100):
+    def winrate(self, p1, p2, n_games=100) -> float:
+        """
+        Compute winrate of two models against each other, with half games played from either perspective.
+        MCTS is turned off for winrate computation, meaning only the raw neural network policy values are used.
+
+        :param p1: the main model
+        :param p2: the opposing model
+        :param n_games: the amount of games to base the winrate on
+        :return: float of winrate, a draw counts as 0.5 wins.
+        """
         wins = 0
         self.simulator.temperature_threshold = 0
         for i in range(n_games):
@@ -106,6 +121,9 @@ class School:
         self.pretraining = pretraining
         assert (not self.pretraining), "Pretraining is not yet implemented."
 
+        ##############################################################################
+        # Load existing model from disk as a checkpoint to start from.
+        ##############################################################################
         if stored_model_filename is not None:
             self.logger.info(f"Loading model '{stored_model_filename}'")
 
@@ -119,6 +137,9 @@ class School:
         for u in range(updates):
             filename = os.path.join(self.data_dir, f"example{u}.data")
             if not os.path.isfile(filename):
+                ##############################################################################
+                # Generate data with current two models
+                ##############################################################################
                 data = self.generate_data()
 
                 # Combine the results of each thread into single packet arrays.
@@ -126,29 +147,30 @@ class School:
                 policy_vectors = []
                 outcomes = []
 
-                arr = np.array([i for _, _, _, i, _ in data])
-                arr = (arr + 1) / 2
-                print(f"Data generation WR: {sum(arr) / len(arr)}")
-
                 for i, tensor, policy_vector, result, perspective in data:
                     tensors += tensor
                     policy_vectors += policy_vector
-                    outcomes += [torch.Tensor([result])] * len(tensor)
+                    outcomes += result
 
-                torch.save(list(zip(tensors, policy_vectors, outcomes)), filename)
+                if self.data_dir is not None:
+                    torch.save(list(zip(tensors, policy_vectors, outcomes)), filename)
             else:
+                ##############################################################################
+                # Load existing data from disk.
+                ##############################################################################
                 tensors, policy_vectors, outcomes = zip(*torch.load(filename))
                 tensors = list(tensors)
                 policy_vectors = list(policy_vectors)
                 outcomes = list(outcomes)
-                print(len(tensors), len(policy_vectors), len(outcomes))
 
             self.logger.info(f"{len(tensors)} boards added to dataset.")
             if len(tensors) == 0:
                 self.logger.warning("No tensors added, re-running simulation to get more data.")
                 continue
 
-            # Initialize dataset for training loop
+            ##############################################################################
+            # Aggregate data into Dataset
+            ##############################################################################
             dataset = HiveDataset(tensors, policy_vectors, outcomes)
 
             # Store older data for N updates
@@ -163,25 +185,18 @@ class School:
             self.logger.info(f"Training on {len(aggregated_dataset)} boards.")
             dataloader = DataLoader(aggregated_dataset, batch_size=16, shuffle=True, num_workers=0)
 
+            ##############################################################################
+            # Train model, then check if model is good enough to replace existing model
+            ##############################################################################
             trainer = Trainer(gpus=1, max_epochs=30, default_root_dir="checkpoints")
             trainer.fit(self.updating_network, dataloader)
-
-            # print("#######################################################\n"
-            #       "# Board states - Policy vector - Perspective - Outcome\n"
-            #       "#######################################################\n")
-            # for i in range(20):
-            #     board = dataset.boards[i][:35]
-            #     board = torch.reshape(board, (5, 7))
-            #     print(np.rot90())
-            #     print(dataset.expected[i], dataset.outcomes[i].item())
-            #     pi, v = self.updating_network(dataset.boards[i].reshape(1, *dataset.boards[i].shape))
-            #     print(pi, v)
 
             winrate = self.winrate(self.updating_network, self.stable_network, n_games=200)
             self.logger.info(f"Current performance: {winrate * 100}% wr")
             if winrate > 0.55:
                 self.logger.info(f"Updating network, iteration {network_iter}.")
-                torch.save(self.updating_network.state_dict(), os.path.join(self.model_dir, f"iteration_{network_iter}.pt"))
+                torch.save(self.updating_network.state_dict(),
+                           os.path.join(self.model_dir, f"iteration_{network_iter}.pt"))
                 self.stable_network.load_state_dict(self.updating_network.state_dict())
                 network_iter += 1
 

@@ -4,6 +4,7 @@ from abc import ABC
 from typing import Iterable, List
 
 import numpy as np
+import torch
 
 from games.utils import GameState, Perspectives
 
@@ -65,7 +66,6 @@ class GameNode(ABC):
         """
 
 
-
 class Game(ABC):
     """
     A base class for two-player games.
@@ -78,6 +78,13 @@ class Game(ABC):
     def __init__(self):
         self.node = None
         self.history = []
+
+    def get_inverted(self, boards: List[torch.Tensor]) -> List[torch.Tensor]:
+        """
+        Invert the list of boards to create more data.
+        :param boards:
+        :return:
+        """
 
     def turn(self) -> int:
         """

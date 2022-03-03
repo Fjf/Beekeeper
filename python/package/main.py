@@ -43,6 +43,10 @@ def setup_parser():
                         help="The current game to play.")
     parser.add_argument("--model", "-M", type=str, default=None,
                         help="The model on disk to continue from.")
+    parser.add_argument("--model_dir", type=str, default="model",
+                        help="The folder to store the models in.")
+    parser.add_argument("--data_dir", type=str, default=None,
+                        help="The folder to store all generated data in, if none provided, dont store at all.")
     return parser
 
 
@@ -58,6 +62,8 @@ def main():
     n_sims = args.n_sims
     mcts_iterations = args.mcts_iterations
     n_model_updates = args.n_model_updates
+    model_dir = args.model_dir
+    data_dir = args.data_dir
 
     # Fetch game and corresponding neural network from subclasses automatically.
     game = [s for s in Game.__subclasses__()
@@ -76,7 +82,8 @@ def main():
     logger.debug(sys.version)
 
     logger.info(f"Initializing school for {game.__name__} with PL: {network.__name__}")
-    school = School(game, network, simulations=n_sims, n_old_data=args.n_data_reuse)
+    school = School(game, network, simulations=n_sims, n_old_data=args.n_data_reuse, model_dir=model_dir,
+                    data_dir=data_dir)
 
     logger.info("Starting training")
     school.train(n_model_updates, pretraining=False, stored_model_filename=args.model)
