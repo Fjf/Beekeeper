@@ -10,8 +10,9 @@ from mpi4py import MPI
 from torch.utils.tensorboard import SummaryWriter
 
 from games.Game import Game
+from games.utils import Perspectives
 from simulator import Simulator
-from train import School, Perspectives
+from train import School
 
 
 def setup_logger():
@@ -40,6 +41,8 @@ def setup_parser():
     subclasses = [s.__name__ for s in Game.__subclasses__()]
     parser.add_argument("--game", "-g", type=str, choices=subclasses, default=subclasses[0],
                         help="The current game to play.")
+    parser.add_argument("--model", "-M", type=str, default=None,
+                        help="The model on disk to continue from.")
     return parser
 
 
@@ -76,10 +79,11 @@ def main():
     school = School(game, network, simulations=n_sims, n_old_data=args.n_data_reuse)
 
     logger.info("Starting training")
-    school.train(n_model_updates, pretraining=False)
+    school.train(n_model_updates, pretraining=False, stored_model_filename=args.model)
 
 
 def main_worker(game, n_sims=100, mcts_iterations=100):
+    import time
     while True:
         data = comm.bcast(None, root=MASTER_THREAD)
         networks = pickle.loads(data)
@@ -88,7 +92,7 @@ def main_worker(game, n_sims=100, mcts_iterations=100):
         for i in range(rank - 1, n_sims, comm.Get_size() - 1):
             network1, network2 = networks
 
-            if i % 2 == 1:
+            if i % 2 == 0:
                 perspective = Perspectives.PLAYER1
             else:
                 perspective = Perspectives.PLAYER2
@@ -99,6 +103,9 @@ def main_worker(game, n_sims=100, mcts_iterations=100):
 
             data = simulator.parallel_play(perspective, network1, network2)
             comm.send((i, *data), MASTER_THREAD)
+
+        # We don't need to be in a busyloop.
+        time.sleep(0.2)
 
 
 if __name__ == "__main__":

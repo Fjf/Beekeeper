@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections import defaultdict
 from typing import Iterable, List
 
 import numpy as np
 
-from games.utils import GameState
+from games.utils import GameState, Perspectives
 
 
 class MCTSData(object):
@@ -23,7 +22,7 @@ class GameNode(ABC):
         self.parent = parent
         self.mcts = MCTSData()
 
-    def to_np(self, player) -> np.array:
+    def to_np(self, perspective: Perspectives) -> np.array:
         """
         Generates a numpy-representation of this node from the perspective of player
 
@@ -66,6 +65,7 @@ class GameNode(ABC):
         """
 
 
+
 class Game(ABC):
     """
     A base class for two-player games.
@@ -85,6 +85,9 @@ class Game(ABC):
 
         :return:
         """
+
+    def to_move(self) -> Perspectives:
+        return Perspectives.PLAYER1 if self.turn() % 2 == 0 else Perspectives.PLAYER2
 
     def print(self):
         """

@@ -6,8 +6,8 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 
 
-class Connect4NN(pl.LightningModule):
-    def __init__(self, input_size=676, output_size=26 * 26 * 11):
+class TicTacToeNN (pl.LightningModule):
+    def __init__(self, input_size=10, output_size=9):
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Linear(input_size, 64),
@@ -34,7 +34,7 @@ class Connect4NN(pl.LightningModule):
         x, pi, game_value = batch
 
         # Increase class differences
-        pi = torch.pow(pi, 2)
+        pi = torch.pow(pi, 4)
         pi /= torch.sum(pi, dim=1).view(pi.shape[0], 1)
 
         policy, value = self(x)
@@ -62,7 +62,7 @@ class Connect4NN(pl.LightningModule):
         self.log("test_loss", loss)
 
     @staticmethod
-    def loss_pi(targets, outputs):
+    def loss_pi(targets: torch.Tensor, outputs):
         # return torch.sum(targets * torch.log(outputs)) / targets.size()[0]
         shape = targets.shape
         result = torch.bmm(targets.view(shape[0], 1, shape[1]), torch.log(outputs).view(shape[0], shape[1], 1))

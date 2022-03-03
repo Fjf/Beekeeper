@@ -7,7 +7,7 @@ from typing import Iterable
 import numpy as np
 
 from games.Game import Game, GameNode
-from games.utils import GameState
+from games.utils import GameState, Perspectives
 
 lib = CDLL(os.path.join(os.path.dirname(os.path.realpath(__file__)), "libhive.so"))
 BOARD_SIZE = c_uint.in_dll(lib, "pboardsize").value
@@ -73,12 +73,14 @@ class Board(Structure):
         ('has_updated', c_bool),
     ]
 
-    def to_np(self, player):
+    def to_np(self, perspective: Perspectives):
         """
         Convert internal array representation to numpy array
         It will always display the board from white's perspective.
         :return:
         """
+        player = 0 if perspective == Perspectives.PLAYER1 else 1
+
         n_planes = 2
         height = 1
         # Fill zero array with raw binary data from library

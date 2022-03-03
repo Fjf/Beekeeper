@@ -8,9 +8,9 @@ from games.Game import Game, GameNode
 from games.utils import GameState, Perspectives
 
 
-class Connect4Node(GameNode):
-    width = 7
-    height = 5
+class TicTacToeNode(GameNode):
+    width = 3
+    height = 3
 
     def __init__(self, parent, board: np.array = None, move: int = -1):
         super().__init__(parent)
@@ -26,10 +26,8 @@ class Connect4Node(GameNode):
 
         if move != -1:
             self.move = move
-            for i in range(self.height):
-                if self._board[move][i] == 0:
-                    self._board[move][i] = ((self.turn() - 1) % 2) + 1
-                    break
+            # We need to set the player for the previous turn.
+            self._board[move // 3][move % 3] = ((self.turn() - 1) % 2) + 1
 
     def turn(self):
         return self._turn
@@ -56,51 +54,51 @@ class Connect4Node(GameNode):
             return []
 
         if len(self.children) == 0:
-            for i in range(self.width):
-                if self._board[i][self.height - 1] == 0:
-                    self.children.append(Connect4Node(self, self._board, i))
+            for i in range(self.width * self.height):
+                if self._board[i // 3][i % 3] == 0:
+                    self.children.append(TicTacToeNode(self, self._board, i))
 
         return self.children
 
     def finished(self) -> GameState:
-        horizontal_kernel = np.array([[1, 1, 1, 1]])
+        horizontal_kernel = np.array([[1, 1, 1]])
         vertical_kernel = np.transpose(horizontal_kernel)
-        diag1_kernel = np.eye(4, dtype=np.uint8)
+        diag1_kernel = np.eye(3, dtype=np.uint8)
         diag2_kernel = np.fliplr(diag1_kernel)
         detection_kernels = [horizontal_kernel, vertical_kernel, diag1_kernel, diag2_kernel]
 
         # Check all connect 4 rules for both player 1 and 2.
         for kernel in detection_kernels:
-            if (convolve2d(self._board == 1, kernel, mode="valid") == 4).any():
+            if (convolve2d(self._board == 1, kernel, mode="valid") == 3).any():
                 return GameState.WHITE_WON
-            if (convolve2d(self._board == 2, kernel, mode="valid") == 4).any():
+            if (convolve2d(self._board == 2, kernel, mode="valid") == 3).any():
                 return GameState.BLACK_WON
 
         # Check if there are any valid moves left after checking for winning players.
-        for i in range(self.width):
-            if self._board[i][self.height - 1] == 0:
+        for i in range(self.width * self.height):
+            if self._board[i % 3][i // 3] == 0:
                 return GameState.UNDETERMINED
 
         # If there are no moves left, this game is a draw.
         return GameState.DRAW_TURN_LIMIT
 
     def print(self):
-        print(np.rot90(self._board))
+        print(self._board)
 
 
-class Connect4(Game):
+class TicTacToe(Game):
     # Set neural network dimensions
-    input_space = Connect4Node.width * Connect4Node.height + 1
-    action_space = 7
+    input_space = TicTacToeNode.width * TicTacToeNode.height + 1
+    action_space = 9
 
     def __init__(self):
         super().__init__()
 
         # Amount of turns equal to amount of open spots.
-        self.turn_limit = Connect4Node.width * Connect4Node.height
+        self.turn_limit = TicTacToeNode.width * TicTacToeNode.height
 
         self.history = []
-        self.node = Connect4Node(None)
+        self.node = TicTacToeNode(None)
         self.history.append(self.node)  # Add first node too.
 
     def turn(self) -> int:

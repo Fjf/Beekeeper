@@ -2,18 +2,12 @@ import logging
 import random
 from typing import Optional
 
-import numpy as np
 import pytorch_lightning
 import torch
 
 from MCTS import MCTS
 from games.Game import Game
-from games.utils import GameState
-
-
-class Perspectives:
-    PLAYER1 = 0
-    PLAYER2 = 1
+from games.utils import GameState, Perspectives
 
 
 class Simulator:
@@ -21,6 +15,7 @@ class Simulator:
         self.do_mcts = True
         self.game = game
         self.mcts_object = MCTS(mcts_iterations)
+        self.temperature_threshold = 0.5
 
     @staticmethod
     def select_move(policy, filter_idx=None, best=False):
@@ -33,11 +28,9 @@ class Simulator:
         :param filter_idx: a vector defining the moves from which to choose
         :return: the index of the chosen move in the filter vector
         """
-        if len(filter_idx) == 1:
-            return 0
         if sum(policy[filter_idx] == 0):  # Select random move if policy sums to 0
-            # logging.getLogger("hive")\
-            #     .warning("Filtered policy summed to 0, selecting random move. Training is probably going wrong.")
+            logging.getLogger("hive") \
+                .warning("Filtered policy summed to 0, selecting random move. Training is probably going wrong.")
             return random.choice(range(len(filter_idx)))
 
         # Pick the best move or a random one based on policy probabilities
@@ -45,13 +38,7 @@ class Simulator:
             return torch.argmax(policy[filter_idx].flatten())
         else:
             probabilities = policy[filter_idx].flatten()
-            try:
-                idx = torch.multinomial(probabilities, 1).item()
-            except:
-                print(f"\n\n\n\nprobabilities: {probabilities}\n\n\n\n\n\n")
-
-                exit(1)
-            return idx
+            return torch.multinomial(probabilities, 1).item()
 
     def nn_move(self, network, game: Game, mcts=True):
         """
@@ -66,49 +53,43 @@ class Simulator:
         :param mcts: use mcts to compute an improvement policy?
         :return: the taken move index in the policy vector
         """
-        player = game.node.turn() % 2
+        perspective = game.to_move()
 
-        # Fetch array from internal memory and remove the tile number.
-        arr = game.node.to_np(player)
-        arr = arr.reshape(1, *arr.shape)
-
-        # Convert data to tensorflow usable format
-        data = torch.Tensor(arr)
-
-        # Get tensor of preferred outputs by priority.
-        policy, _ = network(data)
-        policy = policy[0]
-
-        # Compute updated MCTS policy
         if mcts:
-            updated_policy = self.mcts_object.process(game, policy, network)
+            policy = self.mcts_object.process(game, network)
         else:
-            updated_policy = policy
+            # Fetch array from internal memory and remove the tile number.
+            arr = game.node.to_np(perspective)
+            arr = arr.reshape(1, *arr.shape)
+
+            # Convert data to tensorflow usable format
+            data = torch.Tensor(arr)
+
+            # Get policy vector
+            policy, _ = network(data)
+            policy = policy[0]
 
         # Convert children to usable format.
         children = game.node.get_children()
         encodings = [child.encode() for child in children]
 
-        assert (len(children) > 0)
-
         # Select only best moves after high enough temperature
-        temperature = game.node.turn() / game.node.turn_limit
+        temperature = float(game.node.turn()) / float(game.turn_limit)
 
         # Select a move based on updated_policy's weights out of the valid moves (encodings)
-        best_idx = self.select_move(updated_policy, filter_idx=encodings, best=temperature > 0.5)
+        best_idx = self.select_move(policy, filter_idx=encodings, best=temperature > self.temperature_threshold)
 
         game.select_child(children[best_idx])
-        return updated_policy
+        return policy
 
-    def play(self, game: Game, p1: pytorch_lightning.LightningModule, p2: Optional[pytorch_lightning.LightningModule],
-             tracking_player=0, mcts=True):
+    def play(self, game: Game, p1: Optional[pytorch_lightning.LightningModule],
+             p2: Optional[pytorch_lightning.LightningModule], mcts=True):
         """
         Does a playout of the game with two neural networks, returns all board states and the final result.
         The returned zip contains all boards which were played by player 1 including the policy vector.
         This can later be used to train the neural network.
 
         :param mcts: Use MCTS for policy enhancement
-        :param tracking_player: are we tracking p1 or p2?
         :param game: the board state from which to choose
         :param p1: the neural network for player 1
         :param p2: the neural network for player 2, if None, use random agent instead
@@ -119,11 +100,11 @@ class Simulator:
         result = GameState.UNDETERMINED
         for i in range(game.turn_limit):
 
-            nn = p1 if i % 2 == 0 else p2
+            nn = p1 if game.to_move() == Perspectives.PLAYER1 else p2
 
             policy_vector = None
             if nn is None:
-                game.ai_move(algorithm="mm")
+                game.ai_move(algorithm="random")
             else:
                 policy_vector = self.nn_move(nn, game, mcts=mcts)
 
@@ -138,7 +119,7 @@ class Simulator:
         return zip(game.history[:-1], policy_vectors), result
 
     def parallel_play(self, nn_perspective: Perspectives, net1: pytorch_lightning.LightningModule,
-                      net2: Optional[pytorch_lightning.LightningModule] = None, print=False):
+                      net2: Optional[pytorch_lightning.LightningModule] = None):
         """
         Wrapper for the play function preparing the data and initializing the Hive object.
         It will convert the arrays to tensors to be used by pytorch.
@@ -159,7 +140,7 @@ class Simulator:
 
             # Convert all data to be usable
             if perspective == nn_perspective:
-                arr = node.to_np(perspective)
+                arr = node.to_np(nn_perspective)
                 tensors.append(torch.Tensor(arr))
                 policy_vectors.append(policy_vector)
 

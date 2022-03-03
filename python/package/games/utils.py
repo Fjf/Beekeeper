@@ -31,3 +31,8 @@ class GameState(enum.Enum):
             "Draw by Turnlimit",
         ]
         return m[self.value]
+
+
+class Perspectives:
+    PLAYER1 = 0
+    PLAYER2 = 1
