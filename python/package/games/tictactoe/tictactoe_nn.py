@@ -75,7 +75,7 @@ class TicTacToeNN (pl.LightningModule):
 
     def forward(self, x):
         # in lightning, forward defines the prediction/inference actions
-        embedding = self.encoder(x)
+        embedding = self.encoder(x.type(torch.Tensor))
         segments = torch.tensor_split(embedding, (self.output_size,), dim=1)
         policy, value = segments[0], segments[1]
 

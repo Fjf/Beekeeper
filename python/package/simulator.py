@@ -144,19 +144,19 @@ class Simulator:
                 policy_vectors.append(policy_vector)
 
         # Convert game outcome to numerical value vector.
-        result_values = torch.zeros(len(tensors))
+        result_value = 0
         if (result == GameState.WHITE_WON and nn_perspective == Perspectives.PLAYER1) \
                 or (result == GameState.BLACK_WON and nn_perspective == Perspectives.PLAYER2):
-            result_values += 1
+            result_value += 1
         if (result == GameState.BLACK_WON and nn_perspective == Perspectives.PLAYER1) \
                 or (result == GameState.WHITE_WON and nn_perspective == Perspectives.PLAYER2):
-            result_values -= -1
+            result_value -= -1
+        result_values = [torch.Tensor([result_value])] * len(tensors)
 
         # Invert tensors
-        inverted_tensors = game.get_inverted(tensors)
-        tensors += inverted_tensors
+        tensors += game.get_inverted(tensors)
         policy_vectors += policy_vectors
-        result_values += (result_values * -1)
+        result_values += ([torch.Tensor([result_value * -1])] * len(tensors))
 
         # TODO: Wrap this in a namedtuple
         return tensors, policy_vectors, result_values, nn_perspective

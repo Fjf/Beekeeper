@@ -112,6 +112,7 @@ class Connect4(Game):
         for board in boards:
             new_board = -board
             new_board[-1] += 1  # Last number is [0,1] [-0 + 1 = 1, -1 + 1 = 0]
+            output.append(new_board)
         return output
 
     def print(self):

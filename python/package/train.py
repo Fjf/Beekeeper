@@ -29,6 +29,12 @@ class School:
         self.data_dir = data_dir
         self.model_dir = model_dir
 
+        # Create directories
+        if self.data_dir is not None:
+            os.makedirs(self.data_dir, exist_ok=True)
+        if self.model_dir is not None:
+            os.makedirs(self.model_dir, exist_ok=True)
+
         self.pretraining = False
 
         self.game = game
@@ -135,8 +141,12 @@ class School:
         network_iter = 0
 
         for u in range(updates):
-            filename = os.path.join(self.data_dir, f"example{u}.data")
-            if not os.path.isfile(filename):
+            if self.data_dir is not None:
+                filename = os.path.join(self.data_dir, f"example{u}.data")
+            else:
+                filename = None
+
+            if filename is None or not os.path.isfile(filename):
                 ##############################################################################
                 # Generate data with current two models
                 ##############################################################################
@@ -152,7 +162,7 @@ class School:
                     policy_vectors += policy_vector
                     outcomes += result
 
-                if self.data_dir is not None:
+                if filename is not None:
                     torch.save(list(zip(tensors, policy_vectors, outcomes)), filename)
             else:
                 ##############################################################################
@@ -182,13 +192,16 @@ class School:
             for old_data in self.old_data_storage:
                 aggregated_dataset += old_data
 
+            for i in range(10):
+                aggregated_dataset += dataset
+
             self.logger.info(f"Training on {len(aggregated_dataset)} boards.")
-            dataloader = DataLoader(aggregated_dataset, batch_size=16, shuffle=True, num_workers=0)
+            dataloader = DataLoader(aggregated_dataset, batch_size=128, shuffle=True, num_workers=1, persistent_workers=True, prefetch_factor=8, pin_memory=True)
 
             ##############################################################################
             # Train model, then check if model is good enough to replace existing model
             ##############################################################################
-            trainer = Trainer(gpus=1, max_epochs=30, default_root_dir="checkpoints")
+            trainer = Trainer(gpus=1, precision=16, max_epochs=2, default_root_dir="checkpoints")
             trainer.fit(self.updating_network, dataloader)
 
             winrate = self.winrate(self.updating_network, self.stable_network, n_games=200)
@@ -199,5 +212,7 @@ class School:
                            os.path.join(self.model_dir, f"iteration_{network_iter}.pt"))
                 self.stable_network.load_state_dict(self.updating_network.state_dict())
                 network_iter += 1
+
+            exit(0)
 
             # torch.cuda.empty_cache()

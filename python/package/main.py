@@ -119,7 +119,7 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     MASTER_THREAD = 0
-    assert (comm.Get_size() > 1)
+    assert (comm.Get_size() > 0)
     try:
         main()
     except Exception as e:  # noqa
