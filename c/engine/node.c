@@ -24,6 +24,11 @@ void node_init(struct node* node, void* data) {
     n_nodes++;
 }
 
+struct node* node_create() {
+    struct node* node = malloc(sizeof(struct node));
+    node_init(node, NULL);
+    return node;
+}
 
 void node_add_child(struct node* node, struct node* child) {
     list_add(&node->children, &child->node);

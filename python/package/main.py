@@ -2,10 +2,13 @@ import argparse
 import logging
 import pickle
 import socket
+from typing import Type
 
 import pytorch_lightning
 import sys
 import traceback
+
+import torch.cuda
 from mpi4py import MPI
 from torch.utils.tensorboard import SummaryWriter
 
@@ -66,14 +69,14 @@ def main():
     data_dir = args.data_dir
 
     # Fetch game and corresponding neural network from subclasses automatically.
-    game = [s for s in Game.__subclasses__()
-            if s.__name__ == args.game][0]
-    network = [s for s in pytorch_lightning.LightningModule.__subclasses__()
-               if args.game.lower() in s.__name__.lower()][0]
+    game_type = [s for s in Game.__subclasses__()
+                 if s.__name__ == args.game][0]
+    network_type = [s for s in pytorch_lightning.LightningModule.__subclasses__()
+                    if args.game.lower() in s.__name__.lower()][0]
 
     # Give workers their own logic
     if rank != MASTER_THREAD:
-        return main_worker(game, n_sims=n_sims, mcts_iterations=mcts_iterations)
+        return main_worker(game_type, network_type, n_sims=n_sims, mcts_iterations=mcts_iterations)
 
     # Setup tensorboard on Master process
     writer = SummaryWriter('runs/hive_experiment_1')
@@ -81,23 +84,27 @@ def main():
     logger.debug("Python version")
     logger.debug(sys.version)
 
-    logger.info(f"Initializing school for {game.__name__} with PL: {network.__name__}")
-    school = School(game, network, simulations=n_sims, n_old_data=args.n_data_reuse, model_dir=model_dir,
+    logger.info(f"Initializing school for {game_type.__name__} with PL: {network_type.__name__}")
+    school = School(game_type, network_type, simulations=n_sims, n_old_data=args.n_data_reuse, model_dir=model_dir,
                     data_dir=data_dir)
 
     logger.info("Starting training")
     school.train(n_model_updates, pretraining=False, stored_model_filename=args.model)
 
 
-def main_worker(game, n_sims=100, mcts_iterations=100):
+def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sims=100, mcts_iterations=100):
     import time
+
+    network1 = model_type()
+    network2 = model_type()
+
     while True:
         data = comm.bcast(None, root=MASTER_THREAD)
-        networks = pickle.loads(data)
+        state_dicts = pickle.loads(data)
         simulator = Simulator(game, mcts_iterations=mcts_iterations)
 
         for i in range(rank - 1, n_sims, comm.Get_size() - 1):
-            network1, network2 = networks
+            state_dict1, state_dict2 = state_dicts
 
             if i % 2 == 0:
                 perspective = Perspectives.PLAYER1
@@ -106,10 +113,16 @@ def main_worker(game, n_sims=100, mcts_iterations=100):
 
             # Swap neural networks to let training network experience both perspectives.
             if perspective == Perspectives.PLAYER2:
-                network1, network2 = network2, network1
+                state_dict1, state_dict2 = state_dict2, state_dict1
+
+            network1.load_state_dict(state_dict1)
+            network2.load_state_dict(state_dict2)
 
             data = simulator.parallel_play(perspective, network1, network2)
             comm.send((i, *data), MASTER_THREAD)
+
+            del data
+            torch.cuda.empty_cache()
 
         # We don't need to be in a busyloop.
         time.sleep(0.2)

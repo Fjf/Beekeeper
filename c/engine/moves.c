@@ -8,6 +8,7 @@
 
 // Global defines
 struct node *(*dedicated_add_child)(struct node *node, struct board *board);
+
 struct node *(*dedicated_init)();
 
 struct node *default_add_child(struct node *node, struct board *board) {
@@ -19,13 +20,14 @@ struct node *default_add_child(struct node *node, struct board *board) {
     return child;
 }
 
-struct node* default_init() {
+struct node *default_init() {
     struct node *root = malloc(sizeof(struct node));
     node_init(root, NULL);
     return root;
 }
 
 struct node *(*dedicated_add_child)(struct node *node, struct board *board) = default_add_child;
+
 struct node *(*dedicated_init)() = default_init;
 
 int to_tile_index(unsigned char tile) {
@@ -181,7 +183,6 @@ void update_can_move(struct board *board, int location, int previous_location) {
  */
 void add_child(struct node *node, int location, int type, int previous_location) {
     struct tile_stack *ts;
-
     if (node->board->turn == MAX_TURNS - 1) {
         return;
     }
@@ -286,7 +287,8 @@ void add_child(struct node *node, int location, int type, int previous_location)
     // If the old x or y position was the minimum value, recompute the min/max value.
     if (old_x == board->min_x || old_y == board->min_y) {
         get_min_x_y(board, &board->min_x, &board->min_y);
-    } if (old_x == board->max_x || old_y == board->max_y) {
+    }
+    if (old_x == board->max_x || old_y == board->max_y) {
         get_max_x_y(board, &board->max_x, &board->max_y);
     }
 
@@ -332,6 +334,7 @@ void add_child(struct node *node, int location, int type, int previous_location)
 }
 
 int points_around[BOARD_SIZE * BOARD_SIZE][6];
+
 void initialize_points_around() {
     for (int y = 0; y < BOARD_SIZE; y++) {
         for (int x = 0; x < BOARD_SIZE; x++) {
@@ -899,7 +902,6 @@ void generate_free_moves(struct node *node, int player_bit, int flags) {
 }
 
 
-
 int generate_children(struct node *root, double end_time, int flags) {
     /*
      * Returns 0 if nothing went wrong, an error-code otherwise
@@ -933,7 +935,6 @@ int generate_children(struct node *root, double end_time, int flags) {
     }
     return list_empty(&root->children);
 }
-
 
 
 void generate_moves(struct node *node, int flags) {

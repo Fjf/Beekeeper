@@ -1,3 +1,4 @@
+import copy
 import ctypes
 import os
 from collections import defaultdict
@@ -5,6 +6,7 @@ from ctypes import *
 from typing import Iterable
 
 import numpy as np
+import torch
 
 from games.Game import Game, GameNode
 from games.utils import GameState, Perspectives
@@ -12,6 +14,7 @@ from games.utils import GameState, Perspectives
 lib = CDLL(os.path.join(os.path.dirname(os.path.realpath(__file__)), "libhive.so"))
 BOARD_SIZE = c_uint.in_dll(lib, "pboardsize").value
 TILE_STACK_SIZE = c_uint.in_dll(lib, "ptilestacksize").value
+N_NODES = c_uint.in_dll(lib, "n_nodes")
 
 MAX_TURNS = c_uint.in_dll(lib, "pmaxturns").value
 TILE_MASK = ((1 << 5) - 1)
@@ -87,7 +90,6 @@ class Board(Structure):
         planes = np.zeros((n_planes, height, BOARD_SIZE, BOARD_SIZE), dtype=c_ubyte)
         planes[0] = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
         planes[1] = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
-
 
         data_color = (planes[0] & COLOR_MASK) >> COLOR_SHIFT
 
@@ -201,71 +203,6 @@ class Arguments(Structure):
     ]
 
 
-class HiveNode(GameNode):
-    encoding = "relative"
-    encodings = ["relative", "absolute"]
-
-    def __init__(self):
-        self.node = Node()
-
-    def to_np(self, player):
-        return self.node.board.contents.to_np(player)
-
-    def encode(self):
-        move: Move = self.node.move
-        tile = move.tile
-        my_idx = lib.to_tile_index(tile & ~COLOR_MASK) - 1  # Range 0:11  (only my tiles (-1 because cannot be empty))
-
-        if Node.encoding == "absolute":
-            location = move.location
-            return my_idx * 26 * 26 + location
-        elif Node.encoding == "relative":
-            next_to = move.next_to
-            direction = move.direction
-
-            # Returns number of the tile in this order; A3 G3 B2 S2 Q1 -> max idx = 11*2 (W + B)
-            tile_idx = lib.to_tile_index(next_to)  # Range 0:23  (all tiles + empty)
-
-            return (my_idx * 23 + tile_idx) * 7 + direction
-
-    def generate_children(self):
-        """
-        Generates the moves for the current root node
-
-        :return:
-        """
-        res = lib.generate_moves(pointer(self.node), ctypes.c_double(1e64), 0)
-        if res != 0:
-            print(f"Error: generate_children returned {res}, exiting.")
-            exit(1)
-
-    def get_children(self):
-        """
-        A generator for all children of this node.
-
-        :return:
-        """
-        if self.node.board.contents.move_location_tracker == 0:
-            self.generate_children()
-
-        head = self.node.children.next
-
-        while ctypes.addressof(head.contents) != ctypes.addressof(self.node.children.head):
-            # Get struct offset
-            child = lib.list_get_node(head)
-
-            yield child.contents
-
-            head = head.contents.next
-
-    def finished(self) -> GameState:
-        result = lib.finished_board(self.node.board)
-        return GameState(result)
-
-    def print(self):
-        lib.print_board(self.node.board)
-
-
 class Node(Structure):
     _fields_ = [
         ('children', List),
@@ -293,100 +230,150 @@ lib.string_move.argtypes = [POINTER(Node)]
 lib.string_move.restype = c_char_p
 
 
+class HiveNode(GameNode):
+    encoding = "absolute"
+
+    def __init__(self, parent, node: POINTER(Node)):
+        super().__init__(parent)
+
+        self.cnode = lib.default_init()
+        lib.node_copy(self.cnode, node)
+        self.children = []
+
+    def turn(self):
+        return self.cnode.contents.board.contents.turn
+
+    def to_np(self, perspective: Perspectives):
+        return self.cnode.contents.board.contents.to_np(perspective)
+
+    def encode(self):
+        # We have no move to get to an initial state.
+        if self.turn() == 0:
+            return None
+
+        move: Move = self.cnode.contents.move
+        tile = move.tile
+        my_idx = lib.to_tile_index(tile & ~COLOR_MASK) - 1  # Range 0:11  (only my tiles (-1 because cannot be empty))
+
+        if HiveNode.encoding == "absolute":
+            location = move.location
+            return my_idx * 26 * 26 + location
+        elif HiveNode.encoding == "relative":
+            next_to = move.next_to
+            direction = move.direction
+
+            # Returns number of the tile in this order; A3 G3 B2 S2 Q1 -> max idx = 11*2 (W + B)
+            tile_idx = lib.to_tile_index(next_to)  # Range 0:23  (all tiles + empty)
+
+            return (my_idx * 23 + tile_idx) * 7 + direction
+
+    def _generate_children(self):
+        """
+        Generates the moves for the current root node
+
+        :return:
+        """
+        res = lib.generate_children(self.cnode, ctypes.c_double(1e64), 0)
+        if res != 0:
+            print(f"Error: generate_children returned {res}, exiting.")
+            exit(1)
+
+    def get_children(self):
+        """
+        A generator for all children of this node.
+
+        :return:
+        """
+
+        if len(self.children) != 0:
+            return self.children
+
+        if self.finished() != GameState.UNDETERMINED:
+            return []
+
+        if self.cnode.contents.board.contents.move_location_tracker == 0:
+            self._generate_children()
+
+        head = self.cnode.contents.children.next
+
+        while ctypes.addressof(head.contents) != ctypes.addressof(self.cnode.contents.children.head):
+            # Get struct offset
+            child = lib.list_get_node(head)
+
+            self.children.append(HiveNode(self, child))
+
+            head = head.contents.next
+
+        # After generating python nodes, delete the old ones
+        lib.node_free_children(self.cnode)
+        return self.children
+
+    def finished(self) -> GameState:
+        result = lib.finished_board(self.cnode.contents.board)
+        return GameState(result)
+
+    def print(self):
+        lib.print_board(self.cnode.contents.board)
+
+    def print_move(self):
+        lib.print_move(self.cnode)
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        gnode = cls.__new__(cls)
+        memo[id(self)] = gnode
+        lib.node_copy(gnode.cnode, self.cnode)
+        return gnode
+
+    def __del__(self):
+        lib.node_free(self.cnode)
+
+
 class Hive(Game):
     encodings = {
         "absolute": 11 * 26 * 26,
         "relative": 11 * 23 * 7
     }
+    input_space = 26 * 26
+    action_space = encodings["absolute"]
 
-    def __init__(self, encoding="relative"):
+    def __init__(self):
         super().__init__()
 
-        # TODO: Combine history and history idx into a single list. (easier management)
-        self.history: list[POINTER(Node)] = []
-        self.history_idx: list[int] = []
+        self.history: list[HiveNode] = []
 
-        self.node = lib.game_init()
+        cnode = lib.game_init()
+        self.node = HiveNode(None, cnode)
+        lib.node_free(cnode)
 
-        # Set the encoding to the desired one.
-        if encoding not in Node.encodings:
-            raise NotImplemented(f"Encoding {encoding} not implemented.")
-
-        Node.encoding = encoding
-
-        self.input_space = 26 * 26  # Board size is 26x26
-        self.action_space = self.encodings[encoding]
+        self.history.append(self.node)
 
         self.turn_limit = MAX_TURNS
 
-    def __deepcopy__(self, memo):
-        cls = self.__class__
-        hive = cls.__new__(cls)
-        memo[id(self)] = hive
-
-        for h in self.history:
-            node = pointer(Node())
-            lib.node_copy(node, h)
-            hive.history.append(node)
-
-        for h in self.history_idx:
-            hive.history_idx.append(h)
-
-        lib.node_copy(hive.node, self.node)
-        return hive
-
-    def __del__(self):
-        for node in self.history:
-            lib.node_free(node)
-        lib.node_free(self.node)
+    def get_inverted(self, boards: list[torch.Tensor]) -> list[torch.Tensor]:
+        return []  # TODO: Implement this.
 
     def turn(self):
-        return self.node.contents.board.contents.turn
+        return self.node.turn()
 
     def print(self):
-        """
-        Prints the current board-state
-
-        :return:
-        """
-        self.node.contents.print()
+        self.node.print()
 
     def finished(self) -> GameState:
-        """
-        Returns the boards finished state
+        return self.node.finished()
 
-        :return:
-        """
-        return self.node.contents.finished()
+    def children(self) -> Iterable[HiveNode]:
+        yield from self.node.get_children()
 
-    def children(self) -> Iterable[Node]:
-        """
-        A generator returning child pointers, wrap it with list() to use all children in a python list.
+    def select_child(self, child: HiveNode):
+        self.history.append(child)
 
-        :return:
-        """
-        yield from self.node.contents.get_children()
+        # Remove C-references to memory
+        lib.node_free_children(self.node.cnode)
 
-    def select_child(self, child: Node):
-        """
-        Selects a child to be used for the next step, it will free the current root node and replace it with
-          the passed child.
+        del self.node.children
 
-        :param n: the index of the child
-        :param child: the new root node
-        :return:
-        """
-
-        copy = lib.default_init()
-        lib.node_copy(copy, self.node)
-        lib.list_empty(pointer(copy.contents.children))
-        self.history.append(copy)
-
-        lib.list_remove(pointer(child.node))
-        lib.node_free(self.node)
-        # Ensure no dangling children.
-        lib.node_free_children(pointer(child))
-        self.node = pointer(child)
+        self.node = child
 
     def ai_move(self, algorithm="random", config: PlayerArguments = None):
         """
@@ -404,53 +391,12 @@ class Hive(Game):
             config.evaluation_function = 3
 
         if algorithm == "random":
-            child = lib.random_moves(self.node, 1)
+            child = lib.random_moves(self.node.cnode, 1)
         elif algorithm == "mm":
-            child = lib.minimax(self.node, pointer(config))
+            child = lib.minimax(self.node.cnode, pointer(config))
         elif algorithm == "mcts":
-            child = lib.mcts(self.node, pointer(config))
+            child = lib.mcts(self.node.cnode, pointer(config))
         else:
             raise ValueError("Unknown algorithm type.")
 
         self.select_child(child.contents)
-
-    def reinitialize(self):
-        """
-        Release the root node from previous games, and re-initialize all data required to start a new game.
-
-        :return:
-        """
-        # Free all history nodes
-        for node in self.history:
-            lib.node_free(node)
-        self.history = []
-        self.history_idx = []
-
-        # Cleanup old node
-        lib.node_free(self.node)
-
-        node = lib.default_init()
-        self.node = node
-        self.node.contents.board = lib.init_board()
-
-    def test(self):
-        """
-        Quick test doing 20 random moves using the engine and printing the output.
-
-        :return:
-        """
-        for i in range(20):
-            self.ai_move()
-            self.print()
-            if self.finished() != GameState.UNDETERMINED:
-                return
-
-    def count_queen_test(self):
-        tiles = 0
-        if self.node.contents.board.contents.dark_queen_position != -1:
-            tiles += lib.count_tiles_around(self.node.contents.board,
-                                            self.node.contents.board.contents.dark_queen_position)
-        if self.node.contents.board.contents.light_queen_position != -1:
-            tiles -= lib.count_tiles_around(self.node.contents.board,
-                                            self.node.contents.board.contents.light_queen_position)
-        return tiles

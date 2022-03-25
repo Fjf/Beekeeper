@@ -2,6 +2,7 @@ import copy
 import logging
 import os
 import pickle
+from collections import defaultdict
 from datetime import datetime
 from typing import Type
 
@@ -54,14 +55,14 @@ class School:
     def generate_data(self):
         # If you are pretraining, play against the fixed opponent instead.
         if self.pretraining:
-            players = (self.updating_network, None)
+            players = (self.updating_network.state_dict(), None)
         else:
-            players = (self.updating_network, self.stable_network)
+            players = (self.updating_network.state_dict(), self.stable_network.state_dict())
 
         self.logger.info(f"Simulating {self.simulations} games on {self.comm.Get_size()} threads.")
         start = datetime.now()
 
-        # Broadcast latest models
+        # Broadcast latest models' state dicts
         self.comm.bcast(pickle.dumps(players))
 
         # Gather data from all workers
@@ -88,7 +89,7 @@ class School:
             return 0
         return 0.5
 
-    def winrate(self, p1, p2, n_games=100) -> float:
+    def winrate(self, p1, p2, n_games=100):
         """
         Compute winrate of two models against each other, with half games played from either perspective.
         MCTS is turned off for winrate computation, meaning only the raw neural network policy values are used.
@@ -98,6 +99,7 @@ class School:
         :param n_games: the amount of games to base the winrate on
         :return: float of winrate, a draw counts as 0.5 wins.
         """
+        results = [0, 0, 0]
         wins = 0
         self.simulator.temperature_threshold = 0
         for i in range(n_games):
@@ -109,9 +111,11 @@ class School:
             else:
                 _, result = self.simulator.play(game, p2, p1, mcts=False)
 
-            wins += self.get_win(result, perspective)
+            win = self.get_win(result, perspective)
+            wins += win
+            results[int(win * 2)] += 1
 
-        return wins / n_games
+        return wins / n_games, results
 
     def train(self, updates=100, pretraining=False, stored_model_filename: str = None):
         """
@@ -151,7 +155,6 @@ class School:
                 # Generate data with current two models
                 ##############################################################################
                 data = self.generate_data()
-
                 # Combine the results of each thread into single packet arrays.
                 tensors = []
                 policy_vectors = []
@@ -169,10 +172,16 @@ class School:
                 # Load existing data from disk.
                 ##############################################################################
                 tensors, policy_vectors, outcomes = zip(*torch.load(filename))
-                tensors = list(tensors)
-                policy_vectors = list(policy_vectors)
-                outcomes = list(outcomes)
 
+            # Convert to tensors
+            tensors = torch.stack(tensors)
+            policy_vectors = torch.stack(policy_vectors)
+            outcomes = torch.stack(outcomes)
+
+            out_res = defaultdict(int)
+            for outcome in outcomes:
+                out_res[int(outcome.item())] += 1
+            self.logger.info(f"Training winrate: {out_res}")
             self.logger.info(f"{len(tensors)} boards added to dataset.")
             if len(tensors) == 0:
                 self.logger.warning("No tensors added, re-running simulation to get more data.")
@@ -181,31 +190,28 @@ class School:
             ##############################################################################
             # Aggregate data into Dataset
             ##############################################################################
-            dataset = HiveDataset(tensors, policy_vectors, outcomes)
+            dataset = HiveDataset(tensors, policy_vectors, outcomes, cuda=False)
 
             # Store older data for N updates
             self.old_data_storage.append(dataset)
             if len(self.old_data_storage) > self.n_old_data:
                 self.old_data_storage = self.old_data_storage[1:]
 
-            aggregated_dataset = HiveDataset([], [], [])
-            for old_data in self.old_data_storage:
+            aggregated_dataset = copy.deepcopy(self.old_data_storage[0])
+            for old_data in self.old_data_storage[1:]:
                 aggregated_dataset += old_data
 
-            for i in range(10):
-                aggregated_dataset += dataset
-
             self.logger.info(f"Training on {len(aggregated_dataset)} boards.")
-            dataloader = DataLoader(aggregated_dataset, batch_size=128, shuffle=True, num_workers=1, persistent_workers=True, prefetch_factor=8, pin_memory=True)
+            dataloader = DataLoader(aggregated_dataset, batch_size=128, shuffle=True, num_workers=0)
 
             ##############################################################################
             # Train model, then check if model is good enough to replace existing model
             ##############################################################################
-            trainer = Trainer(gpus=1, precision=16, max_epochs=2, default_root_dir="checkpoints")
+            trainer = Trainer(gpus=1, precision=16, max_epochs=10, default_root_dir="checkpoints")
             trainer.fit(self.updating_network, dataloader)
 
-            winrate = self.winrate(self.updating_network, self.stable_network, n_games=200)
-            self.logger.info(f"Current performance: {winrate * 100}% wr")
+            winrate, results = self.winrate(self.updating_network, self.stable_network, n_games=200)
+            self.logger.info(f"Current performance: {winrate * 100}% wr ({results})")
             if winrate > 0.55:
                 self.logger.info(f"Updating network, iteration {network_iter}.")
                 torch.save(self.updating_network.state_dict(),
@@ -213,6 +219,3 @@ class School:
                 self.stable_network.load_state_dict(self.updating_network.state_dict())
                 network_iter += 1
 
-            exit(0)
-
-            # torch.cuda.empty_cache()

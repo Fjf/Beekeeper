@@ -84,5 +84,5 @@ class Connect4NN(pl.LightningModule):
         return self.policy_activation(policy), self.value_activation(value)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.05, momentum=0)
+        return torch.optim.SGD(self.parameters(), lr=0.5)
         # return torch.optim.Adam(self.parameters(), lr=0.1)

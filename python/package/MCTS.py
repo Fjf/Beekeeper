@@ -24,10 +24,11 @@ from games.utils import GameState
 
 
 class MCTS:
-    def __init__(self, iterations=100):
+    def __init__(self, iterations=100, device="cuda"):
         self.iterations = iterations
         self.mcts_constant = 1
         self.logger = logging.getLogger("Hive")
+        self.device = torch.device(device)
 
     def select_best(self, root: GameNode, network) -> Tuple[GameNode, Optional[int]]:
         parent = root
@@ -45,17 +46,23 @@ class MCTS:
                 # Initialize policy vector
                 arr = parent.to_np(parent.turn() % 2)
                 tensor = torch.Tensor(arr.reshape(1, *arr.shape))
+                policy, nn_value = network(tensor.to(self.device))
 
-                policy, value = network(tensor)
-                policy = policy[0]  # Extract first from batch
-                parent.mcts.policy = policy
+                parent.mcts.policy = policy[0].to("cpu")
+                value = nn_value.item()
+
+                del nn_value
+                del tensor
+                del policy
+                # Free up some cuda memory.
+                # torch.cuda.empty_cache()
 
                 # Initialize children.
                 for child in children:
                     # Initialize child value to the inverted value of this, best value for p1 is worst for p2
-                    child.mcts.value = (1 - policy[child.encode()]).item()
+                    child.mcts.value = (1 - parent.mcts.policy[child.encode()]).item()
                     child.mcts.n_sims = 1
-                return parent, value.item()
+                return parent, value
 
             ################################
             # Select best child to explore.
@@ -92,12 +99,14 @@ class MCTS:
         :param root:
         :return:
         """
+        if network.device != self.device:
+            network = network.to(self.device)
 
         # Do N iterations of MCTS, building the tree based on the NN output.
         for i in range(self.iterations):
             leaf, value = self.select_best(root.node, network)
+            assert root.node.mcts.policy.device == torch.device("cpu"), f"Device: '{root.node.mcts.policy.device}'"
             state = leaf.finished()
-
             if state != GameState.UNDETERMINED:
                 # If it is a terminal state, force update the policy vector.
                 if state == GameState.WHITE_WON:
@@ -119,7 +128,6 @@ class MCTS:
 
         for node in root.children():
             games = node.mcts.n_sims
-            assert(games != 0), f"Games = {games}"
             updated_policy[node.encode()] += (games - 1)
 
         return updated_policy / torch.sum(updated_policy)

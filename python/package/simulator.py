@@ -154,9 +154,11 @@ class Simulator:
         result_values = [torch.Tensor([result_value])] * len(tensors)
 
         # Invert tensors
-        tensors += game.get_inverted(tensors)
-        policy_vectors += policy_vectors
-        result_values += ([torch.Tensor([result_value * -1])] * len(tensors))
+        new_tensors = game.get_inverted(tensors)
+        if len(new_tensors) > 0:
+            tensors += new_tensors
+            policy_vectors += policy_vectors
+            result_values += ([torch.Tensor([result_value * -1])] * len(new_tensors))
 
         # TODO: Wrap this in a namedtuple
         return tensors, policy_vectors, result_values, nn_perspective

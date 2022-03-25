@@ -5,31 +5,32 @@ from torch import nn
 
 
 class HiveNN(pl.LightningModule):
-    def __init__(self, input_size=676, output_size=26*26*11):
+    def __init__(self, input_size=26*26 * 2, output_size=26*26*11):
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(2, 4, (3, 3), padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2),
 
-            nn.Conv2d(4, 4, (3, 3), padding=2),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-
-            nn.Conv2d(4, 8, (3, 3), padding=2),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-
-            nn.Conv2d(8, 8, (2, 2), padding=1),
+            nn.Conv2d(4, 16, (3, 3), padding=1),
             nn.ReLU(),
 
-            nn.Conv2d(8, 16, (2, 2), padding=1),
+            nn.Conv2d(16, 16, (3, 3), padding=1),
             nn.ReLU(),
+
+            nn.Conv2d(16, 16, (3, 3), padding=2),
+            nn.ReLU(),
+
+            nn.Conv2d(16, 16, (3, 3), padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d((2, 2)),
 
             nn.Flatten(),
-            nn.Linear(576, output_size + 1),
-            nn.Sigmoid(),
+            nn.Linear(3600, output_size + 1)
         )
+
+        self.policy_activation = nn.Softmax(dim=1)
+        self.value_activation = nn.Tanh()
+
         self.output_size = output_size
         self.input_size = input_size
 
@@ -39,26 +40,33 @@ class HiveNN(pl.LightningModule):
     def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
         x, pi, game_value = batch
 
+        # Increase class differences
+        pi = torch.pow(pi, 4)
+        pi /= torch.sum(pi, dim=1).view(pi.shape[0], 1)
+
         policy, value = self(x)
 
-        # value_error = (game_value - value) ** 2
-        # policy_error = torch.sum((-pi * (1e-8 + policy).log()), 1)
-        # return (value_error.view(-1) + policy_error).mean()
+        l2_lambda = 0.001
+        l2_norm = sum(p.pow(2.0).sum() for p in self.encoder.parameters())
+        l2_regularization = l2_norm * l2_lambda
 
         value_loss = self.loss_v(game_value, value)
-        return value_loss.mean()
-
         policy_loss = self.loss_pi(pi, policy)
 
-        return (value_loss + policy_loss).mean()
+        loss = (value_loss - policy_loss).mean() + l2_regularization
+        return loss
 
     @staticmethod
-    def loss_pi(targets, outputs):
-        return -torch.sum(targets * torch.log(outputs), 1)
+    def loss_pi(targets: torch.Tensor, outputs):
+        # return torch.sum(targets * torch.log(outputs)) / targets.size()[0]
+        shape = targets.shape
+        result = torch.bmm(targets.view(shape[0], 1, shape[1]), torch.log(outputs).view(shape[0], shape[1], 1))
+        return result.flatten()
 
     @staticmethod
     def loss_v(targets, outputs):
-        return (targets - outputs) ** 2
+        # return torch.sum((targets - outputs.view) ** 2) / targets.size()[0]
+        return ((targets - outputs) ** 2).flatten()
 
     def forward(self, x):
         # in lightning, forward defines the prediction/inference actions
@@ -66,8 +74,8 @@ class HiveNN(pl.LightningModule):
         segments = torch.tensor_split(embedding, (self.output_size,), dim=1)
         policy, value = segments[0], segments[1]
 
-        return policy, value
+        return self.policy_activation(policy), self.value_activation(value)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.0005)
+        return torch.optim.SGD(self.parameters(), lr=0.05)
         # return torch.optim.Adam(self.parameters(), lr=0.02)

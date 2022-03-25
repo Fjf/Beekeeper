@@ -75,12 +75,12 @@ class TicTacToeNN (pl.LightningModule):
 
     def forward(self, x):
         # in lightning, forward defines the prediction/inference actions
-        embedding = self.encoder(x.type(torch.Tensor))
+        embedding = self.encoder(x)
         segments = torch.tensor_split(embedding, (self.output_size,), dim=1)
         policy, value = segments[0], segments[1]
 
         return self.policy_activation(policy), self.value_activation(value)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.05, momentum=0)
+        return torch.optim.SGD(self.parameters(), lr=0.1)
         # return torch.optim.Adam(self.parameters(), lr=0.1)
