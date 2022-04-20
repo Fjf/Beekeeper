@@ -11,10 +11,10 @@ from games.utils import GameState, Perspectives
 
 
 class Simulator:
-    def __init__(self, game: Type[Game], mcts_iterations=100):
+    def __init__(self, game: Type[Game], mcts_iterations=100, device="cpu"):
         self.do_mcts = True
         self.game = game
-        self.mcts_object = MCTS(mcts_iterations)
+        self.mcts_object = MCTS(mcts_iterations, device=device)
         self.temperature_threshold = 0.5
 
     @staticmethod

@@ -74,6 +74,9 @@ def main():
     network_type = [s for s in pytorch_lightning.LightningModule.__subclasses__()
                     if args.game.lower() in s.__name__.lower()][0]
 
+    # Optimize backends
+    torch.backends.cudnn.benchmark = True
+
     # Give workers their own logic
     if rank != MASTER_THREAD:
         return main_worker(game_type, network_type, n_sims=n_sims, mcts_iterations=mcts_iterations)
@@ -98,34 +101,41 @@ def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sim
     network1 = model_type()
     network2 = model_type()
 
-    while True:
-        data = comm.bcast(None, root=MASTER_THREAD)
-        state_dicts = pickle.loads(data)
-        simulator = Simulator(game, mcts_iterations=mcts_iterations)
+    network1.eval()
+    network2.eval()
 
-        for i in range(rank - 1, n_sims, comm.Get_size() - 1):
-            state_dict1, state_dict2 = state_dicts
+    simulator = Simulator(game, mcts_iterations=mcts_iterations, device=f"cuda:{rank % torch.cuda.device_count()}")
 
-            if i % 2 == 0:
-                perspective = Perspectives.PLAYER1
-            else:
-                perspective = Perspectives.PLAYER2
+    logging.info(f"Process {rank} running on device {simulator.mcts_object.device}")
 
-            # Swap neural networks to let training network experience both perspectives.
-            if perspective == Perspectives.PLAYER2:
-                state_dict1, state_dict2 = state_dict2, state_dict1
+    with torch.no_grad():
+        while True:
+            data = comm.bcast(None, root=MASTER_THREAD)
+            state_dicts = pickle.loads(data)
 
-            network1.load_state_dict(state_dict1)
-            network2.load_state_dict(state_dict2)
+            for i in range(rank - 1, n_sims, comm.Get_size() - 1):
+                state_dict1, state_dict2 = state_dicts
 
-            data = simulator.parallel_play(perspective, network1, network2)
-            comm.send((i, *data), MASTER_THREAD)
+                if i % 2 == 0:
+                    perspective = Perspectives.PLAYER1
+                else:
+                    perspective = Perspectives.PLAYER2
 
-            del data
-            torch.cuda.empty_cache()
+                # Swap neural networks to let training network experience both perspectives.
+                if perspective == Perspectives.PLAYER2:
+                    state_dict1, state_dict2 = state_dict2, state_dict1
 
-        # We don't need to be in a busyloop.
-        time.sleep(0.2)
+                network1.load_state_dict(state_dict1)
+                network2.load_state_dict(state_dict2)
+
+                data = simulator.parallel_play(perspective, network1, network2)
+                comm.send((i, *data), MASTER_THREAD)
+
+                del data
+                torch.cuda.empty_cache()
+
+            # We don't need to be in a busyloop.
+            time.sleep(0.2)
 
 
 if __name__ == "__main__":

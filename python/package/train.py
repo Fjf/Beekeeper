@@ -207,15 +207,18 @@ class School:
             ##############################################################################
             # Train model, then check if model is good enough to replace existing model
             ##############################################################################
+            self.updating_network.train()
             trainer = Trainer(gpus=1, precision=16, max_epochs=10, default_root_dir="checkpoints")
             trainer.fit(self.updating_network, dataloader)
+            self.updating_network.eval()
 
-            winrate, results = self.winrate(self.updating_network, self.stable_network, n_games=200)
-            self.logger.info(f"Current performance: {winrate * 100}% wr ({results})")
-            if winrate > 0.55:
-                self.logger.info(f"Updating network, iteration {network_iter}.")
-                torch.save(self.updating_network.state_dict(),
-                           os.path.join(self.model_dir, f"iteration_{network_iter}.pt"))
-                self.stable_network.load_state_dict(self.updating_network.state_dict())
-                network_iter += 1
+            with torch.no_grad():
+                winrate, results = self.winrate(self.updating_network, self.stable_network, n_games=200)
+                self.logger.info(f"Current performance: {winrate * 100}% wr ({results})")
+                if winrate > 0.55:
+                    self.logger.info(f"Updating network, iteration {network_iter}.")
+                    torch.save(self.updating_network.state_dict(),
+                               os.path.join(self.model_dir, f"iteration_{network_iter}.pt"))
+                    self.stable_network.load_state_dict(self.updating_network.state_dict())
+                    network_iter += 1
 

@@ -24,7 +24,7 @@ from games.utils import GameState
 
 
 class MCTS:
-    def __init__(self, iterations=100, device="cuda"):
+    def __init__(self, iterations=100, device="cpu"):
         self.iterations = iterations
         self.mcts_constant = 1
         self.logger = logging.getLogger("Hive")
