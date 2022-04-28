@@ -13,7 +13,7 @@
  */
 unsigned int pboardsize = BOARD_SIZE;
 unsigned int ptilestacksize = TILE_STACK_SIZE;
-unsigned int pmaxturns = MAX_TURNS;
+unsigned int pmaxturns = MAX_TURNS - 1;
 
 /*
  * Initialize the board.
@@ -80,8 +80,6 @@ void get_max_x_y(struct board *board, int *max_x, int *max_y) {
         }
     }
 }
-
-
 
 
 void force_set_bounds(struct board *board) {
@@ -152,7 +150,7 @@ void translate_board(struct board *board) {
 
     // Copy data into temp array
     char t[BOARD_SIZE * BOARD_SIZE] = {0};
-    char *temp = (void*) &t;
+    char *temp = (void *) &t;
 
     memcpy(temp + (to_y * BOARD_SIZE + to_x) * sizeof(char),
            ((char *) &board->tiles) + offset * sizeof(char),
@@ -208,7 +206,7 @@ void translate_board_22(struct board *board) {
 
     // Copy data into temp array
     char t[BOARD_SIZE * BOARD_SIZE] = {0};
-    char *temp = (void*) &t;
+    char *temp = (void *) &t;
 
     memcpy(temp + (2 * BOARD_SIZE + 2) * sizeof(char),
            ((char *) &board->tiles) + offset * sizeof(char),
@@ -279,12 +277,12 @@ int finished_board(struct board *board) {
     }
 
     // Check draw by repetition.
-    int sum = 0;
-    for (int i = 0; i < board->turn; i++) {
-        if (board->hash_history[i] == board->zobrist_hash) sum++;
-
-        if (sum == 3) res = 3;
-    }
+//    int sum = 0;
+//    for (int i = 0; i < board->turn; i++) {
+//        if (board->hash_history[i] == board->zobrist_hash) sum++;
+//
+//        if (sum == 3) res = 3;
+//    }
 
     // Draw due to turn limit
     if (board->turn >= MAX_TURNS - 1) {
@@ -364,7 +362,7 @@ void print_board(struct board *board) {
     printf("\n");
 }
 
-void print_matrix(struct board* board) {
+void print_matrix(struct board *board) {
     printf("---------\n");
     for (int i = 0; i < BOARD_SIZE - 0; i++) {
         for (int j = 0; j < BOARD_SIZE - 0; j++) {

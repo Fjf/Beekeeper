@@ -1,6 +1,7 @@
 import copy
 import ctypes
 import os
+import random
 from collections import defaultdict
 from ctypes import *
 from typing import Iterable
@@ -76,6 +77,20 @@ class Board(Structure):
         ('has_updated', c_bool),
     ]
 
+    lookup = [
+        TILE_GRASSHOPPER | (0 << NUMBER_SHIFT),
+        TILE_GRASSHOPPER | (1 << NUMBER_SHIFT),
+        TILE_GRASSHOPPER | (2 << NUMBER_SHIFT),
+        TILE_ANT | (0 << NUMBER_SHIFT),
+        TILE_ANT | (1 << NUMBER_SHIFT),
+        TILE_ANT | (2 << NUMBER_SHIFT),
+        TILE_SPIDER | (0 << NUMBER_SHIFT),
+        TILE_SPIDER | (1 << NUMBER_SHIFT),
+        TILE_BEETLE | (0 << NUMBER_SHIFT),
+        TILE_BEETLE | (1 << NUMBER_SHIFT),
+        TILE_QUEEN | (0 << NUMBER_SHIFT),
+    ]
+
     def to_np(self, perspective: Perspectives):
         """
         Convert internal array representation to numpy array
@@ -84,20 +99,34 @@ class Board(Structure):
         """
         player = 0 if perspective == Perspectives.PLAYER1 else 1
 
-        n_planes = 2
+        n_planes = N_TILES + 1
         height = 1
         # Fill zero array with raw binary data from library
         planes = np.zeros((n_planes, height, BOARD_SIZE, BOARD_SIZE), dtype=c_ubyte)
-        planes[0] = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
-        planes[1] = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
+        board = np.frombuffer(self.tiles, c_ubyte).reshape((26, 26))
 
-        data_color = (planes[0] & COLOR_MASK) >> COLOR_SHIFT
+        split = N_TILES // 2
+        for i in range(N_TILES):
+            color = (i // split) << COLOR_SHIFT
+            tile = self.lookup[i % split]
 
-        planes[0][data_color == player] = 0
-        planes[1][data_color != player] = 0
+            planes[i, 0] = board == (color | tile)
+            # print(board == (color | tile))
+            # print(color | tile)
 
-        # Remove color from the data as it is now split into planes
-        planes &= 223
+        planes[-1, 0, :, :] = player
+
+        # print(planes)
+        # print(board)
+        # print(planes.shape)
+        # data_color = (planes[0] & COLOR_MASK) >> COLOR_SHIFT
+        #
+        #
+        # planes[0][data_color == player] = 0
+        # planes[1][data_color != player] = 0
+        #
+        # # Remove number and color from tiles.
+        # planes = (planes & TILE_MASK)
 
         return planes.reshape((n_planes, BOARD_SIZE, BOARD_SIZE))
 
@@ -334,7 +363,7 @@ class Hive(Game):
         "absolute": 11 * 26 * 26,
         "relative": 11 * 23 * 7
     }
-    input_space = 26 * 26
+    input_space = 26 * 26 * 2
     action_space = encodings["absolute"]
 
     def __init__(self):
@@ -351,7 +380,11 @@ class Hive(Game):
         self.turn_limit = MAX_TURNS
 
     def get_inverted(self, boards: list[torch.Tensor]) -> list[torch.Tensor]:
-        return []  # TODO: Implement this.
+        output = []
+        for board in boards:
+            new_board = torch.flip(board, dims=(0,))
+            output.append(new_board)
+        return output
 
     def turn(self):
         return self.node.turn()
@@ -391,7 +424,9 @@ class Hive(Game):
             config.evaluation_function = 3
 
         if algorithm == "random":
-            child = lib.random_moves(self.node.cnode, 1)
+            children = self.node.get_children()
+            self.select_child(random.sample(children, 1)[0])
+            return
         elif algorithm == "mm":
             child = lib.minimax(self.node.cnode, pointer(config))
         elif algorithm == "mcts":

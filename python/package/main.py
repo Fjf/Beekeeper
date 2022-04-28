@@ -1,16 +1,18 @@
 import argparse
+import contextlib
 import logging
 import pickle
 import socket
 from typing import Type
 
-import pytorch_lightning
 import sys
 import traceback
 
-import torch.cuda
-from mpi4py import MPI
+import pytorch_lightning
 from torch.utils.tensorboard import SummaryWriter
+import torch.cuda
+
+from mpi4py import MPI
 
 from games.Game import Game
 from games.utils import Perspectives
@@ -26,6 +28,9 @@ def setup_logger():
     handler.setFormatter(formatter)
 
     logger = logging.getLogger("Hive")
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    logger = logging.getLogger("Child")
     logger.setLevel(logging.DEBUG)
     logger.addHandler(handler)
     return logger
@@ -97,6 +102,10 @@ def main():
 
 def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sims=100, mcts_iterations=100):
     import time
+    logger = logging.getLogger("Child")
+
+    gpu_idx = rank % torch.cuda.device_count()
+    gpu_mem = torch.cuda.get_device_properties(gpu_idx).total_memory
 
     network1 = model_type()
     network2 = model_type()
@@ -104,9 +113,16 @@ def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sim
     network1.eval()
     network2.eval()
 
-    simulator = Simulator(game, mcts_iterations=mcts_iterations, device=f"cuda:{rank % torch.cuda.device_count()}")
+    simulator = Simulator(game, mcts_iterations=mcts_iterations, device=f"cuda:{gpu_idx}")
 
-    logging.info(f"Process {rank} running on device {simulator.mcts_object.device}")
+    model_size = pytorch_lightning.utilities.memory.get_model_size_mb(network1) * 1024 * 1024 * 2
+    mcts_size = (game.input_space * 4 + game.action_space * 4 * 60) * mcts_iterations
+
+    tot_mem = model_size + mcts_size
+
+    if rank - 2 == gpu_idx:
+        logger.info(f"There fit {gpu_mem / tot_mem} procs on GPU {gpu_idx}")
+        logger.info(f"Process {rank} running on device {simulator.mcts_object.device}")
 
     with torch.no_grad():
         while True:

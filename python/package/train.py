@@ -71,6 +71,7 @@ class School:
         for _ in tqdm(range(self.simulations)):
             data.append(self.comm.recv())
         self.logger.debug(f"Spent {datetime.now() - start} to simulate {self.simulations} games.")
+
         return data
 
     @staticmethod
@@ -102,7 +103,9 @@ class School:
         results = [0, 0, 0]
         wins = 0
         self.simulator.temperature_threshold = 0
-        for i in range(n_games):
+        p1 = p1.to("cuda")
+        p2 = p2.to("cuda")
+        for i in tqdm(range(n_games)):
             perspective = Perspectives.PLAYER1 if i % 2 == 0 else Perspectives.PLAYER2
             game = self.game()
 
@@ -114,6 +117,9 @@ class School:
             win = self.get_win(result, perspective)
             wins += win
             results[int(win * 2)] += 1
+
+        p1 = p1.to("cpu")
+        p2 = p2.to("cpu")
 
         return wins / n_games, results
 
@@ -215,7 +221,7 @@ class School:
             with torch.no_grad():
                 winrate, results = self.winrate(self.updating_network, self.stable_network, n_games=200)
                 self.logger.info(f"Current performance: {winrate * 100}% wr ({results})")
-                if winrate > 0.55:
+                if winrate > 0.6:
                     self.logger.info(f"Updating network, iteration {network_iter}.")
                     torch.save(self.updating_network.state_dict(),
                                os.path.join(self.model_dir, f"iteration_{network_iter}.pt"))

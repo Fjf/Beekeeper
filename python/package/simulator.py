@@ -63,7 +63,7 @@ class Simulator:
             arr = arr.reshape(1, *arr.shape)
 
             # Convert data to tensorflow usable format
-            data = torch.Tensor(arr)
+            data = torch.Tensor(arr).to(network.device)
 
             # Get policy vector
             policy, _ = network(data)

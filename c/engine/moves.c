@@ -921,7 +921,7 @@ int generate_children(struct node *root, double end_time, int flags) {
         return ERR_NOMEM;
     }
 
-    if (root->board->turn == MAX_TURNS - 1) {
+    if (root->board->turn >= MAX_TURNS - 1) {
         return ERR_NOMOVES;
     }
 

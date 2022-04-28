@@ -6,21 +6,33 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 
 from games.connect4.connect4 import Connect4
+from games.utils import ResNetBlock
 
 
 class Connect4NN(pl.LightningModule):
     def __init__(self, input_size=Connect4.input_space, output_size=Connect4.action_space):
         super().__init__()
         self.encoder = nn.Sequential(
-            nn.Linear(input_size, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.Dropout(0.3),
-            nn.ReLU(),
-            nn.Linear(32, output_size + 1)
+            ResNetBlock(2, 2),
+            ResNetBlock(2, 2),
+            ResNetBlock(2, 2),
+            ResNetBlock(2, 2),
+
+            nn.Flatten(),
+            nn.Linear(70, output_size + 1)
         )
+        # self.encoder = nn.Sequential(
+        #     nn.Flatten(),
+        #     nn.Linear(36, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 32),
+        #     nn.Dropout(0.3),
+        #     nn.ReLU(),
+        #     nn.Linear(32, output_size + 1)
+        # )
+
         self.policy_activation = nn.Softmax(dim=1)
         self.value_activation = nn.Tanh()
 
@@ -79,10 +91,12 @@ class Connect4NN(pl.LightningModule):
         # in lightning, forward defines the prediction/inference actions
         embedding = self.encoder(x)
         segments = torch.tensor_split(embedding, (self.output_size,), dim=1)
+        # policy = embedding[:, 0:self.output_size]
+        # value = embedding[:, -1]
         policy, value = segments[0], segments[1]
 
         return self.policy_activation(policy), self.value_activation(value)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.5)
+        return torch.optim.SGD(self.parameters(), lr=0.05)
         # return torch.optim.Adam(self.parameters(), lr=0.1)

@@ -6,7 +6,7 @@ set(CMAKE_C_FLAGS "-std=gnu99 -O3 -march=native -fopenmp")
 # Set include directories for builds
 include_directories(.)
 
-set(MAX_TURNS 180)
+set(MAX_TURNS 80)
 
 # Add main.cpp file of project root directory as source file
 set(LIB_FILES engine/board.c engine/list.c engine/moves.c engine/node.c engine/tt.c engine/utils.c mm/mm.c mm/evaluation.c)

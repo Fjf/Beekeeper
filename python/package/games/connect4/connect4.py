@@ -44,10 +44,14 @@ class Connect4Node(GameNode):
             maskp1 = arr == 1
             arr[maskp2] = 1
             arr[maskp1] = 2
-
         # Set values to 1, -1 instead of 1, 2
         arr[arr == 2] = -1
-        return np.append(arr, [self.turn() % 2])
+
+        arr = arr.reshape(1, *self._board.shape)
+
+        # return np.append(arr.flatten(), self.turn() % 2)
+        arr = np.vstack((arr, np.ones(arr.shape) * [self.turn() % 2]))
+        return arr.reshape(-1, *self._board.shape)
 
     def encode(self) -> int:
         return self.move

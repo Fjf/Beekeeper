@@ -1,4 +1,5 @@
 import unittest
+from collections import defaultdict
 
 from MCTS import MCTS
 from games.hive.hive import Hive, lib, N_NODES
@@ -9,6 +10,19 @@ from games.utils import GameState
 class MyTestCase(unittest.TestCase):
     game = Hive
     nn = HiveNN
+
+    def test_game_outcome(self):
+
+        results = defaultdict(int)
+        for i in range(1000):
+            game = self.game()
+            while game.finished() == GameState.UNDETERMINED:
+                game.ai_move("random")
+
+
+            results[game.finished()] += 1
+
+        print(results)
 
     def test_something(self):
         return
