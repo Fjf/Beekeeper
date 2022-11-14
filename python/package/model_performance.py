@@ -1,73 +1,41 @@
-import random
-
-import torch
 import os.path
 
-from games.connect4.connect4_nn import Connect4NN
-from games.hive.hive import Hive
-from games.hive.hive_nn import HiveNN
-from games.tictactoe.tictactoe import TicTacToe
-from games.tictactoe.tictactoe_nn import TicTacToeNN
-from simulator import Simulator
-from games.connect4.connect4 import Connect4, Connect4Node
-from games.utils import GameState
+import numpy as np
+import torch
+from matplotlib import pyplot as plt
 
-# NN = Connect4NN
-# Game = Connect4
-# dir = "C4_models"
-NN = HiveNN
-Game = Hive
-dir = "Hive_models"
+from train import School
 
 
-def play(model, side=0, show=False):
-    game = Game()
-
-    model = model.to("cuda:1")
-
-    simulator = Simulator(Connect4)
-    simulator.temperature_threshold = 0
-    while game.finished() == GameState.UNDETERMINED:
-        if game.turn() % 2 == side or side == 2:
-            simulator.nn_move(model, game, mcts=False)
-        else:
-            children = game.children()
-            game.select_child(random.choice(list(children)))
-
-        if show:
-            game.print()
-
-    if game.finished() == GameState.WHITE_WON:
-        result = 1
-    elif game.finished() == GameState.BLACK_WON:
-        result = 0
-    else:
-        result = 0.5
-    if side == 1:
-        result = 1 - result
-
-    return result
-
-
-def main():
-    for i in range(7, 100):
-        filename = f"{dir}/iteration_{i}.pt"
+def performance(model_dir, game_type, model_type):
+    # Load all available models into a list to use later
+    n_models = 0
+    models = []
+    while True:
+        filename = f"{model_dir}/iteration_{n_models}.pt"
         if not os.path.exists(filename):
             break
+        print(f"Loading model {filename}")
+        models.append(model_type())
+        models[-1].load_state_dict(torch.load(filename))
+        n_models += 1
 
-        print(f"Loading {filename}")
-        model = NN(Game.input_space, Game.action_space)
-        model.load_state_dict(torch.load(filename))
-        model.eval()
+    # Initialize results matrix
+    results = np.zeros((n_models, n_models))
 
-        # outcomes = [play(model, side=2) for i in range(200)]
-        # print(f"Outcomes: {[outcomes.count(result) for result in [0, 0.5, 1]]}")
-        outcomes = [play(model, side=i % 2) for i in range(200)]
-        print(f"Outcomes: {[outcomes.count(result) for result in [0, 0.5, 1]]}")
-        print(f"{filename} winrate: {sum(outcomes) / len(outcomes)}")
+    school = School(game_type, model_type)
+    # Create winrate matrix
+    for i in range(n_models):
+        for j in range(n_models):
+            if i >= j: continue
 
-        # play(model, 2, True)
+            n_sims = 100
+            winrate, _ = school.winrate(models[i], models[j], n_sims)
+            print(i, j, winrate)
+            results[i, j] = winrate
+            results[j, i] = 1 - winrate
 
+    print(results)
+    plt.imshow(results, interpolation="none")
+    plt.savefig("results.png")
 
-if __name__ == "__main__":
-    main()

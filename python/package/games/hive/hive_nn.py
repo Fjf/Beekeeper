@@ -13,29 +13,51 @@ class HiveNN(pl.LightningModule):
 
         n_planes = 23
 
+        # self.encoder = nn.Sequential(
+        #     ResNetBlock(n_planes, n_planes),
+        #     ResNetBlock(n_planes, n_planes),
+        #     ResNetBlock(n_planes, n_planes),
+        #     ResNetBlock(n_planes, n_planes),
+        #
+        #     nn.Flatten(),
+        #     nn.Linear(n_planes * 26 * 26, output_size + 1)
+        # )
+
         self.encoder = nn.Sequential(
-            ResNetBlock(n_planes, n_planes),
-            ResNetBlock(n_planes, n_planes),
-            ResNetBlock(n_planes, n_planes),
-            ResNetBlock(n_planes, n_planes),
+            nn.Conv2d(in_channels=n_planes, out_channels=n_planes, kernel_size=3, stride=1, padding=1,
+                      padding_mode="circular"),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=n_planes, out_channels=n_planes, kernel_size=3, stride=1, padding=1,
+                      padding_mode="circular"),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(in_channels=n_planes, out_channels=n_planes, kernel_size=3, stride=1, padding=1,
+                      padding_mode="circular"),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=n_planes, out_channels=n_planes, kernel_size=3, stride=1, padding=1,
+                      padding_mode="circular"),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(in_channels=n_planes, out_channels=n_planes, kernel_size=3, stride=1, padding=1,
+                      padding_mode="circular"),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=n_planes, out_channels=n_planes, kernel_size=3, stride=1, padding=1,
+                      padding_mode="circular"),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(in_channels=n_planes, out_channels=n_planes, kernel_size=3, stride=1, padding=1,
+                      padding_mode="circular"),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=n_planes, out_channels=n_planes, kernel_size=3, stride=1, padding=1,
+                      padding_mode="circular"),
+            nn.ReLU(),
 
             nn.Flatten(),
-            nn.Linear(n_planes * 26 * 26, output_size + 1)
+            nn.Linear(207, output_size + 1)
         )
-
-        # self.encoder = nn.Sequential(
-        #     nn.Flatten(),
-        #     nn.Linear(input_size, 1024),
-        #     nn.ReLU(),
-        #     nn.Linear(1024, 512),
-        #     nn.ReLU(),
-        #     nn.Linear(512, 512),
-        #     nn.ReLU(),
-        #     nn.Linear(512, 512),
-        #     nn.Dropout(0.3),
-        #     nn.ReLU(),
-        #     nn.Linear(512, output_size + 1)
-        # )
 
         self.policy_activation = nn.Softmax(dim=1)
         self.value_activation = nn.Tanh()
@@ -52,14 +74,14 @@ class HiveNN(pl.LightningModule):
 
         policy, value = self(x)
 
-        l2_lambda = 0.001
-        l2_norm = sum(p.pow(2.0).sum() for p in self.encoder.parameters())
-        l2_regularization = l2_norm * l2_lambda
+        # l2_lambda = 0.001
+        # l2_norm = sum(p.pow(2.0).sum() for p in self.encoder.parameters())
+        # l2_regularization = l2_norm * l2_lambda
 
         value_loss = self.loss_v(game_value, value)
         policy_loss = self.loss_pi(pi, policy)
 
-        loss = (value_loss - policy_loss).mean() + l2_regularization
+        loss = (value_loss - policy_loss).mean()
         return loss
 
     @staticmethod

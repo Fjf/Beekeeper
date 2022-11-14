@@ -264,10 +264,10 @@ class HiveNode(GameNode):
 
     def __init__(self, parent, node: POINTER(Node)):
         super().__init__(parent)
+        self.children = []
 
         self.cnode = lib.default_init()
         lib.node_copy(self.cnode, node)
-        self.children = []
 
     def turn(self):
         return self.cnode.contents.board.contents.turn
@@ -313,7 +313,6 @@ class HiveNode(GameNode):
 
         :return:
         """
-
         if len(self.children) != 0:
             return self.children
 
@@ -403,10 +402,10 @@ class Hive(Game):
 
         # Remove C-references to memory
         lib.node_free_children(self.node.cnode)
-
-        del self.node.children
+        self.node.children = []
 
         self.node = child
+        self.node.parent = None
 
     def ai_move(self, algorithm="random", config: PlayerArguments = None):
         """

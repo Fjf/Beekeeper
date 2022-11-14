@@ -18,12 +18,13 @@ from games.Game import Game
 from games.hive.hive import GameState
 from games.hive.hive_dataset import HiveDataset
 from games.utils import Perspectives
+from mpi_packet import MPIPacketState, MPIPacket
 from simulator import Simulator
 
 
 class School:
     def __init__(self, game: Type[Game], network: Type[pytorch_lightning.LightningModule], simulations=100,
-                 n_old_data=1, model_dir="model", data_dir="data"):
+                 n_old_data=1, model_dir="model", data_dir="data", device="cuda:0"):
         self.logger = logging.getLogger("Hive")
         self.network_type = network
 
@@ -39,7 +40,7 @@ class School:
         self.pretraining = False
 
         self.game = game
-        self.simulator = Simulator(game, 40)
+        self.simulator = Simulator(game, 40, device=device)
 
         self.logger.info(f"Initializing training and stable network ({game.input_space} -> {game.action_space}).")
         self.updating_network = network(game.input_space, game.action_space)
@@ -55,15 +56,18 @@ class School:
     def generate_data(self):
         # If you are pretraining, play against the fixed opponent instead.
         if self.pretraining:
-            players = (self.updating_network.state_dict(), None)
+            players = (self.updating_network.to("cpu").state_dict(), None)
         else:
-            players = (self.updating_network.state_dict(), self.stable_network.state_dict())
+            players = (self.updating_network.to("cpu").state_dict(), self.stable_network.to("cpu").state_dict())
 
         self.logger.info(f"Simulating {self.simulations} games on {self.comm.Get_size()} threads.")
         start = datetime.now()
 
+        # Create packet to send.
+        packet = MPIPacket(MPIPacketState.PROCESS, players)
+
         # Broadcast latest models' state dicts
-        self.comm.bcast(pickle.dumps(players))
+        self.comm.bcast(pickle.dumps(packet))
 
         # Gather data from all workers
         data = []
@@ -123,7 +127,7 @@ class School:
 
         return wins / n_games, results
 
-    def train(self, updates=100, pretraining=False, stored_model_filename: str = None):
+    def train(self, updates=100, pretraining=False, stored_model_filename: str = None, batch_size=256):
         """
         The reinforcement learning loop.
 
@@ -179,6 +183,9 @@ class School:
                 ##############################################################################
                 tensors, policy_vectors, outcomes = zip(*torch.load(filename))
 
+            print("Done profiling")
+            return
+
             # Convert to tensors
             tensors = torch.stack(tensors)
             policy_vectors = torch.stack(policy_vectors)
@@ -208,7 +215,7 @@ class School:
                 aggregated_dataset += old_data
 
             self.logger.info(f"Training on {len(aggregated_dataset)} boards.")
-            dataloader = DataLoader(aggregated_dataset, batch_size=128, shuffle=True, num_workers=0)
+            dataloader = DataLoader(aggregated_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
             ##############################################################################
             # Train model, then check if model is good enough to replace existing model
