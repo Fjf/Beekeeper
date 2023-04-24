@@ -1,4 +1,3 @@
-import copy
 import ctypes
 import os
 import random

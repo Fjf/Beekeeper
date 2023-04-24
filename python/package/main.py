@@ -1,18 +1,15 @@
 import argparse
-import contextlib
 import logging
 import pickle
 import socket
-from typing import Type
-
 import sys
 import traceback
+from typing import Type
 
 import pytorch_lightning
-from torch.utils.tensorboard import SummaryWriter
 import torch.cuda
-
 from mpi4py import MPI
+from torch.utils.tensorboard import SummaryWriter
 
 from games.Game import Game
 from games.utils import Perspectives
@@ -47,6 +44,8 @@ def setup_parser():
                              "the network. Might result in less accurate results, due to different tree searching.")
     parser.add_argument("--batch_size", type=int, default=256,
                         help="Training batch_size.")
+    # parser.add_argument("--learning_rate", type=int, default=0.01,
+    #                     help="Learning rate for Adam.")
     parser.add_argument("--mcts_iterations", "-m", type=int, default=400,
                         help="The amount of MCTS playouts to do per move.")
     parser.add_argument("--n_model_updates", "-u", type=int, default=100,
@@ -79,17 +78,15 @@ def main():
         logger.error("Cannot execute on the login node.")
         exit(1)
 
-    n_sims = args.n_sims
-    mcts_iterations = args.mcts_iterations
     n_model_updates = args.n_model_updates
     model_dir = args.model_dir
-    data_dir = args.data_dir
 
     # Fetch game and corresponding neural network from subclasses automatically.
     game_type = [s for s in Game.__subclasses__()
                  if s.__name__ == args.game][0]
     network_type = [s for s in pytorch_lightning.LightningModule.__subclasses__()
                     if args.game.lower() in s.__name__.lower()][0]
+    del args.game
 
     # Optimize backends
     torch.backends.cudnn.benchmark = True
@@ -97,8 +94,7 @@ def main():
     # Give workers their own logic
     if rank != MASTER_THREAD:
         assert not args.test_performance
-        return main_worker(game_type, network_type, n_sims=n_sims, mcts_iterations=mcts_iterations,
-                           mcts_batch_size=args.mcts_batch_size, device=args.device)
+        return main_worker(game_type, network_type, **vars(args))
 
     # Setup tensorboard on Master process
     writer = SummaryWriter('runs/hive_experiment_1')
@@ -112,17 +108,13 @@ def main():
         logger.info(f"Initializing school for {game_type.__name__} with PL: {network_type.__name__}")
         school = School(game_type,
                         network_type,
-                        simulations=n_sims,
-                        n_old_data=args.n_data_reuse,
-                        model_dir=model_dir,
-                        data_dir=data_dir,
-                        device=args.device)
+                        **vars(args))
 
         logger.info("Starting training")
         school.train(n_model_updates,
                      pretraining=False,
                      stored_model_filename=args.model,
-                     batch_size=args.batch_size)
+                     **vars(args))
 
         # Done processing, kill workers:
         packet = MPIPacket(MPIPacketState.TERMINATE, None)
@@ -130,7 +122,7 @@ def main():
 
 
 def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sims=100, mcts_iterations=100,
-                mcts_batch_size=16, device="cuda"):
+                mcts_batch_size=16, device="cuda", **kwargs):
     import time
     logger = logging.getLogger("Child")
 
@@ -156,13 +148,19 @@ def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sim
     # Initialize MCTS simulator and move networks to correct device.
     simulator = Simulator(game, mcts_iterations=mcts_iterations, device=device, mcts_batch_size=mcts_batch_size)
     network1 = network1.to(device)
+    network1.eval()
     network2 = network2.to(device)
+    network2.eval()
 
     logger.info(f"Process {rank} running on device {simulator.mcts_object.device} ({MPI.Get_processor_name()})")
 
     # Jit script compiles the models for better performance.
-    compiled_network1 = torch.jit.script(network1.eval())
-    compiled_network2 = torch.jit.script(network2.eval())
+    compiled_network1 = network1.to_torchscript()
+    compiled_network2 = network2.to_torchscript()
+
+    # compiled_network1 = network1
+    # compiled_network2 = network2
+
     torch.backends.cudnn.benchmark = True
 
     with torch.no_grad():

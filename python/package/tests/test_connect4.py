@@ -1,5 +1,3 @@
-import os
-
 from games.connect4.connect4 import Connect4
 from games.utils import GameState
 

@@ -3,7 +3,6 @@ import torch
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 
-from games.utils import ResNetBlock
 from games.hive.hive import Hive
 
 
@@ -102,5 +101,5 @@ class HiveNN(pl.LightningModule):
         return self.policy_activation(policy), self.value_activation(value)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.05)
-        # return torch.optim.Adam(self.parameters(), lr=0.01)
+        # return torch.optim.SGD(self.parameters(), lr=0.05)
+        return torch.optim.Adam(self.parameters(), lr=0.0001)

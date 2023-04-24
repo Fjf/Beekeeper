@@ -10,25 +10,15 @@ For every board it will:
  - Compute policy vector index i
  - Set policy[i] to the newly retrieved child_value.
 """
-import datetime
 import logging
 import math
 from typing import Tuple, Optional, List
 
-import numba
 import numpy as np
-from numba import int32, float32
-from numba.experimental import jitclass
 import torch
-import time
 
 from games.Game import Game, GameNode
 from games.utils import GameState
-
-spec = [
-    ('iterations', int32),
-    ('mcts_constant', float32),
-]
 
 
 class MCTS:
@@ -80,16 +70,8 @@ class MCTS:
 
             parent = best
 
-    def process_vector(self, vector: list, network):
-        result = []
-
-        arrays = np.stack(vector[1])
-        input_tensor = torch.from_numpy(arrays).float()
-
-        policies, nn_values = network(input_tensor.to(self.device))
-        nn_values = nn_values.to("cpu")
-        policies = policies.to("cpu")
-        for i, (node, tensor) in enumerate(zip(vector[0], vector[1])):
+    def blatyp(self, nodes, n_nodes, policies, nn_values, result):
+        for i, node in enumerate(nodes[:n_nodes]):
             policy, nn_value = policies[i].unsqueeze(dim=0), nn_values[i].unsqueeze(dim=0)
             # policy, nn_value = network(tensor.to(self.device))
             node.mcts.policy = policy[0]
@@ -102,17 +84,36 @@ class MCTS:
                 child.mcts.value = (1 - node.mcts.policy[child.encode()]).item()
                 child.mcts.n_sims = 1
 
+    def process_vector(self, nodes, n_nodes, network):
+        result = []
+
+        numpy_boards = [node.to_np(node.turn() % 2) for node in nodes[:n_nodes]]
+
+        input_tensor = (torch
+                        .from_numpy(np.stack(numpy_boards))
+                        .to(self.device, dtype=torch.float32, non_blocking=True))
+        policies, nn_values = network(input_tensor)
+
+        nn_values, policies = (
+            nn_values.to("cpu", non_blocking=True),
+            policies.to("cpu", non_blocking=True)
+        )
+
+        self.blatyp(nodes, n_nodes, policies, nn_values, result)
         return result
 
     def vectorized_select_best(self, root: GameNode, network) -> List[Tuple[GameNode, Optional[int]]]:
-        vector = [[], []]
-        skip_me = {}
+        global n_nodes_added
+        n_nodes_added = 0
+        nodes = np.empty(self.batch_size, dtype=object)
+        skip_me = set()
         result = []
 
-        def vectorized_add_check(p, v):
-            vector[0].append(p)
-            vector[1].append(v)
-            return not len(vector[0]) == self.batch_size
+        def vectorized_add_check(p):
+            global n_nodes_added
+            nodes[n_nodes_added] = p
+            n_nodes_added += 1
+            return not n_nodes_added == self.batch_size
 
         parent = root
         while parent is not None:
@@ -120,18 +121,16 @@ class MCTS:
             children = parent.get_children()
 
             if len(children) == 0:
-                skip_me[parent] = 0
+                skip_me.add(parent)
                 result.append((parent, None))
                 parent = parent.parent
                 continue
 
             # First time reaching this node, or it has no children.
             if parent.mcts.policy is None:
-                # Initialize policy vector
-                arr = parent.to_np(parent.turn() % 2)
-                if not vectorized_add_check(parent, arr):
+                if not vectorized_add_check(parent):
                     break
-                skip_me[parent] = 0
+                skip_me.add(parent)
                 parent = parent.parent
                 continue
 
@@ -143,19 +142,21 @@ class MCTS:
                 if child in skip_me:
                     continue
                 # Only explore a leaf once per cycle
-                child.mcts.value = child.mcts.value / child.mcts.n_sims + self.mcts_constant * math.sqrt(
-                    math.log(parent.mcts.n_sims) / child.mcts.n_sims)
+                child.mcts.value = (
+                        child.mcts.value / child.mcts.n_sims
+                        + self.mcts_constant * math.sqrt(math.log(parent.mcts.n_sims) / child.mcts.n_sims)
+                )
                 if best_value < child.mcts.value:
                     best_value, best = child.mcts.value, child
 
             if best is None:
-                skip_me[parent] = 0
+                skip_me.add(parent)
                 parent = parent.parent
             else:
                 parent = best
 
-        if len(vector[0]) > 0:
-            result += self.process_vector(vector, network)
+        if n_nodes_added > 0:
+            result += self.process_vector(nodes, n_nodes_added, network)
         return result
 
     @staticmethod
@@ -199,12 +200,10 @@ class MCTS:
         # Do N iterations of MCTS, building the tree based on the NN output.
         i = 0
         while i < self.iterations:
-            result = self.vectorized_select_best(root.node, network)
+            result = self.select_best(root.node, network)
 
-            for leaf, value in result:
+            for leaf, value in [result]:
                 value = self.side_dependent_value(leaf, value)
-                if value is None:
-                    print(value, leaf.finished(), leaf.get_children())
                 self.cascade_value(leaf, value)
             i += len(result)
 

@@ -6,7 +6,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Type
 
-import numpy as np
 import pytorch_lightning
 import torch
 from mpi4py import MPI
@@ -23,8 +22,8 @@ from simulator import Simulator
 
 
 class School:
-    def __init__(self, game: Type[Game], network: Type[pytorch_lightning.LightningModule], simulations=100,
-                 n_old_data=1, model_dir="model", data_dir="data", device="cuda:0"):
+    def __init__(self, game: Type[Game], network: Type[pytorch_lightning.LightningModule], n_sims=100,
+                 n_data_reuse=1, model_dir="model", data_dir="data", device="cuda:0", **kwargs):
         self.logger = logging.getLogger("Hive")
         self.network_type = network
 
@@ -46,9 +45,9 @@ class School:
         self.updating_network = network(game.input_space, game.action_space)
         self.stable_network = copy.deepcopy(self.updating_network)
 
-        self.simulations = simulations
+        self.simulations = n_sims
 
-        self.n_old_data = n_old_data
+        self.n_old_data = n_data_reuse
         self.old_data_storage = []
         self.comm = MPI.COMM_WORLD
         self.logger.info("Done initializing trainer.")
@@ -127,7 +126,7 @@ class School:
 
         return wins / n_games, results
 
-    def train(self, updates=100, pretraining=False, stored_model_filename: str = None, batch_size=256):
+    def train(self, updates=100, pretraining=False, stored_model_filename: str = None, batch_size=256, **kwargs):
         """
         The reinforcement learning loop.
 
@@ -183,9 +182,6 @@ class School:
                 ##############################################################################
                 tensors, policy_vectors, outcomes = zip(*torch.load(filename))
 
-            print("Done profiling")
-            return
-
             # Convert to tensors
             tensors = torch.stack(tensors)
             policy_vectors = torch.stack(policy_vectors)
@@ -221,7 +217,8 @@ class School:
             # Train model, then check if model is good enough to replace existing model
             ##############################################################################
             self.updating_network.train()
-            trainer = Trainer(gpus=1, precision=16, max_epochs=10, default_root_dir="checkpoints")
+            trainer = Trainer(accelerator="gpu", devices=1, precision=16, max_epochs=10, amp_backend="apex",
+                              default_root_dir="checkpoints")
             trainer.fit(self.updating_network, dataloader)
             self.updating_network.eval()
 
@@ -234,4 +231,3 @@ class School:
                                os.path.join(self.model_dir, f"iteration_{network_iter}.pt"))
                     self.stable_network.load_state_dict(self.updating_network.state_dict())
                     network_iter += 1
-

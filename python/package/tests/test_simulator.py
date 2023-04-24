@@ -1,10 +1,8 @@
 import unittest
 from collections import defaultdict
 
-from MCTS import MCTS
-from games.hive.hive import Hive, lib, N_NODES
+from games.hive.hive import Hive
 from games.hive.hive_nn import HiveNN
-from games.utils import GameState
 from simulator import Simulator
 
 

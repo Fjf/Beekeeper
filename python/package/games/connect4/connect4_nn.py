@@ -13,13 +13,14 @@ class Connect4NN(pl.LightningModule):
     def __init__(self, input_size=Connect4.input_space, output_size=Connect4.action_space):
         super().__init__()
         self.encoder = nn.Sequential(
-            ResNetBlock(2, 2),
-            ResNetBlock(2, 2),
-            ResNetBlock(2, 2),
-            ResNetBlock(2, 2),
+            ResNetBlock(2, 4),
+            ResNetBlock(4, 8),
+            ResNetBlock(8, 8),
+            ResNetBlock(8, 8),
 
             nn.Flatten(),
-            nn.Linear(70, output_size + 1)
+            nn.ReLU(),
+            nn.Linear(280, output_size + 1)
         )
         # self.encoder = nn.Sequential(
         #     nn.Flatten(),

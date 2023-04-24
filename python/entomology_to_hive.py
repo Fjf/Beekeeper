@@ -61,6 +61,5 @@ def main():
                 n_stacked += 1
 
 
-
 if __name__ == "__main__":
     main()

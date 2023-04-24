@@ -38,4 +38,3 @@ def performance(model_dir, game_type, model_type):
     print(results)
     plt.imshow(results, interpolation="none")
     plt.savefig("results.png")
-

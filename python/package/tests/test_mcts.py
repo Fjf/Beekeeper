@@ -19,7 +19,6 @@ class MyTestCase(unittest.TestCase):
             while game.finished() == GameState.UNDETERMINED:
                 game.ai_move("random")
 
-
             results[game.finished()] += 1
 
         print(results)

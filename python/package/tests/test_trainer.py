@@ -50,5 +50,6 @@ def test_trainer():
 
     print(network(board)[0][0][encodings])
 
+
 if __name__ == "__main__":
     test_trainer()

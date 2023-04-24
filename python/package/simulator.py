@@ -98,7 +98,7 @@ class Simulator:
         policy_vectors = []
         # Play game until a terminal state has occurred.
         result = GameState.UNDETERMINED
-        for i in range(game.turn_limit):
+        for i in range(10):
 
             nn = p1 if game.to_move() == Perspectives.PLAYER1 else p2
 
@@ -130,27 +130,38 @@ class Simulator:
 
         game = self.game()
 
+        # import cProfile
+        # import io
+        # from pstats import SortKey
+        # import pstats
+        # pr = cProfile.Profile()
+        # pr.enable()
+
         node_result, result = self.play(game, net1, net2)
 
+        # pr.disable()
+        # s = io.StringIO()
+        # sortby = SortKey.CUMULATIVE
+        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        # ps.print_stats()
+        # print(s.getvalue())
+
         for board_idx, (node, policy_vector) in enumerate(node_result):
-            if board_idx % 2 == 0:
-                perspective = Perspectives.PLAYER1
-            else:
-                perspective = Perspectives.PLAYER2
+            perspective = Perspectives.PLAYER1 if board_idx % 2 == 0 else Perspectives.PLAYER2
 
             # Convert all data to be usable
             if perspective == nn_perspective:
                 tensors.append(torch.Tensor(node.to_np(nn_perspective)))
                 policy_vectors.append(policy_vector)
 
-        # Convert game outcome to numerical value vector.
-        result_value = 0
-        if (result == GameState.WHITE_WON and nn_perspective == Perspectives.PLAYER1) \
-                or (result == GameState.BLACK_WON and nn_perspective == Perspectives.PLAYER2):
-            result_value += 1
-        if (result == GameState.BLACK_WON and nn_perspective == Perspectives.PLAYER1) \
-                or (result == GameState.WHITE_WON and nn_perspective == Perspectives.PLAYER2):
-            result_value -= -1
+        # Convert game outcome to numerical value vector
+        result_value = (
+            0 if (result in [GameState.UNDETERMINED, GameState.DRAW_TURN_LIMIT, GameState.DRAW_REPETITION])
+            else 1 if (
+                    (result == GameState.WHITE_WON and nn_perspective == Perspectives.PLAYER1) or
+                    (result == GameState.BLACK_WON and nn_perspective == Perspectives.PLAYER2))
+            else -1
+        )
         result_values = [torch.Tensor([result_value])] * len(tensors)
 
         # Invert tensors

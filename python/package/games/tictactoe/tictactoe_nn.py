@@ -6,7 +6,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 
 
-class TicTacToeNN (pl.LightningModule):
+class TicTacToeNN(pl.LightningModule):
     def __init__(self, input_size=10, output_size=9):
         super().__init__()
         self.encoder = nn.Sequential(
