@@ -10,7 +10,7 @@
 #include <omp.h>
 
 int main(int argc, char** argv) {
-    int max_depth = 5;
+    int max_depth = 8;
     if (argc > 1) {
         max_depth = atoi(argv[1]);
     }
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     struct node* tree = game_init();
     srand(0);
 
-    tree = random_moves(tree, 50);
+//    tree = random_moves(tree, 50);
 
     int last = 0;
     struct timespec start, end;
