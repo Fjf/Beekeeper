@@ -8,10 +8,11 @@
 #include <array>
 #include "utils.h"
 
+#pragma pack(1)
 class Position {
 public:
-    int x;
-    int y;
+    int8_t x;
+    int8_t y;
 
     explicit Position(int x = 0, int y = 0) {
         this->x = x;

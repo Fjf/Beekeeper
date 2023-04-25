@@ -1,2 +1,7 @@
 /python/package/lightning_logs/
 /venv/
+
+
+# For IntelliJ editors
+*/cmake-build-debug
+.idea

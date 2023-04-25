@@ -7,6 +7,7 @@
 #include "position.h"
 #include "utils.h"
 
+#pragma pack(1)
 class Board {
 public:
     unsigned char tiles[BOARD_SIZE][BOARD_SIZE] = {0};
@@ -43,7 +44,7 @@ public:
 
     int finished();
 
-    Board();
+    Board() = default;
 
     std::string to_string();
 

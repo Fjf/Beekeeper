@@ -5,7 +5,9 @@
 #include <list>
 #include "position.h"
 #include "board.h"
+#include <iostream>
 
+#pragma pack(1)
 class Move {
 public:
     unsigned char tile = 0;
@@ -19,9 +21,11 @@ public:
     std::string to_string() const;
 };
 
+
+#pragma pack(1)
 class Node {
 public:
-    std::list<Node> children = std::list<Node>();
+    std::list<Node, std::allocator<Node>> children;
     Node *parent = nullptr;
     Move move = Move();
     Board board = Board();

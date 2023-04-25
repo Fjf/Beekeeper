@@ -3,11 +3,6 @@
 #include <list>
 #include "board.h"
 
-
-Board::Board() {
-    // TODO: implement
-}
-
 int Board::finished() {
     int res = 0;
     if (light_queen.x != -1) {
