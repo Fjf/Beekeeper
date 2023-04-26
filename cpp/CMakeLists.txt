@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-O3 -fno-lto -march=native")
 
 # Set tcmalloc
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free -rdynamic -L/usr/lib/x86_64-linux-gnu/libtcmalloc.so")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free -rdynamic -L/usr/lib/x86_64-linux-gnu/libtcmalloc.so -fPIC ")
 
 # Set include directories for builds
 include_directories(.)

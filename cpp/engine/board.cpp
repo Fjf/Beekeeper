@@ -221,7 +221,7 @@ int Board::sum_hive_tiles() {
 }
 
 
-Board::tile_stack *Board::get_from_stack(Position &position, bool pop) {
+Board::tile_stack *Board::get_from_stack(const Position &position, bool pop) {
     /*
      * Returns the highest tile in the stack, or NULL if no tile is found.
      * If pop is true, the tile will be removed from the stack.

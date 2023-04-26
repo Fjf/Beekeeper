@@ -2,6 +2,7 @@
 #include <iostream>
 #include <csignal>
 #include "game.h"
+#include <unistd.h>
 #include "tt.h"
 
 
@@ -82,7 +83,7 @@ void Board::update_can_move(Position &position, Position &previous_position) {
 /*
  * Adds all available moves to a node as children.
  */
-void add_child(Node &node, Position &location, int type, Position &previous_location) {
+void add_child(Node &node, const Position &location, int type, const Position &previous_location) {
     if (node.board.turn == MAX_TURNS - 1) {
         return;
     }
@@ -231,15 +232,15 @@ void generate_placing_moves(Node &node, int type) {
 
     Board &board = node.board;
 
-    Position initial_position = Position((BOARD_SIZE / 2), BOARD_SIZE / 2);
-    Position invalid_position = Position(-1, -1);
+    const Position invalid_position = Position(-1, -1);
 
     if (board.turn == 0) {
+        Position initial_position = Position((BOARD_SIZE / 2), BOARD_SIZE / 2);
         add_child(node, initial_position, type, invalid_position);
         return;
     }
     if (board.turn == 1) {
-        initial_position = Position(initial_position.x + 1, initial_position.y);
+        Position initial_position = Position((BOARD_SIZE / 2) + 1, (BOARD_SIZE / 2));
         add_child(node, initial_position, type, invalid_position);
         return;
     }

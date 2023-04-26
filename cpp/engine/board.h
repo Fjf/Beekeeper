@@ -53,7 +53,7 @@ public:
 
     int sum_hive_tiles();
 
-    tile_stack *get_from_stack(Position &position, bool pop);
+    tile_stack *get_from_stack(const Position &position, bool pop);
 
     void get_min_x_y();
 

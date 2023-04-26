@@ -27,6 +27,10 @@ public:
         return other.x == x and other.y == y;
     }
 
+    bool operator==(const Position &other) const {
+        return other.x == x and other.y == y;
+    }
+
     bool operator!=(Position &other) const {
         return other.x != x or other.y != y;
     }
