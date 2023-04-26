@@ -65,10 +65,3 @@ std::string Move::to_string() const {
     return response;
 }
 
-Move::Move() {
-    tile = 0;
-    next_to = 0;
-    direction = 0;
-    previous_location = Position(0, 0);
-    location = Position(0, 0);
-}

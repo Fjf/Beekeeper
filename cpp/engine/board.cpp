@@ -183,7 +183,7 @@ void Board::center() {
     max.y += translate.y;
 }
 
-int Board::count_tiles_around(Position& position) {
+int Board::count_tiles_around(Position &position) {
     int count = 0;
     auto points = position.get_points_around();
     for (Position &point : points) {
@@ -194,7 +194,7 @@ int Board::count_tiles_around(Position& position) {
     return count;
 }
 
-bool Board::is_surrounded(Position& position) {
+bool Board::is_surrounded(Position &position) {
     auto points = position.get_points_around();
     for (Position &point : points) {
         if (tiles[point.y][point.x] == EMPTY) {
@@ -246,4 +246,29 @@ Board::tile_stack *Board::get_from_stack(Position &position, bool pop) {
         n_stacked--;
     }
     return highest_tile;
+}
+
+void Board::initialize() {
+    memset(tiles, 0, sizeof(tiles));
+    memset(free, 0, sizeof(free));
+
+    turn = 0;
+
+    players[0] = {N_BEETLES, N_GRASSHOPPERS, N_QUEENS, N_ANTS, N_SPIDERS};
+    players[1] = {N_BEETLES, N_GRASSHOPPERS, N_QUEENS, N_ANTS, N_SPIDERS};
+
+    light_queen = {-1, -1};
+    dark_queen = {-1, -1};
+
+    min = {BOARD_SIZE / 2, BOARD_SIZE / 2};
+    max = {BOARD_SIZE / 2, BOARD_SIZE / 2};
+
+    n_stacked = 0;
+
+    memset(stack, 0, sizeof(stack));
+
+    zobrist_hash = 0;
+//    std::vector<long long> hash_history = std::vector<long long>();
+
+    has_updated = false;
 }

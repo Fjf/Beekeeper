@@ -9,12 +9,16 @@
 #include "utils.h"
 
 #pragma pack(1)
+
 class Position {
 public:
     int8_t x;
     int8_t y;
 
-    explicit Position(int x = 0, int y = 0) {
+
+    Position() = default;
+
+    Position(int x, int y) {
         this->x = x;
         this->y = y;
     }

@@ -6,37 +6,40 @@
 #include "position.h"
 #include "board.h"
 #include <iostream>
+#include <cstring>
 
 #pragma pack(1)
 class Move {
 public:
-    unsigned char tile = 0;
-    unsigned char next_to = 0;
-    unsigned char direction = 0;
-    Position previous_location = Position(0, 0);
-    Position location = Position(0, 0);
+    unsigned char tile;
+    unsigned char next_to;
+    unsigned char direction;
+    Position previous_location;
+    Position location;
 
-    Move();
+    Move() = default;
 
     std::string to_string() const;
 };
 
 
 #pragma pack(1)
-class Node {
+class alignas(8) Node {
 public:
-    std::list<Node, std::allocator<Node>> children;
-    Node *parent = nullptr;
-    Move move = Move();
-    Board board = Board();
+    Move move;
+    Board board;
 //    MCTS data;
+    Node *parent = nullptr;
+    std::list<Node, std::allocator<Node>> children;
 
     Node() = default;
 
     inline Node copy() const {
-        Node node = Node();
-        node.move = move;
-        node.board = board;
+        Node node;
+        const size_t n_bytes = ((sizeof(Move) + sizeof(Board) + 8) / 8) * 8;
+        memcpy((void*) &node, this, n_bytes);
+//        node.move = move;
+//        node.board = board;
         return node;
     }
 

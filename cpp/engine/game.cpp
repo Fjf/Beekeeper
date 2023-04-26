@@ -844,4 +844,6 @@ Game::Game() {
         // Randomized seed
         srand(seed);
     }
+
+    root.board.initialize();
 }

@@ -50,9 +50,8 @@ int main(int argc, char** argv) {
     if (argc > 1) {
         max_depth = atoi(argv[1]);
     }
-    omp_set_num_threads(1);
 
-    printf("Running perft with depth %d on %d threads.\n", max_depth, omp_get_max_threads());
+    printf("Running perft with depth %d on %d threads.\n", max_depth, 1);
 
     Game game = Game();
     srand(0);
@@ -73,7 +72,7 @@ int main(int argc, char** argv) {
     }
 }
 
-/*
+/*q
  * C version of this code's performance below:
  *
 Running perft with depth 8 on 1 threads.
@@ -152,5 +151,22 @@ Depth    | Time (s)        | Nodes           | Knodes/sec
        5 |          0.0142 |           84600 | (6232.21)
        6 |          0.3471 |         1970428 | (5932.06)
        7 |          5.4063 |        27631300 | (5491.79)
+
+ */
+
+/*
+ *
+ *
+Running perft with depth 8 on 1 threads.
+Depth    | Time (s)        | Nodes           | Knodes/sec
+---------|-----------------|-----------------|--------------
+       0 |          0.0000 |               1 | (844.59)
+       1 |          0.0000 |               4 | (150.01)
+       2 |          0.0001 |              16 | (346.47)
+       3 |          0.0002 |             240 | (1136.80)
+       4 |          0.0033 |            3600 | (1186.35)
+       5 |          0.0407 |           84600 | (2174.48)
+       6 |          0.3140 |         1970428 | (6557.73)
+       7 |          4.8454 |        27638820 | (6129.04)
 
  */

@@ -8,41 +8,44 @@
 #include "utils.h"
 
 #pragma pack(1)
+
 class Board {
 public:
-    unsigned char tiles[BOARD_SIZE][BOARD_SIZE] = {0};
-    unsigned char free[BOARD_SIZE][BOARD_SIZE] = {0};
+    uint8_t tiles[BOARD_SIZE][BOARD_SIZE];
+    uint8_t free[BOARD_SIZE][BOARD_SIZE];
 
-    int turn = 0;
+    int32_t turn;
 
     struct player_info {
-        unsigned char beetles_left = N_BEETLES;
-        unsigned char grasshoppers_left = N_GRASSHOPPERS;
-        unsigned char queens_left = N_QUEENS;
-        unsigned char ants_left = N_ANTS;
-        unsigned char spiders_left = N_SPIDERS;
+        uint8_t beetles_left;
+        uint8_t grasshoppers_left;
+        uint8_t queens_left;
+        uint8_t ants_left;
+        uint8_t spiders_left;
     } players[2];
 
-    Position light_queen = Position(-1, -1);
-    Position dark_queen = Position(-1, -1);
+    Position light_queen;
+    Position dark_queen;
 
-    Position min = Position(BOARD_SIZE / 2, BOARD_SIZE / 2);
-    Position max = Position(BOARD_SIZE / 2, BOARD_SIZE / 2);
+    Position min;
+    Position max;
 
-    char n_stacked = 0;
+    int8_t n_stacked;
 
     struct tile_stack {
-        unsigned char type = 0;
-        Position position = Position(-1, -1);
-        unsigned char z = 0;
-    } stack[TILE_STACK_SIZE] = {0};
+        uint8_t type;
+        uint8_t z;
+        Position position;
+    } stack[TILE_STACK_SIZE];
 
-    long long zobrist_hash = 0;
-//    std::vector<long long> hash_history = std::vector<long long>();
+    int64_t zobrist_hash;
 
-    bool has_updated = false;
+    bool has_updated;
+
 
     int finished();
+
+    void initialize();
 
     Board() = default;
 
