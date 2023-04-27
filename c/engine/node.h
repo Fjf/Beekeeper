@@ -15,6 +15,7 @@
 
 extern unsigned long long int max_nodes;
 extern unsigned long long int n_nodes;
+#pragma pack(1)
 
 struct move {
     unsigned char tile;

@@ -8,8 +8,6 @@
 #include <array>
 #include "utils.h"
 
-#pragma pack(1)
-
 class Position {
 public:
     int8_t x;
@@ -18,7 +16,7 @@ public:
 
     Position() = default;
 
-    Position(int x, int y) {
+    Position(int8_t x, int8_t y) {
         this->x = x;
         this->y = y;
     }
@@ -39,7 +37,7 @@ public:
 
     std::string to_string() const { return std::to_string(x) + "," + std::to_string(y); };
 
-    std::array<Position, 6> get_points_around() const;
+    const std::array<Position, 6> get_points_around() const;
 
     static std::array<Position, 6> get_points_around(int x, int y);
 };
@@ -47,7 +45,7 @@ public:
 /*
  * Returns an array containing array indices around a given x,y coordinate.
  */
-inline std::array<Position, 6> Position::get_points_around() const {
+inline const std::array<Position, 6> Position::get_points_around() const {
     return {
             Position(x - 1, y - 1),
             Position(x + 0, y - 1),

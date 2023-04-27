@@ -33,7 +33,7 @@
 #define TILE_STACK_SIZE (N_BEETLES * 2)
 // Add a padding around the board to simplify edge conditions
 #define BOARD_PADDING 2
-#define BOARD_SIZE ((N_TILES * 2) + BOARD_PADDING * 2)
+#define BOARD_SIZE int8_t((N_TILES * 2) + BOARD_PADDING * 2)
 
 #ifndef MAX_TURNS
 #define MAX_TURNS 1000

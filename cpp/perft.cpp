@@ -7,12 +7,14 @@
 #include <game.h>
 
 
-int performance_testing(Node& tree, int depth) {
-    if (depth == 0) return 1;
+int performance_testing(Node &tree, int depth) {
+    if (depth == 0) {
+        return 1;
+    }
     generate_moves(tree);
 
     int ret = 1;
-    for (Node& child : tree.children) {
+    for (Node &child : tree.children) {
         ret += performance_testing(child, depth - 1);
     }
 
@@ -45,8 +47,8 @@ int performance_testing(Node& tree, int depth) {
 //    return ret;
 //}
 
-int main(int argc, char** argv) {
-    int max_depth = 8;
+int main(int argc, char **argv) {
+    int max_depth = 6;
     if (argc > 1) {
         max_depth = atoi(argv[1]);
     }
@@ -54,6 +56,10 @@ int main(int argc, char** argv) {
     printf("Running perft with depth %d on %d threads.\n", max_depth, 1);
 
     Game game = Game();
+//    for (size_t i = 0; i < 10; i++) {
+//        generate_children(game.root, 1e100);
+//        game.random_move();
+//    }
     srand(0);
 
     int last = 0;
@@ -68,7 +74,7 @@ int main(int argc, char** argv) {
         int nodes = n - last;
         last = n;
         double time = (to_usec(end) - to_usec(start)) / 1e6;
-        printf("%8d | %15.4f | %15d | (%.2f)\n", depth, time, nodes, (n/time) / 1000);
+        printf("%8d | %15.4f | %15d | (%.2f)\n", depth, time, nodes, (n / time) / 1000);
     }
 }
 

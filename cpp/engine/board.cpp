@@ -109,8 +109,8 @@ std::string Board::to_string() {
 void Board::get_min_x_y() {
     Position lower = Position(min.x, min.y);
     min.x = min.y = BOARD_SIZE;
-    for (int y = lower.y; y < BOARD_SIZE; y++) {
-        for (int x = lower.x; x < min.x; x++) {
+    for (int8_t y = lower.y; y < BOARD_SIZE; y++) {
+        for (int8_t x = lower.x; x < min.x; x++) {
             unsigned char tile = tiles[y][x];
             if (tile == EMPTY) continue;
 
@@ -125,8 +125,8 @@ void Board::get_min_x_y() {
 void Board::get_max_x_y() {
     Position upper = Position(max.x, max.y);
     max.x = max.y = 0;
-    for (int y = upper.y; y >= 0; y--) {
-        for (int x = upper.x; x >= max.x; x--) {
+    for (int8_t y = upper.y; y >= 0; y--) {
+        for (int8_t x = upper.x; x >= max.x; x--) {
             unsigned char tile = tiles[y][x];
             if (tile == EMPTY) continue;
 
@@ -139,9 +139,9 @@ void Board::get_max_x_y() {
 }
 
 void Board::center() {
-    int src_begin = min.y * BOARD_SIZE + min.x;
-    int src_end = max.y * BOARD_SIZE + max.x;
-    int size = (src_end - src_begin) + 1;
+    uint16_t src_begin = min.flat_index();
+    uint16_t src_end = max.flat_index();
+    uint16_t size = (src_end - src_begin) + 1;
 
     Position dest = Position(
             (BOARD_SIZE / 2) - (max.x - min.x + 1) / 2,
@@ -151,7 +151,6 @@ void Board::center() {
     Position translate = Position(dest.x - min.x, dest.y - min.y);
 
     // Move all the tile tracking structs the same amount as the rest of the board.
-    int translate_offset = (translate.flat_index()) - src_begin;
     if (light_queen.x != -1) {
         light_queen.x += translate.x;
         light_queen.y += translate.y;
@@ -167,15 +166,16 @@ void Board::center() {
         }
     }
 
-    size_t dest_begin = translate.flat_index();
+    size_t dest_begin = dest.flat_index();
 
-    memmove(
+    std::memmove(
             tiles + dest_begin,
-            tiles + src_begin * sizeof(char),
-            size * sizeof(char)
+            tiles + src_begin,
+            size
     );
-    memset(tiles, 0, dest_begin);
-    memset(tiles + dest_begin + size, 0, BOARD_SIZE - (dest_begin + size));
+    std::memset(tiles, 0, dest_begin);
+    void (*tiles_dest) = &tiles;
+    std::memset(((char*)tiles_dest) + dest_begin + size, 0, sizeof(tiles) - (dest_begin + size - 1));
 
     min.x += translate.x;
     max.x += translate.x;

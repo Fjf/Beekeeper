@@ -221,14 +221,8 @@ void add_child(Node &node, const Position &location, int type, const Position &p
 /*
  * Generates the placing moves, only allowed to place next to allied tiles.
  */
-void generate_placing_moves(Node &node, int type) {
-    /*
-     * Returns:
-     *   - 0: No errors occurred.
-     *   - 1: Out of memory error.
-     */
-
-    int color = type & COLOR_MASK;
+void generate_placing_moves(Node &node, uint8_t type) {
+    uint8_t color = type & COLOR_MASK;
 
     Board &board = node.board;
 
@@ -245,14 +239,14 @@ void generate_placing_moves(Node &node, int type) {
         return;
     }
 
-    int n_encountered = 0;
-    int to_encounter = board.sum_hive_tiles();
+    uint8_t n_encountered = 0;
+    uint8_t to_encounter = board.sum_hive_tiles();
 
     bool is_added[BOARD_SIZE][BOARD_SIZE] = {false};
 
-    for (int y = board.min.y; y < board.max.y + 1; y++) {
+    for (int8_t y = board.min.y; y < board.max.y + 1; y++) {
         if (n_encountered == to_encounter) break;
-        for (int x = board.min.x; x < board.max.x + 1; x++) {
+        for (int8_t x = board.min.x; x < board.max.x + 1; x++) {
             if (n_encountered == to_encounter) break;
 
             // Skip empty tiles
@@ -261,28 +255,22 @@ void generate_placing_moves(Node &node, int type) {
             n_encountered++;
             // Get points around this point
             auto points = Position::get_points_around(x, y);
-            for (Position &point: points) {
+            for (const Position &point: points) {
                 // Check if its empty
-                if (board.tiles[point.y][point.x] != EMPTY) continue;
+                if (board.tiles[point.y][point.x] != EMPTY or is_added[point.y][point.x]) continue;
 
-                // Check if we added this location earlier, if so, remove this (reduce amount of duplicate nodes)
-                if (is_added[point.y][point.x]) continue;
                 is_added[point.y][point.x] = true;
 
                 // Check for all neighbours of this point if its the same colour as the colour of the
                 //  passed tile.
-                int invalid = 0;
+                bool invalid = false;
                 auto neighbor_points = point.get_points_around();
-                for (Position& np_index : neighbor_points) {
-                    if (np_index.x < 0 || np_index.x >= BOARD_SIZE || np_index.y < 0 ||
-                        np_index.y >= BOARD_SIZE)
-                        continue;
-
-                    if (board.tiles[np_index.y][np_index.x] == EMPTY) continue;
-
+#pragma unroll
+                for (const Position &np_index : neighbor_points) {
                     // Check if every tile around it has the same colour as the passed tile colour.
-                    if ((board.tiles[np_index.y][np_index.x] & COLOR_MASK) != color) {
-                        invalid = 1;
+                    if (board.tiles[np_index.y][np_index.x] != EMPTY
+                    and (board.tiles[np_index.y][np_index.x] & COLOR_MASK) != color) {
+                        invalid = true;
                         break;
                     }
                 }
@@ -469,7 +457,7 @@ void generate_ant_moves(Node &node, Position &orig) {
     int tile_type = board[orig];
     board[orig] = EMPTY;
 
-    bool ant_visited[BOARD_SIZE][BOARD_SIZE];
+    bool ant_visited[BOARD_SIZE][BOARD_SIZE] = {false};
     std::list<Position> ant_history;
     std::list<Position> frontier;
 
@@ -509,51 +497,51 @@ void generate_ant_moves(Node &node, Position &orig) {
     }
 }
 
-void generate_queen_moves(Node &node, Position &point) {
+void generate_queen_moves(Node &node, Position &orig) {
     /*
      * Generates the moves for the queen
      */
     Board &board = node.board;
 
     // Store tile for temporary removal
-    int tile_type = board[point];
+    int tile_type = board[orig];
 
     // If this tile is on top of something, get that tile.
     // Only do this because the beetle calls this function, so it saves programming effort
-    Board::tile_stack *temp = board.get_from_stack(point, false);
+    Board::tile_stack *temp = board.get_from_stack(orig, false);
     if (temp == nullptr) {
-        board[point] = EMPTY;
+        board[orig] = EMPTY;
     } else {
-        board[point] = temp->type;
+        board[orig] = temp->type;
     }
 
-    auto points = point.get_points_around();
-    for (Position &new_point : points) {
+    auto points = orig.get_points_around();
+    for (Position &point : points) {
         // Get all tiles which are connected to the queen
-        if (board[new_point] == EMPTY) continue;
+        if (board[point] == EMPTY) continue;
 
 
-        if (!tile_fits(board, point, new_point)) continue;
+        if (!tile_fits(board, orig, point)) continue;
 
         // For all neighbors, if the neighbors neighbors == my neighbors -> valid move.
-        auto neighbor_points = new_point.get_points_around();
-        for (Position& neighbor_point : neighbor_points) {
+        auto neighbor_points = point.get_points_around();
+        for (Position &neighbor_point : neighbor_points) {
             if (board[neighbor_point] != EMPTY) continue;
 
-            for (int j = 0; j < 6; j++) {
+            for (Position &double_neighbour : points) {
                 // Skip because neighbours do not match.
-                if (neighbor_point != new_point) continue;
+                if (neighbor_point != double_neighbour) continue;
 
-                // Skip this tile if the move from the original point to this new point does not fit.
-                if (!tile_fits(board, point, new_point)) continue;
+                // Skip this tile if the move from the original orig to this new orig does not fit.
+                if (!tile_fits(board, orig, double_neighbour)) continue;
 
                 // This tile is connected.
-                add_child(node, neighbor_point, tile_type, point);
+                add_child(node, neighbor_point, tile_type, orig);
             }
         }
     }
 
-    board[point] = tile_type;
+    board[orig] = tile_type;
 }
 
 void generate_beetle_moves(Node &node, Position &point) {
@@ -575,7 +563,7 @@ void generate_beetle_moves(Node &node, Position &point) {
 
         board[point] = EMPTY;
 
-        for (Position& new_point : points) {
+        for (Position &new_point : points) {
             // Get all tiles which are connected to the beetle
             if (board[new_point] == EMPTY) continue;
 
@@ -584,7 +572,7 @@ void generate_beetle_moves(Node &node, Position &point) {
     } else {
         // Beetle on top of something has no restrictions on movement off of the tile.
         board[point] = temp->type;
-        for (Position& new_point : points) {
+        for (Position &new_point : points) {
             add_child(node, new_point, tile_type, point);
         }
     }
@@ -599,8 +587,7 @@ void generate_spider_moves(Node &node, Position &orig) {
     int tile_type = board[orig];
     board[orig] = EMPTY;
 
-    int spider_visited[BOARD_SIZE][BOARD_SIZE];
-    std::list<Position> spider_history;
+    bool spider_visited[BOARD_SIZE][BOARD_SIZE] = {false};
 
     // Frontier to track multiple points.
     std::list<Position> frontier;
@@ -609,36 +596,33 @@ void generate_spider_moves(Node &node, Position &orig) {
     frontier.push_back(orig);
 
     const size_t SPIDER_WALKING_DISTANCE = 3;
-    Position frontier_point;
     for (int iteration = 0; iteration < SPIDER_WALKING_DISTANCE; iteration++) {
         while (!frontier.empty()) {
             // Get a point on the frontier
-            frontier_point = frontier.back();
+            Position frontier_point = frontier.back();
             frontier.pop_back();
             auto points = frontier_point.get_points_around();
 
             // Iterate all points surrounding this frontier.
             // Generate a list containing all valid moves from the frontier onward.
-            for (Position &new_point : points) {
-                if (board[new_point] == EMPTY) continue;
-                if (!tile_fits(board, frontier_point, new_point)) continue;
+            for (Position &point : points) {
+                if (board[point] == EMPTY) continue;
+                if (!tile_fits(board, frontier_point, point)) continue;
 
                 // For all neighbors, if the neighbors neighbors == my neighbors -> valid move.
-                auto neighbor_points = new_point.get_points_around();
+                auto neighbor_points = point.get_points_around();
                 for (Position &neighbor_point : neighbor_points) {
                     if (board[neighbor_point] != EMPTY) continue;
-                    for (int j = 0; j < 6; j++) {
-                        if (neighbor_point != orig) continue;
+                    for (Position &double_neighbor : points) {
+                        if (neighbor_point != double_neighbor) continue;
 
-                        if (!tile_fits(board, orig, new_point)) continue;
+                        if (!tile_fits(board, frontier_point, double_neighbor)) continue;
 
-                        // Skip tile if we already added this new_point.
-                        if (spider_visited[new_point.y][new_point.x]) continue;
+                        // Skip tile if we already added this point.
+                        if (spider_visited[neighbor_point.y][neighbor_point.x]) continue;
+                        spider_visited[neighbor_point.y][neighbor_point.x] = true;
 
-                        spider_visited[new_point.y][new_point.x] = true;
-
-                        spider_history.push_back(new_point);
-                        next_frontier.push_back(new_point);
+                        next_frontier.push_back(neighbor_point);
                     }
                 }
             }
@@ -847,4 +831,16 @@ Game::Game() {
     }
 
     root.board.initialize();
+}
+
+void Game::random_move() {
+    size_t selection = std::rand() % root.children.size();
+    for (Node &child : root.children) {
+        if (selection == 0) {
+            root = child;
+            root.parent = nullptr;
+            return;
+        }
+        selection -= 1;
+    }
 }

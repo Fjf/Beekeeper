@@ -7,8 +7,6 @@
 #include "position.h"
 #include "utils.h"
 
-#pragma pack(1)
-
 class Board {
 public:
     uint8_t tiles[BOARD_SIZE][BOARD_SIZE];

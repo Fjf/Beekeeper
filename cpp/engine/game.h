@@ -10,6 +10,8 @@ public:
     Node root = Node();
 
     Game();
+
+    void random_move();
 };
 
 int generate_children(Node &root, double end_time);

@@ -59,6 +59,7 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
 // Tile stack location is -1 if there is no tile in the stack.
+#pragma pack(1)
 struct tile_stack {
     unsigned char type;
     int location;

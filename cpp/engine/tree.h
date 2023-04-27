@@ -8,18 +8,19 @@
 #include <iostream>
 #include <cstring>
 
-#pragma pack(1)
 class Move {
 public:
-    unsigned char tile;
-    unsigned char next_to;
-    unsigned char direction;
+    uint8_t tile;
+    uint8_t next_to;
+    uint8_t direction;
     Position previous_location;
     Position location;
 
     Move() = default;
 
     std::string to_string() const;
+
+    std::string tile_string(uint8_t tile_type) const;
 };
 
 
@@ -28,7 +29,6 @@ class alignas(8) Node {
 public:
     Move move;
     Board board;
-//    MCTS data;
     Node *parent = nullptr;
     std::list<Node, std::allocator<Node>> children;
 
@@ -38,8 +38,6 @@ public:
         Node node;
         const size_t n_bytes = ((sizeof(Move) + sizeof(Board) + 8) / 8) * 8;
         memcpy((void*) &node, this, n_bytes);
-//        node.move = move;
-//        node.board = board;
         return node;
     }
 

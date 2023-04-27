@@ -19,7 +19,7 @@ void zobrist_init() {
     }
 }
 
-void zobrist_hash(Board &board, Position &location, Position &old_location, int type) {
+void zobrist_hash(Board &board, const Position &location, const Position &old_location, int type) {
     int tile_type = type & TILE_MASK;
     int color = (type & COLOR_MASK) >> COLOR_SHIFT;
     int idx = tile_type + N_UNIQUE_TILES * color;
