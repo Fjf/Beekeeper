@@ -3,8 +3,8 @@
 //
 
 
+#include "constants.h"
 #include "tt.h"
-#include "tree.h"
 
 // Global defines for transposition table.
 struct tt_entry *tt_table = nullptr;
@@ -29,42 +29,42 @@ void zobrist_hash(Board &board, const Position &location, const Position &old_lo
         board.zobrist_hash ^= zobrist_table[old_location.flat_index() * N_UNIQUE_TILES * 2 + idx];
 }
 
-void tt_store(Node &node, float score, char flag, int depth, int player) {
-    int64_t idx = node.board.zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
-    struct tt_entry *entry = &tt_table[idx];
-
-    if (entry->flag != -1) {
-        // There was already an entry here TODO: Replacement scheme
-
-        // Simple depth related replacement scheme.
-//        if (entry->depth > depth) return;
-    }
-    unsigned char bit_length = 10;
-    int64_t sanity = ((((node.board.dark_queen.flat_index() << bit_length)
-                        | node.board.light_queen.flat_index()) << bit_length)
-                      | (node.board.min.flat_index()) << bit_length
-                      | (node.board.max.flat_index()) << bit_length);
-    entry->sanity = sanity;
-    entry->lock = node.board.zobrist_hash / TT_TABLE_SIZE;
-    entry->score = score;
-    entry->flag = flag;
-    entry->depth = depth;
-}
-
-struct tt_entry *tt_retrieve(Node &node, int player) {
-    int64_t idx = node.board.zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
-    struct tt_entry *entry = &tt_table[idx];
-    int64_t lock = node.board.zobrist_hash / TT_TABLE_SIZE;
-
-    unsigned char bit_length = 10;
-    int64_t sanity = ((((node.board.dark_queen.flat_index() << bit_length)
-                        | node.board.light_queen.flat_index()) << bit_length)
-                      | (node.board.min.flat_index()) << bit_length
-                      | (node.board.max.flat_index()) << bit_length);
-    if (entry->flag == -1 || entry->lock != lock || entry->sanity != sanity) return nullptr;
-
-    return entry;
-}
+//void tt_store(BaseNode &node, float score, char flag, int depth, int player) {
+//    int64_t idx = node.board.zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
+//    struct tt_entry *entry = &tt_table[idx];
+//
+//    if (entry->flag != -1) {
+//        // There was already an entry here TODO: Replacement scheme
+//
+//        // Simple depth related replacement scheme.
+////        if (entry->depth > depth) return;
+//    }
+//    unsigned char bit_length = 10;
+//    int64_t sanity = ((((node.board.dark_queen.flat_index() << bit_length)
+//                        | node.board.light_queen.flat_index()) << bit_length)
+//                      | (node.board.min.flat_index()) << bit_length
+//                      | (node.board.max.flat_index()) << bit_length);
+//    entry->sanity = sanity;
+//    entry->lock = node.board.zobrist_hash / TT_TABLE_SIZE;
+//    entry->score = score;
+//    entry->flag = flag;
+//    entry->depth = depth;
+//}
+//
+//struct tt_entry *tt_retrieve(BaseNode &node, int player) {
+//    int64_t idx = node.board.zobrist_hash % TT_TABLE_SIZE + player * TT_TABLE_SIZE;
+//    struct tt_entry *entry = &tt_table[idx];
+//    int64_t lock = node.board.zobrist_hash / TT_TABLE_SIZE;
+//
+//    unsigned char bit_length = 10;
+//    int64_t sanity = ((((node.board.dark_queen.flat_index() << bit_length)
+//                        | node.board.light_queen.flat_index()) << bit_length)
+//                      | (node.board.min.flat_index()) << bit_length
+//                      | (node.board.max.flat_index()) << bit_length);
+//    if (entry->flag == -1 || entry->lock != lock || entry->sanity != sanity) return nullptr;
+//
+//    return entry;
+//}
 
 void tt_init() {
     tt_table = static_cast<tt_entry *>(malloc(TT_TABLE_SIZE * 2 * sizeof(struct tt_entry)));

@@ -175,7 +175,7 @@ void Board::center() {
     );
     std::memset(tiles, 0, dest_begin);
     void (*tiles_dest) = &tiles;
-    std::memset(((char*)tiles_dest) + dest_begin + size, 0, sizeof(tiles) - (dest_begin + size - 1));
+    std::memset(((char *) tiles_dest) + dest_begin + size, 0, sizeof(tiles) - (dest_begin + size - 1));
 
     min.x += translate.x;
     max.x += translate.x;
@@ -272,3 +272,147 @@ void Board::initialize() {
 
     has_updated = false;
 }
+
+
+bool Board::can_move(Position &position) {
+    Board::tile_stack *ts = get_from_stack(position, false);
+    // If removing this tile does not change the tree, it is a valid move.
+    if (ts != nullptr) return true;
+
+
+    unsigned char *tile = &tiles[position.y][position.x];
+    int n_hive_tiles = sum_hive_tiles() - 1;
+
+    // Store the tile type for later use
+    unsigned char tile_type = *tile;
+    *tile = EMPTY;
+
+    // Check if the points around this point consist of a single spanning tree.
+    bool valid = true;
+    auto points = position.get_points_around();
+    for (Position &point : points) {
+        if (tiles[point.y][point.x] == EMPTY) continue;
+
+        // Count how many tiles are connected.
+        int connect_count = connected_components(point);
+        if (connect_count != n_hive_tiles) {
+            valid = false;
+        }
+        break;
+    }
+
+    // Restore original tile value.
+    *tile = tile_type;
+    return valid;
+}
+
+
+void Board::update_free_tiles() {
+    int n_updated = 0;
+    int to_update = sum_hive_tiles();
+    Position pos;
+    for (int x = min.x; x < max.x + 1; x++) {
+        if (n_updated == to_update) break;
+
+        for (int y = min.y; y < max.y + 1; y++) {
+            if (n_updated == to_update) break;
+
+            // Dont check empty tiles, or tiles which could already move before this.
+            if (tiles[y][x] == EMPTY) continue;
+
+            // Allow everything at first, then let articulation fix this.
+            n_updated++;
+
+            pos = Position(x, y);
+            free[y][x] = can_move(pos);
+        }
+    }
+
+//    print_board(board);
+//    articulation(board, first_tile);
+    // TODO: After articulation, set all stacked beetles to 'free = true', because they are stacked.
+}
+
+void Board::update_can_move(Position &position, Position &previous_position) {
+    // Dont do this checking twice.
+    if (has_updated) return;
+    has_updated = true;
+
+    // For articulation it might be beneficial to always full update.
+    update_free_tiles();
+//    board->free[position] = true;
+//
+//    int n_neighbours = 0;
+//    if (previous_position != -1) {
+//        // If the previous tile is not empty, this tile is not necessarily free.
+//        if (board->tiles[previous_position] == EMPTY)
+//            board->free[previous_position] = false;
+//
+//        // Check around previous position
+//        int *points = get_points_around(previous_position / BOARD_SIZE, previous_position % BOARD_SIZE);
+//        for (int i = 0; i < 6; i++) {
+//            int px = points[i] % BOARD_SIZE;
+//            int py = points[i] / BOARD_SIZE;
+//            if (board->tiles[py * BOARD_SIZE + px] == EMPTY) continue;
+//            if (n_neighbours == 1) {
+//                update_free_tiles(board);
+//                return;
+//            }
+//
+//            n_neighbours++;
+//            // For all neighbours, update whether or not they can move.
+//            board->free[py * BOARD_SIZE + px] = can_move(board, px, py);
+//        }
+//    }
+//    int *points = get_points_around(position / BOARD_SIZE, position % BOARD_SIZE);
+//    n_neighbours = 0;
+//    for (int i = 0; i < 6; i++) {
+//        int px = points[i] % BOARD_SIZE;
+//        int py = points[i] / BOARD_SIZE;
+//        if (board->tiles[py * BOARD_SIZE + px] == EMPTY) continue;
+//
+//        if (n_neighbours == 1) {
+//            update_free_tiles(board);
+//            return;
+//        }
+//        n_neighbours++;
+//        // For all neighbours, update whether or not they can move.
+//        board->free[py * BOARD_SIZE + px] = can_move(board, px, py);
+//    }
+}
+
+
+int Board::connected_components(Position &original_position) {
+    bool visited[BOARD_SIZE][BOARD_SIZE] = {false};
+
+//    return find_articulation(board, index, -1, is_connected);
+
+    int n_connected = 1;
+    std::list<Position> frontier;
+
+    frontier.push_back(original_position);
+    visited[original_position.y][original_position.x] = true;
+    Position position;
+    while (!frontier.empty()) {
+        position = frontier.back();
+        frontier.pop_back();
+
+        auto points = position.get_points_around();
+        for (Position &point : points) {
+            // Skip this tile if theres nothing on it
+            if (tiles[point.y][point.x] == EMPTY
+                || visited[point.y][point.x])
+                continue;
+
+            // If it was not yet connected, add a connected tile.
+            visited[point.y][point.x] = true;
+
+
+            frontier.push_back(point);
+            n_connected += 1;
+        }
+    }
+
+    return n_connected;
+}
+

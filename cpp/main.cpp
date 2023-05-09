@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
 
 
     for (int i = 0; i < 20; i++) {
-        generate_children(game.root, 1e100);
+        generate_children(game.root);
         game.random_move();
         game.root.print();
     }

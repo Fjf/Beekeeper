@@ -4,17 +4,18 @@
 
 #include <utils.h>
 #include <omp.h>
-#include <game.h>
+#include "game.h"
+#include <tree_impl.cpp>
 
 
-int performance_testing(Node &tree, int depth) {
+int performance_testing(DefaultNode &tree, int depth) {
     if (depth == 0) {
         return 1;
     }
-    generate_moves(tree);
+    tree.generate_moves();
 
     int ret = 1;
-    for (Node &child : tree.children) {
+    for (DefaultNode &child : tree.children) {
         ret += performance_testing(child, depth - 1);
     }
 
@@ -23,39 +24,16 @@ int performance_testing(Node &tree, int depth) {
     return ret;
 }
 
-//int performance_testing_parallel(Node& tree, int depth, int par_depth) {
-//    if (depth == 0) return 1;
-//    generate_moves(tree);
-//
-//    int ret = 1;
-//
-//    if (par_depth == 0) {
-//#pragma omp parallel for
-//        for (Node& child : tree.children) {
-//            {
-//                int r = performance_testing(child, depth - 1);
-//
-//#pragma omp atomic
-//                ret += r;
-//            }
-//        }
-//    } else {
-//        for (Node& child : tree.children) {
-//            ret += performance_testing_parallel(child, depth - 1, par_depth - 1);
-//        }
-//    }
-//    return ret;
-//}
 
 int main(int argc, char **argv) {
-    int max_depth = 6;
+    int max_depth = 8;
     if (argc > 1) {
         max_depth = atoi(argv[1]);
     }
 
     printf("Running perft with depth %d on %d threads.\n", max_depth, 1);
 
-    Game game = Game();
+    Game game = Game<DefaultNode>();
 //    for (size_t i = 0; i < 10; i++) {
 //        generate_children(game.root, 1e100);
 //        game.random_move();
@@ -174,5 +152,18 @@ Depth    | Time (s)        | Nodes           | Knodes/sec
        5 |          0.0407 |           84600 | (2174.48)
        6 |          0.3140 |         1970428 | (6557.73)
        7 |          4.8454 |        27638820 | (6129.04)
+
+ Running perft with depth 8 on 1 threads.
+Depth    | Time (s)        | Nodes           | Knodes/sec
+---------|-----------------|-----------------|--------------
+       0 |          0.0000 |               1 | (4237.29)
+       1 |          0.0000 |               4 | (933.01)
+       2 |          0.0000 |              16 | (11000.52)
+       3 |          0.0000 |             240 | (8616.42)
+       4 |          0.0003 |            3600 | (12357.73)
+       5 |          0.0079 |           86040 | (11330.25)
+       6 |          0.2020 |         2036580 | (10525.36)
+       7 |          3.9714 |        30273650 | (8158.38)
+
 
  */

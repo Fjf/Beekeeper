@@ -6,7 +6,7 @@
 #include <list>
 #include <vector>
 #include <array>
-#include "utils.h"
+#include "constants.h"
 
 class Position {
 public:
@@ -36,6 +36,10 @@ public:
     int flat_index() const { return y * BOARD_SIZE + x; };
 
     std::string to_string() const { return std::to_string(x) + "," + std::to_string(y); };
+
+    friend auto operator<<(std::ostream &os, Position const &m) -> std::ostream & {
+        return os << m.to_string();
+    }
 
     const std::array<Position, 6> get_points_around() const;
 

@@ -2,10 +2,10 @@
 #ifndef BEEKEEPER_BOARD_H
 #define BEEKEEPER_BOARD_H
 
+#include "constants.h"
 #include <vector>
 #include <string>
 #include "position.h"
-#include "utils.h"
 
 class Board {
 public:
@@ -76,5 +76,7 @@ private:
 
     int connected_components(Position &position);
 };
+
+
 
 #endif //BEEKEEPER_BOARD_H

@@ -6,8 +6,8 @@
 #define HIVE_TT_H
 
 
+#include "position.h"
 #include "board.h"
-#include "tree.h"
 
 #define TT_FLAG_UPPER 0
 #define TT_FLAG_LOWER 1
@@ -36,9 +36,9 @@ extern struct tt_entry *tt_table;
 
 void tt_init();
 
-void tt_store(Node &node, float score, char flag, int depth, int player);
-
-struct tt_entry *tt_retrieve(Node &node, int player);
+//void tt_store(BaseNode &node, float score, char flag, int depth, int player);
+//
+//struct tt_entry *tt_retrieve(BaseNode &node, int player);
 
 
 #endif //HIVE_TT_H

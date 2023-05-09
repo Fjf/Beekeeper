@@ -7,35 +7,22 @@
 #include "board.h"
 #include <iostream>
 #include <cstring>
-
-class Move {
-public:
-    uint8_t tile;
-    uint8_t next_to;
-    uint8_t direction;
-    Position previous_location;
-    Position location;
-
-    Move() = default;
-
-    std::string to_string() const;
-
-    std::string tile_string(uint8_t tile_type) const;
-};
+#include "move.h"
 
 
-#pragma pack(1)
-class alignas(8) Node {
+#pragma pack(push, 1)
+template <typename T>
+class alignas(8) BaseNode {
 public:
     Move move;
     Board board;
-    Node *parent = nullptr;
-    std::list<Node, std::allocator<Node>> children;
+    BaseNode *parent = nullptr;
+    std::list<T> children = std::list<T, std::allocator<T>>();
 
-    Node() = default;
+    BaseNode() = default;
 
-    inline Node copy() const {
-        Node node;
+    [[nodiscard]] inline T copy() const {
+        T node;
         const size_t n_bytes = ((sizeof(Move) + sizeof(Board) + 8) / 8) * 8;
         memcpy((void*) &node, this, n_bytes);
         return node;
@@ -43,26 +30,27 @@ public:
 
     void print();
 
+    int generate_children();
+
+    void generate_directional_grasshopper_moves(Position &orig_pos, int x_incr, int y_incr);
+    void generate_grasshopper_moves(Position &orig_pos);
+    void generate_ant_moves(Position &orig);
+    void generate_queen_moves(Position &orig);
+    void generate_beetle_moves(Position &point);
+    void generate_spider_moves(Position &orig);
+    void generate_free_moves(int player_bit);
+    void generate_placing_moves(uint8_t type);
+
+
+    template<bool placed> void add_child(const Position &location, int type, const Position &previous_location);
+
     [[nodiscard]] std::string get_move() const;
 
+    void generate_moves();
 };
+#pragma pack(pop)
 
 
-void node_init(struct node *node, void *data);
-
-void node_add_child(struct node *node, struct node *child);
-
-void node_free_children(struct node *root);
-
-void node_free(struct node *root);
-
-void node_copy(struct node *dest, struct node *src);
-
-char *string_move(struct node *node);
-
-void print_move(struct node *node);
-
-struct node *list_get_node(struct list *list);
 
 
 #endif //BEEKEEPER_TREE_H
