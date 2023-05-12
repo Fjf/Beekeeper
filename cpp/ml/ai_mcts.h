@@ -3,27 +3,26 @@
 #define BEEKEEPER_AI_MCTS_H
 
 #include <torch/extension.h>
-#include <tree.h>
+#include <tree_impl.cpp>
+
 
 class ai_mcts {
 public:
 
-    static torch::Tensor evaluate(torch::jit::script::Module &model);
-};
+//    static torch::Tensor evaluate(torch::jit::script::Module &model);
 
-#pragma pack(push, 1)
-class alignas(8) MCTSNode : public BaseNode<MCTSNode> {
-    float value = 0.0f;
-    int visitCount = 0;
+    static int naive_playout(BaseNode<MCTSData> *root);
 
-    [[nodiscard]] inline BaseNode copy() const {
-        MCTSNode node;
-        const size_t n_bytes = ((sizeof(Move) + sizeof(Board) + 8) / 8) * 8;
-        memcpy((void*) &node, this, n_bytes);
-        return node;
-    }
+    [[nodiscard]] static BaseNode<MCTSData>& select_leaf(BaseNode<MCTSData> *root);
+
+    static void cascade_result(BaseNode<MCTSData> *leaf, float value);
+
+    static void run_mcts(BaseNode<MCTSData> &root);
+
+    static void run_ai_mcts(BaseNode<MCTSData> &root, torch::jit::script::Module &model);
+
+    static float model_playout(BaseNode<MCTSData>& root, BaseNode<MCTSData>& leaf, torch::jit::script::Module &model);
 };
-#pragma pack(pop)
 
 
 #endif //BEEKEEPER_AI_MCTS_H

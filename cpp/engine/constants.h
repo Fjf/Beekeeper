@@ -40,6 +40,11 @@
 #define MAX_TURNS 1000
 #endif
 
+#define UNDECIDED 0
+#define LIGHT_WON 1
+#define DARK_WON 2
+#define DRAW 3
+
 
 #define to_usec(timespec) ((((timespec).tv_sec * 1e9) + (timespec).tv_nsec) / 1e3)
 

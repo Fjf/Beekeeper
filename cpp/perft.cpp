@@ -6,16 +6,17 @@
 #include <omp.h>
 #include "game.h"
 #include <tree_impl.cpp>
+#include <ml/ai_mcts.h>
 
 
-int performance_testing(DefaultNode &tree, int depth) {
+int performance_testing(BaseNode<DefaultData> &tree, int depth) {
     if (depth == 0) {
         return 1;
     }
     tree.generate_moves();
 
     int ret = 1;
-    for (DefaultNode &child : tree.children) {
+    for (BaseNode<DefaultData> &child : tree.children) {
         ret += performance_testing(child, depth - 1);
     }
 
@@ -33,7 +34,7 @@ int main(int argc, char **argv) {
 
     printf("Running perft with depth %d on %d threads.\n", max_depth, 1);
 
-    Game game = Game<DefaultNode>();
+    Game game = Game<BaseNode<DefaultData>>();
 //    for (size_t i = 0; i < 10; i++) {
 //        generate_children(game.root, 1e100);
 //        game.random_move();

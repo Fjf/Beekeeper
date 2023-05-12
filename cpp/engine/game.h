@@ -6,12 +6,12 @@
 
 #include "tree.h"
 #include "tt.h"
+#include "utils.h"
 
 
 template<typename T>
 class Game {
 public:
-    static_assert(std::is_base_of<BaseNode<T>, T>::value, "Instantiated class not derived from BaseNode.");
     T root = T();
 
     Game() {
@@ -32,7 +32,7 @@ public:
 
     void random_move() {
         size_t selection = std::rand() % root.children.size();
-        for (BaseNode<T> &child : root.children) {
+        for (T &child : root.children) {
             if (selection == 0) {
                 root = child;
                 root.parent = nullptr;

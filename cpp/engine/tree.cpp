@@ -430,7 +430,7 @@ std::string BaseNode<T>::get_move() const {
     } else if (move.direction == 1) {
         response += '/';
     }
-    move.to_string();
+    response += move.to_string();
 
     if (move.direction == 4) {
         response += '/';
@@ -468,6 +468,10 @@ int BaseNode<T>::generate_children() {
             add_child<false>(dummy_pos, 0, dummy_pos);
         }
     }
+
+//    for (BaseNode<T> child : children) {
+//        static_assert(child.board.tiles == );
+//    }
     return children.empty();
 }
 
@@ -478,22 +482,13 @@ int BaseNode<T>::generate_children() {
 template <typename T>
 template<bool placed>
 void BaseNode<T>::add_child(const Position &location, int type, const Position &previous_location) {
-    if (board.turn == MAX_TURNS - 1) {
-        return;
-    }
-
-    // Create new board
-    T child = copy();
-    Board& board = child.board;
-
-//    printf("Adding child with type %d on turn %d\n", type, board.turn);
-//    std::cout << "Position = " << previous_location << std::endl;
+    BaseNode<T> child = copy();
 
     child.parent = this;
 
     if (location.x == -1) {
         // No valid moves are available
-        board.turn++;
+        child.board.turn++;
 
         child.move.location = Position(0, 0);
         child.move.previous_location = Position(0, 0);
@@ -508,7 +503,7 @@ void BaseNode<T>::add_child(const Position &location, int type, const Position &
     // Track how many tiles are on the board.
     if (placed) {
         int masked_type = type & TILE_MASK;
-        Board::player_info &player = board.players[board.turn % 2];
+        Board::player_info &player = child.board.players[child.board.turn % 2];
         // Reduce the amount of available tiles per player
         // Only do this if the tile was not moved but instead newly placed
         if (masked_type == L_QUEEN) {
@@ -528,64 +523,64 @@ void BaseNode<T>::add_child(const Position &location, int type, const Position &
             player.spiders_left--;
         }
     } else {
-        Board::tile_stack *ts = board.get_from_stack(previous_location, true);
-        board.tiles[previous_location.y][previous_location.x] = (ts == nullptr ? EMPTY : ts->type);
+        Board::tile_stack *ts = child.board.get_from_stack(previous_location, true);
+        child.board.tiles[previous_location.y][previous_location.x] = (ts == nullptr ? EMPTY : ts->type);
     }
 
     // If this move is on top of an existing tile, store this tile in the stack
-    if (board.tiles[location.y][location.x] != EMPTY) {
-        for (auto &tile_stack : board.stack) {
+    if (child.board.tiles[location.y][location.x] != EMPTY) {
+        for (auto &tile_stack : child.board.stack) {
             if (tile_stack.position.x == -1) {
                 // Get highest tile from tile_stack
-                Board::tile_stack *ts = board.get_from_stack(location, false);
+                Board::tile_stack *ts = child.board.get_from_stack(location, false);
 
                 // Store in tile_stack
                 tile_stack.position = location;
-                tile_stack.type = board.tiles[location.y][location.x];
+                tile_stack.type = child.board.tiles[location.y][location.x];
                 tile_stack.z = (ts == nullptr ? 0 : ts->z + 1);
                 break;
             }
         }
 
         // This is to track all the stacked tiles in a simple list to help cloning.
-        board.n_stacked++;
+        child.board.n_stacked++;
     }
 
     // Do this for easier board-finished state checking (dont have to take into account beetles).
     if ((type & (TILE_MASK | COLOR_MASK)) == L_QUEEN) {
-        board.light_queen = location;
+        child.board.light_queen = location;
     } else if ((type & (TILE_MASK | COLOR_MASK)) == D_QUEEN) {
-        board.dark_queen = location;
+        child.board.dark_queen = location;
     }
 
     // Update the zobrist hash for this child
-    zobrist_hash(board, location, previous_location, type);
+    zobrist_hash(child.board, location, previous_location, type);
 
     // Store hash history
 //    board.hash_history.push_back(board.zobrist_hash);
-    board.tiles[location.y][location.x] = type;
-    board.turn++;
+    child.board.tiles[location.y][location.x] = type;
+    child.board.turn++;
 
-    board.has_updated = false;
+    child.board.has_updated = false;
 
     // If the old x or y position was the minimum value, recompute the min/max value.
-    if (previous_location.x == board.min.x || previous_location.y == board.min.y) {
-        board.get_min_x_y();
+    if (previous_location.x == child.board.min.x || previous_location.y == child.board.min.y) {
+        child.board.get_min_x_y();
     }
-    if (previous_location.x == board.max.x || previous_location.y == board.max.y) {
-        board.get_max_x_y();
+    if (previous_location.x == child.board.max.x || previous_location.y == child.board.max.y) {
+        child.board.get_max_x_y();
     }
 
-    board.min.x = std::min(board.min.x, location.x);
-    board.max.x = std::max(board.max.x, location.x);
+    child.board.min.x = std::min(child.board.min.x, location.x);
+    child.board.max.x = std::max(child.board.max.x, location.x);
 
-    board.min.y = std::min(board.min.y, location.y);
-    board.max.y = std::max(board.max.y, location.y);
+    child.board.min.y = std::min(child.board.min.y, location.y);
+    child.board.max.y = std::max(child.board.max.y, location.y);
 
     // If the min or max is at the end, translate the board to the center.
-    if ((board.min.x <= 3) || (board.min.y <= 3) || board.max.x > BOARD_SIZE - 4 || board.max.y > BOARD_SIZE - 4) {
+    if ((child.board.min.x <= 3) || (child.board.min.y <= 3) || child.board.max.x > BOARD_SIZE - 4 || child.board.max.y > BOARD_SIZE - 4) {
         // After this move, ensure this board is centered.
-        board.center();
+        child.board.center();
     }
 
     child.move.previous_location = previous_location;
@@ -596,9 +591,9 @@ void BaseNode<T>::add_child(const Position &location, int type, const Position &
     child.move.next_to = 0;
 
     // Add move notation for clarity
-    if (board.tiles[location.y][location.x] != EMPTY) {
+    if (child.board.tiles[location.y][location.x] != EMPTY) {
         child.move.direction = 7;
-        child.move.next_to = board.tiles[location.y][location.x];
+        child.move.next_to = child.board.tiles[location.y][location.x];
     } else {
         auto points = location.get_points_around();
         size_t p = 0;
@@ -612,6 +607,6 @@ void BaseNode<T>::add_child(const Position &location, int type, const Position &
         }
     }
     child.move.tile = type;
-    children.push_back(std::move(child));
+    children.push_back(child);
 }
 

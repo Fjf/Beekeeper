@@ -51,8 +51,8 @@ add_library(cxx_hive_torch SHARED ${HIVE_SOURCES} ${MCTS_SOURCES} )
 target_link_libraries(cxx_hive_torch ${TORCH_LIBRARIES})
 
 # Main runner executable, currently not doing much.
-add_executable(cxx_hive_run main.cpp ${HIVE_SOURCES} )
-target_link_libraries(cxx_hive_run -ltcmalloc)
+add_executable(cxx_hive_run main.cpp ${HIVE_SOURCES} ${MCTS_SOURCES})
+target_link_libraries(cxx_hive_run -ltcmalloc ${TORCH_LIBRARIES} ${PYTHON_LIBRARIES})
 
 # Performance tracking executable
 add_executable(cxx_perft perft.cpp ${HIVE_SOURCES} )

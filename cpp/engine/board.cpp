@@ -4,11 +4,11 @@
 #include "board.h"
 
 int Board::finished() {
-    int res = 0;
+    int res = UNDECIDED;
     if (light_queen.x != -1) {
         // Check queen 1
         if (is_surrounded(light_queen)) {
-            res = 2;
+            res = LIGHT_WON;
         }
     }
 
@@ -16,9 +16,9 @@ int Board::finished() {
         // Check queen 2
         if (is_surrounded(dark_queen)) {
             if (res == 0)
-                res = 1;
+                res = DARK_WON;
             else
-                res = 3;
+                res = DRAW;
         }
     }
 
@@ -32,7 +32,8 @@ int Board::finished() {
 
     // Draw due to turn limit
     // TODO: Set turn limit in game instead of hardcoded
-    if (turn >= 10000 - 1) {
+    if (turn >= MAX_TURNS - 1) {
+        return DRAW;
         int l = count_tiles_around(light_queen);
         int d = count_tiles_around(dark_queen);
         return d > l ? 1 : 2;
@@ -142,7 +143,6 @@ void Board::center() {
     uint16_t src_begin = min.flat_index();
     uint16_t src_end = max.flat_index();
     uint16_t size = (src_end - src_begin) + 1;
-
     Position dest = Position(
             (BOARD_SIZE / 2) - (max.x - min.x + 1) / 2,
             (BOARD_SIZE / 2) - (max.y - min.y + 1) / 2
@@ -168,14 +168,52 @@ void Board::center() {
 
     size_t dest_begin = dest.flat_index();
 
+    /*
+     *
+     *     0 0 0 0 0 0 0
+     *     1 1 1 1 0 0 0
+     *     0 0 0 1 0 0 0
+     *     0 0 0 0 0 0 0
+     *     0 0 0 0 0 0 0
+     *     0 0 0 0 0 0 0
+     *
+     *     0 0 0 0 0 0 0
+     *     0 0 0 0 0 0 0
+     *     0 1 1 1 1 0 0
+     *     0 0 0 0 1 0 0
+     *     0 0 0 0 0 0 0
+     *     0 0 0 0 0 0 0
+     *
+     *
+     *
+     *
+     */
+
+    void (*tiles_dest_vptr) = &tiles;
+    char *tiles_dest = static_cast<char *>(tiles_dest_vptr);
+
     std::memmove(
-            tiles + dest_begin,
-            tiles + src_begin,
-            size
+            tiles_dest + dest_begin,
+            tiles_dest + src_begin,
+            size * sizeof(uint8_t)
     );
-    std::memset(tiles, 0, dest_begin);
-    void (*tiles_dest) = &tiles;
-    std::memset(((char *) tiles_dest) + dest_begin + size, 0, sizeof(tiles) - (dest_begin + size - 1));
+    std::memset(tiles_dest, 0, dest_begin * sizeof(uint8_t));
+
+    std::memset(tiles_dest + dest_begin + size + 1, 0, sizeof(tiles) - (dest_begin + size - 1));
+
+//// Copy data into temp array
+//    char t[BOARD_SIZE * BOARD_SIZE] = {0};
+//    char *temp = reinterpret_cast<char*>(&t);
+//
+//    memcpy(temp + dest.flat_index() * sizeof(char),
+//           ((char *) &tiles) + src_begin * sizeof(char),
+//           (size) * sizeof(char)
+//    );
+//
+//    memset(&tiles, 0, BOARD_SIZE * BOARD_SIZE * sizeof(char));
+//    // Copy data back into main array after clearing data.
+//    memcpy(&tiles, temp, BOARD_SIZE * BOARD_SIZE * sizeof(char));
+
 
     min.x += translate.x;
     max.x += translate.x;
