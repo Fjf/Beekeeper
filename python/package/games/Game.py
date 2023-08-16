@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Iterable, List
+from typing import Iterable, List, Union
 
 import numpy as np
 import torch
@@ -13,7 +13,17 @@ class MCTSData(object):
     def __init__(self):
         self.n_sims = 0
         self.value = 0
+        self.prior = 0
         self.policy = None
+
+    def reset(self):
+        self.n_sims = 0
+        self.prior = 0
+        self.value = 0
+        self.policy = None
+
+    def __repr__(self):
+        return f"MCTSData: (sims: {self.n_sims}, value: {self.value})"
 
 
 class GameNode(ABC):
@@ -21,9 +31,12 @@ class GameNode(ABC):
 
     def __init__(self, parent):
         self.parent = parent
+        self.n_players = 1
+        self.children = []
+        self.done = False
         self.mcts = MCTSData()
 
-    def to_np(self, perspective: Perspectives) -> np.array:
+    def to_np(self, perspective: Union[Perspectives, int]) -> np.array:
         """
         Generates a numpy-representation of this node from the perspective of player
 
@@ -37,11 +50,9 @@ class GameNode(ABC):
         :return: the encoded move
         """
 
-    def get_children(self) -> List[GameNode]:
+    def expand(self):
         """
-        Returns an iterable of GameNodes.
-
-        :return:
+        Generates the children in the internal list.
         """
 
     def finished(self) -> GameState:
@@ -58,12 +69,18 @@ class GameNode(ABC):
         :return:
         """
 
+    @property
     def turn(self) -> int:
         """
         Gives the current turn in the game.
 
         :return:
         """
+        return 0
+
+    @property
+    def to_play(self) -> int:
+        return self.turn % self.n_players
 
 
 class Game(ABC):
@@ -86,15 +103,17 @@ class Game(ABC):
         :return:
         """
 
+    @property
     def turn(self) -> int:
         """
         Returns the current turn in the game
 
         :return:
         """
+        return 0
 
-    def to_move(self) -> Perspectives:
-        return Perspectives.PLAYER1 if self.turn() % 2 == 0 else Perspectives.PLAYER2
+    def to_play(self) -> int:
+        return self.turn % 2
 
     def print(self):
         """
@@ -110,7 +129,7 @@ class Game(ABC):
         :return: GameState
         """
 
-    def generate_children(self):
+    def reset_children(self):
         """
         Generates all children from this gamestate.
 

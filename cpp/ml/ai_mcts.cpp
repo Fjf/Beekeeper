@@ -168,6 +168,18 @@ void ai_mcts::run_ai_mcts(BaseNode<MCTSData> &root, torch::jit::script::Module &
         float value = model_playout(root, leaf, model);
         cascade_result(&leaf, value);
     }
+
+    // Values are positive by definition, so a negative best_value initial value will ensure a selected child.
+    float best_value = -1.0f;
+    BaseNode<MCTSData>* best_child;
+    for (BaseNode<MCTSData>& child : root.children) {
+        if (child.data.value / child.data.visitCount > best_value) {
+            best_child = &child;
+            best_value = child.data.value / child.data.visitCount;
+        }
+    }
+
+
 }
 
 

@@ -15,7 +15,9 @@ class Connect4Node(GameNode):
 
     def __init__(self, parent, board: np.array = None, move: int = -1):
         super().__init__(parent)
-        self._turn = parent.turn() + 1 if parent is not None else 0
+        self.n_players = 2
+
+        self._turn = parent.turn + 1 if parent is not None else 0
         self.children = []
 
         if board is None:
@@ -29,9 +31,10 @@ class Connect4Node(GameNode):
             self.move = move
             for i in range(self.height):
                 if self._board[move][i] == 0:
-                    self._board[move][i] = ((self.turn() - 1) % 2) + 1
+                    self._board[move][i] = ((self.turn - 1) % self.n_players) + 1
                     break
 
+    @property
     def turn(self):
         return self._turn
 
@@ -49,8 +52,7 @@ class Connect4Node(GameNode):
 
         arr = arr.reshape(1, *self._board.shape)
 
-        # return np.append(arr.flatten(), self.turn() % 2)
-        arr = np.vstack((arr, np.ones(arr.shape) * [self.turn() % 2]))
+        arr = np.vstack((arr, np.ones(arr.shape) * [self.turn % self.n_players]))
         return arr.reshape(-1, *self._board.shape)
 
     def encode(self) -> int:
@@ -108,8 +110,9 @@ class Connect4(Game):
         self.node = Connect4Node(None)
         self.history.append(self.node)  # Add first node too.
 
+    @property
     def turn(self) -> int:
-        return self.node.turn()
+        return self.node.turn
 
     def get_inverted(self, boards: List[torch.Tensor]) -> List[torch.Tensor]:
         output = []
@@ -120,7 +123,7 @@ class Connect4(Game):
         return output
 
     def print(self):
-        return self.node.print()
+        print(self.node)
 
     def finished(self) -> GameState:
         return self.node.finished()
@@ -134,7 +137,7 @@ class Connect4(Game):
 
     def ai_move(self, algorithm: str):
         if algorithm == "random":
-            children = self.node.get_children()
+            children = self.node.children
             self.select_child(random.sample(children, 1)[0])
             return
         raise NotImplemented("No move algorithms are implemented for Connect4.")

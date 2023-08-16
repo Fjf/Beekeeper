@@ -7,49 +7,48 @@ from torch import nn
 
 
 class TicTacToeNN(pl.LightningModule):
-    def __init__(self, input_size=10, output_size=9):
+    def __init__(self, input_space=0, output_size=9):
         super().__init__()
         self.encoder = nn.Sequential(
-            nn.Linear(input_size, 64),
+            nn.Flatten(),
+            nn.Linear(18, 8),
             nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.Dropout(0.3),
-            nn.ReLU(),
-            nn.Linear(32, output_size + 1)
+            nn.Linear(8, output_size + 1),
         )
         self.policy_activation = nn.Softmax(dim=1)
         self.value_activation = nn.Tanh()
 
-        # self.value_loss = nn.MSELoss()
-        # self.policy_loss = nn.CrossEntropyLoss()
+        self.policy_loss = nn.MSELoss()
+        self.value_loss = nn.MSELoss()
 
+        self.input_space = input_space
         self.output_size = output_size
-        self.input_size = input_size
-
-        # self.automatic_optimization = False
 
     def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
         x, pi, game_value = batch
 
-        # Increase class differences
-        pi = torch.pow(pi, 4)
-        pi /= torch.sum(pi, dim=1).view(pi.shape[0], 1)
-
         policy, value = self(x)
 
-        l2_lambda = 0.001
-        l2_norm = sum(p.pow(2.0).sum() for p in self.encoder.parameters())
-        l2_regularization = l2_norm * l2_lambda
+        # l2_lambda = 0.001
+        # l2_norm = sum(p.pow(2.0).sum() for p in self.encoder.parameters())
+        # l2_regularization = l2_norm * l2_lambda
 
-        value_loss = self.loss_v(game_value, value)
-        policy_loss = self.loss_pi(pi, policy)
+        # value_loss = self.loss_v(game_value, value)
+        # policy_loss = self.loss_pi(pi, policy)
+        value_loss = self.value_loss(value, game_value)
+        policy_loss = self.policy_loss(policy, pi)
+        # print(game_value, value, "loss", value_loss)
+        # print(pi, policy, "loss", policy_loss)
+        # input()
 
-        loss = (value_loss - policy_loss).mean() + l2_regularization
+        loss = (value_loss + policy_loss).mean()
+        # breakpoint()
+        # loss = (value_loss + policy_loss).mean()  # + l2_regularization
+
+        self.log("loss", loss, on_step=True, prog_bar=True, logger=True)
         return loss
 
-    def test_step(self, batch, batch_idx) -> Optional[STEP_OUTPUT]:
+    def test_step(self, batch, batch_idx):
         x, pi, game_value = batch
         policy, value = self(x)
 
@@ -82,5 +81,5 @@ class TicTacToeNN(pl.LightningModule):
         return self.policy_activation(policy), self.value_activation(value)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.1)
-        # return torch.optim.Adam(self.parameters(), lr=0.1)
+        # return torch.optim.SGD(self.parameters(), lr=0.3)
+        return torch.optim.Adam(self.parameters(), lr=0.01)

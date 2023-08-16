@@ -9,6 +9,7 @@ from typing import Type
 import pytorch_lightning
 import torch.cuda
 from mpi4py import MPI
+from pytorch_lightning import Trainer
 from torch.utils.tensorboard import SummaryWriter
 
 from games.Game import Game
@@ -66,6 +67,7 @@ def setup_parser():
     parser.add_argument("--device", type=str, default="cuda",
                         help="Device to run on, when specifying cuda, all workers will be split across the available "
                              "cuda devices evenly.")
+
     return parser
 
 
@@ -90,6 +92,7 @@ def main():
 
     # Optimize backends
     torch.backends.cudnn.benchmark = True
+    torch.set_float32_matmul_precision('medium')
 
     # Give workers their own logic
     if rank != MASTER_THREAD:
@@ -111,6 +114,8 @@ def main():
                         **vars(args))
 
         logger.info("Starting training")
+        # import pdb
+        # pdb.set_trace()
         school.train(n_model_updates,
                      pretraining=False,
                      stored_model_filename=args.model,
@@ -135,18 +140,10 @@ def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sim
     # If running on cuda, select a specific available device based on rank.
     if device == "cuda":
         gpu_idx = rank % torch.cuda.device_count()
-        gpu_mem = torch.cuda.get_device_properties(gpu_idx).total_memory
         device = f"{device}:{gpu_idx}"
 
-        model_size = pytorch_lightning.utilities.memory.get_model_size_mb(network1) * 1024 * 1024 * 2 * 2.5
-        mcts_size = (game.input_space * 4 + game.action_space * 4 * 60) * mcts_iterations * 2
-
-        tot_mem = model_size + mcts_size
-        if rank - 2 == gpu_idx:
-            logger.info(f"There fit ~{gpu_mem / tot_mem} procs on GPU {gpu_idx}")
-
     # Initialize MCTS simulator and move networks to correct device.
-    simulator = Simulator(game, mcts_iterations=mcts_iterations, device=device, mcts_batch_size=mcts_batch_size)
+    simulator = Simulator(game, mcts_iterations=mcts_iterations, device=device)
     network1 = network1.to(device)
     network1.eval()
     network2 = network2.to(device)
@@ -155,13 +152,9 @@ def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sim
     logger.info(f"Process {rank} running on device {simulator.mcts_object.device} ({MPI.Get_processor_name()})")
 
     # Jit script compiles the models for better performance.
-    compiled_network1 = network1.to_torchscript()
-    compiled_network2 = network2.to_torchscript()
 
     # compiled_network1 = network1
     # compiled_network2 = network2
-
-    torch.backends.cudnn.benchmark = True
 
     with torch.no_grad():
         while True:
@@ -175,21 +168,23 @@ def main_worker(game, model_type: Type[pytorch_lightning.LightningModule], n_sim
                 state_dict1, state_dict2 = packet.data
 
                 if i % 2 == 0:
-                    perspective = Perspectives.PLAYER1
+                    perspective = 0
                 else:
-                    perspective = Perspectives.PLAYER2
+                    perspective = 1
 
                 # Swap neural networks to let training network experience both perspectives.
-                if perspective == Perspectives.PLAYER2:
+                if perspective == 1:
                     state_dict1, state_dict2 = state_dict2, state_dict1
 
-                compiled_network1.load_state_dict(state_dict1)
-                compiled_network2.load_state_dict(state_dict2)
+                network1.load_state_dict(state_dict1)
+                network2.load_state_dict(state_dict2)
+                compiled_network1 = network1.to_torchscript()
+                compiled_network2 = network2.to_torchscript()
 
                 # Jit script compiles the models for better performance.
-                optimized_network1 = torch.jit.optimize_for_inference(compiled_network1)
-                optimized_network2 = torch.jit.optimize_for_inference(compiled_network2)
-                data = simulator.parallel_play(perspective, optimized_network1, optimized_network2)
+                # optimized_network1 = torch.jit.optimize_for_inference(compiled_network1)
+                # optimized_network2 = torch.jit.optimize_for_inference(compiled_network2)
+                data = simulator.parallel_play(perspective, compiled_network1, compiled_network2)
                 comm.send((i, *data), MASTER_THREAD)
 
             # We don't need to be in a busy-loop.
@@ -205,3 +200,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:  # noqa
         traceback.print_exc()
+        MPI.COMM_WORLD.Abort(1)

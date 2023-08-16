@@ -11,11 +11,11 @@ from games.utils import GameState, Perspectives
 
 
 class Simulator:
-    def __init__(self, game: Type[Game], mcts_iterations=100, device="cpu", mcts_batch_size=16):
+    def __init__(self, game: Type[Game], mcts_iterations=100, device="cpu"):
         self.do_mcts = True
         self.game = game
-        self.mcts_object = MCTS(mcts_iterations, device=device, mcts_batch_size=mcts_batch_size)
-        self.temperature_threshold = 0.5
+        self.mcts_object = MCTS(mcts_iterations, device=device)
+        self.temperature_threshold = 0.3
 
     @staticmethod
     def select_move(policy, filter_idx=None, best=False):
@@ -28,7 +28,7 @@ class Simulator:
         :param filter_idx: a vector defining the moves from which to choose
         :return: the index of the chosen move in the filter vector
         """
-        if sum(policy[filter_idx] == 0):  # Select random move if policy sums to 0
+        if sum(policy[filter_idx]) == 0:  # Select random move if policy sums to 0
             logging.getLogger("hive") \
                 .warning("Filtered policy summed to 0, selecting random move. Training is probably going wrong.")
             return random.choice(range(len(filter_idx)))
@@ -53,13 +53,13 @@ class Simulator:
         :param mcts: use mcts to compute an improvement policy?
         :return: the taken move index in the policy vector
         """
-        perspective = game.to_move()
+        perspective = game.to_play()
 
         if mcts:
             policy = self.mcts_object.process(game, network)
         else:
             # Fetch array from internal memory and remove the tile number.
-            arr = game.node.to_np(perspective)
+            arr = game.node.to_np(game.node.to_play)
             arr = arr.reshape(1, *arr.shape)
 
             # Convert data to tensorflow usable format
@@ -67,19 +67,20 @@ class Simulator:
 
             # Get policy vector
             policy, _ = network(data)
-            policy = policy[0]
+            policy = policy.squeeze()
 
         # Convert children to usable format.
-        children = game.node.get_children()
+        game.node.expand()
+        children = game.node.children
         encodings = [child.encode() for child in children]
 
         # Select only best moves after high enough temperature
-        temperature = float(game.node.turn()) / float(game.turn_limit)
+        temperature = float(game.node.turn) / float(game.turn_limit)
 
         # Select a move based on updated_policy's weights out of the valid moves (encodings)
-        best_idx = self.select_move(policy, filter_idx=encodings, best=temperature > self.temperature_threshold)
-
+        best_idx = self.select_move(policy.clone(), filter_idx=encodings, best=temperature > self.temperature_threshold)
         game.select_child(children[best_idx])
+
         return policy
 
     def play(self, game: Game, p1: Optional[pytorch_lightning.LightningModule],
@@ -100,7 +101,7 @@ class Simulator:
         result = GameState.UNDETERMINED
         for i in range(10):
 
-            nn = p1 if game.to_move() == Perspectives.PLAYER1 else p2
+            nn = p1 if game.to_play() == Perspectives.PLAYER1 else p2
 
             policy_vector = None
             if nn is None:
@@ -118,7 +119,7 @@ class Simulator:
         # Return all board states and the final result.
         return zip(game.history[:-1], policy_vectors), result
 
-    def parallel_play(self, nn_perspective: Perspectives, net1: pytorch_lightning.LightningModule,
+    def parallel_play(self, nn_perspective: int, net1: pytorch_lightning.LightningModule,
                       net2: Optional[pytorch_lightning.LightningModule] = None):
         """
         Wrapper for the play function preparing the data and initializing the Hive object.
@@ -130,46 +131,32 @@ class Simulator:
 
         game = self.game()
 
-        # import cProfile
-        # import io
-        # from pstats import SortKey
-        # import pstats
-        # pr = cProfile.Profile()
-        # pr.enable()
-
         node_result, result = self.play(game, net1, net2)
-
-        # pr.disable()
-        # s = io.StringIO()
-        # sortby = SortKey.CUMULATIVE
-        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        # ps.print_stats()
-        # print(s.getvalue())
-
+        node_result = list(node_result)
         for board_idx, (node, policy_vector) in enumerate(node_result):
-            perspective = Perspectives.PLAYER1 if board_idx % 2 == 0 else Perspectives.PLAYER2
-
             # Convert all data to be usable
-            if perspective == nn_perspective:
-                tensors.append(torch.Tensor(node.to_np(nn_perspective)))
+            # if board_idx > len(node_result) - 5:
+            #     print(node.to_np(node.to_play))
+            #     print(policy_vector)
+            if node.to_play == nn_perspective:
+                tensors.append(torch.Tensor(node.to_np(node.to_play)))
                 policy_vectors.append(policy_vector)
 
         # Convert game outcome to numerical value vector
         result_value = (
             0 if (result in [GameState.UNDETERMINED, GameState.DRAW_TURN_LIMIT, GameState.DRAW_REPETITION])
             else 1 if (
-                    (result == GameState.WHITE_WON and nn_perspective == Perspectives.PLAYER1) or
-                    (result == GameState.BLACK_WON and nn_perspective == Perspectives.PLAYER2))
+                    (result == GameState.WHITE_WON and nn_perspective == 0) or
+                    (result == GameState.BLACK_WON and nn_perspective == 1))
             else -1
         )
         result_values = [torch.Tensor([result_value])] * len(tensors)
 
         # Invert tensors
-        new_tensors = game.get_inverted(tensors)
-        if len(new_tensors) > 0:
-            tensors += new_tensors
-            policy_vectors += policy_vectors
-            result_values += ([torch.Tensor([result_value * -1])] * len(new_tensors))
+        # new_tensors = game.get_inverted(tensors)
+        # if len(new_tensors) > 0:
+        #     tensors += new_tensors
+        #     policy_vectors += policy_vectors
+        #     result_values += ([torch.Tensor([result_value * -1])] * len(new_tensors))
 
-        # TODO: Wrap this in a namedtuple
         return tensors, policy_vectors, result_values, nn_perspective

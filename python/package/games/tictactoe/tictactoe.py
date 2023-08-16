@@ -13,13 +13,18 @@ class TicTacToeNode(GameNode):
     width = 3
     height = 3
 
+    INITIAL_STATE = 7
+
     def __init__(self, parent, board: np.array = None, move: int = -1):
         super().__init__(parent)
-        self._turn = parent.turn() + 1 if parent is not None else 0
+        self.n_players = 2
+
+        self._finished = None
+        self._turn = parent.turn + 1 if parent is not None else 0
         self.children = []
 
         if board is None:
-            self._board = np.zeros((self.width, self.height), dtype=np.byte)
+            self._board = np.zeros((self.width, self.height), dtype=np.byte) + self.INITIAL_STATE
         else:
             self._board = board.copy()
 
@@ -27,64 +32,71 @@ class TicTacToeNode(GameNode):
 
         if move != -1:
             self.move = move
-            # We need to set the player for the previous turn.
-            self._board[move // 3][move % 3] = ((self.turn() - 1) % 2) + 1
+            # We need to set the player for the previous turn, we incremented turn before
+            player = (self.turn - 1) % self.n_players
+            self._board[move // 3][move % 3] = player
 
+    @property
     def turn(self):
         return self._turn
 
     def to_np(self, perspective) -> np.array:
-        arr = self._board.flatten()
-        if perspective == Perspectives.PLAYER1:
-            arr = arr
-        else:
-            maskp2 = arr == 2
-            maskp1 = arr == 1
-            arr[maskp2] = 1
-            arr[maskp1] = 2
+        output_arr = np.zeros((2, *self._board.shape))
 
-        # Set values to 1, -1 instead of 1, 2
-        arr[arr == 2] = -1
-        return np.append(arr, [self.turn() % 2])
+        if perspective == 0:
+            output_arr[0, self._board == 0] = 1
+            output_arr[1, self._board == 1] = 1
+        else:
+            output_arr[0, self._board == 1] = 1
+            output_arr[1, self._board == 0] = 1
+
+        return output_arr
 
     def encode(self) -> int:
         return self.move
 
-    def get_children(self) -> List[GameNode]:
+    def expand(self):
         if self.finished() != GameState.UNDETERMINED:
-            return []
+            raise Exception("Cannot expand terminal game-state.")
 
         if len(self.children) == 0:
             for i in range(self.width * self.height):
-                if self._board[i // 3][i % 3] == 0:
+                if self._board[i // 3][i % 3] == self.INITIAL_STATE:
                     self.children.append(TicTacToeNode(self, self._board, i))
 
-        return self.children
-
     def finished(self) -> GameState:
-        horizontal_kernel = np.array([[1, 1, 1]])
-        vertical_kernel = np.transpose(horizontal_kernel)
-        diag1_kernel = np.eye(3, dtype=np.uint8)
-        diag2_kernel = np.fliplr(diag1_kernel)
-        detection_kernels = [horizontal_kernel, vertical_kernel, diag1_kernel, diag2_kernel]
+        def check_finish():
+            horizontal_kernel = np.array([[1, 1, 1]])
+            vertical_kernel = np.transpose(horizontal_kernel)
+            diag1_kernel = np.eye(3, dtype=np.uint8)
+            diag2_kernel = np.fliplr(diag1_kernel)
+            detection_kernels = [horizontal_kernel, vertical_kernel, diag1_kernel, diag2_kernel]
 
-        # Check all connect 4 rules for both player 1 and 2.
-        for kernel in detection_kernels:
-            if (convolve2d(self._board == 1, kernel, mode="valid") == 3).any():
-                return GameState.WHITE_WON
-            if (convolve2d(self._board == 2, kernel, mode="valid") == 3).any():
-                return GameState.BLACK_WON
+            # Check all connect 4 rules for both player 1 and 2.
+            for kernel in detection_kernels:
+                if (convolve2d(self._board == 0, kernel, mode="valid") == 3).any():
+                    return GameState.WHITE_WON
+                if (convolve2d(self._board == 1, kernel, mode="valid") == 3).any():
+                    return GameState.BLACK_WON
 
-        # Check if there are any valid moves left after checking for winning players.
-        for i in range(self.width * self.height):
-            if self._board[i % 3][i // 3] == 0:
-                return GameState.UNDETERMINED
+            # Check if there are any valid moves left after checking for winning players.
+            for i in range(self.width * self.height):
+                if self._board[i // 3][i % 3] == self.INITIAL_STATE:
+                    return GameState.UNDETERMINED
 
-        # If there are no moves left, this game is a draw.
-        return GameState.DRAW_TURN_LIMIT
+            # If there are no moves left, this game is a draw.
+            return GameState.DRAW_TURN_LIMIT
 
-    def print(self):
-        print(self._board)
+        if self._finished is None:
+            self._finished = check_finish()
+
+        return self._finished
+
+    def __repr__(self):
+        return "|" + "|\n|".join(' '.join(str(self._board[y, x]) for x in range(3)) for y in range(3)) + "|"
+
+    def reset_children(self):
+        self.children = []
 
 
 class TicTacToe(Game):
@@ -110,25 +122,32 @@ class TicTacToe(Game):
             output.append(new_board)
         return output
 
+    @property
     def turn(self) -> int:
-        return self.node.turn()
+        return self.node.turn
 
     def print(self):
-        return self.node.print()
+        print(self.node)
 
     def finished(self) -> GameState:
         return self.node.finished()
 
     def children(self) -> List[GameNode]:
-        return self.node.get_children()
+        return self.node.children
+
+    def reset_children(self):
+        self.node.mcts.reset()
+        self.node.reset_children()
 
     def select_child(self, child):
         self.history.append(child)
         self.node = child
+        self.node.parent = None
 
     def ai_move(self, algorithm: str):
         if algorithm == "random":
-            children = self.node.get_children()
+            self.node.expand()
+            children = self.node.children
             self.select_child(random.sample(children, 1)[0])
             return
-        raise NotImplemented("No move algorithms are implemented for Connect4.")
+        raise NotImplemented(f"No '{algorithm}' algorithm is implemented for TicTacToe.")

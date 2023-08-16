@@ -4,7 +4,7 @@ from games.utils import GameState
 
 def test_trainer():
     game = Connect4()
-    while game.turn() != game.turn_limit:
+    while game.turn != game.turn_limit:
         children = list(game.children())
         game.select_child(children[0])
         game.print()

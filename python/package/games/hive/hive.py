@@ -276,7 +276,7 @@ class HiveNode(GameNode):
 
     def encode(self):
         # We have no move to get to an initial state.
-        if self.turn() == 0:
+        if self.turn == 0:
             return None
 
         move: Move = self.cnode.contents.move
@@ -384,17 +384,18 @@ class Hive(Game):
             output.append(new_board)
         return output
 
+    @property
     def turn(self):
-        return self.node.turn()
+        return self.node.turn
 
     def print(self):
-        self.node.print()
+        print(self.node)
 
     def finished(self) -> GameState:
         return self.node.finished()
 
     def children(self) -> Iterable[HiveNode]:
-        yield from self.node.get_children()
+        yield from self.node.children
 
     def select_child(self, child: HiveNode):
         self.history.append(child)
@@ -422,7 +423,7 @@ class Hive(Game):
             config.evaluation_function = 3
 
         if algorithm == "random":
-            children = self.node.get_children()
+            children = self.node.children
             self.select_child(random.sample(children, 1)[0])
             return
         elif algorithm == "mm":

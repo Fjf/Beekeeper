@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Type
 
+import numpy as np
 import pytorch_lightning
 import torch
 from mpi4py import MPI
@@ -13,7 +14,7 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from games.Game import Game
+from games.Game import Game, GameNode
 from games.hive.hive import GameState
 from games.hive.hive_dataset import HiveDataset
 from games.utils import Perspectives
@@ -70,9 +71,11 @@ class School:
 
         # Gather data from all workers
         data = []
-        print("Gathering data")
         for _ in tqdm(range(self.simulations)):
-            data.append(self.comm.recv())
+            i, tensors, policy_vectors, result_values, nn_perspective = self.comm.recv()
+            # if result_values[0] == 0:
+            #     continue
+            data.append((i, tensors, policy_vectors, result_values, nn_perspective))
         self.logger.debug(f"Spent {datetime.now() - start} to simulate {self.simulations} games.")
 
         return data
@@ -113,9 +116,35 @@ class School:
             game = self.game()
 
             if perspective == Perspectives.PLAYER1:
-                _, result = self.simulator.play(game, p1, p2, mcts=False)
+                boards, result = self.simulator.play(game, p1, p2, mcts=False)
+
+                if i + 2 >= n_games:
+                    game = self.game()
+                    boards2, result2 = self.simulator.play(game, p1, p2, mcts=True)
             else:
-                _, result = self.simulator.play(game, p2, p1, mcts=False)
+                boards, result = self.simulator.play(game, p2, p1, mcts=False)
+
+                if i + 2 >= n_games:
+                    game = self.game()
+                    boards2, result2 = self.simulator.play(game, p2, p1, mcts=True)
+
+            if i + 2 >= n_games:
+                # print("Node data")
+                # for (node, policy) in boards:
+                #     print(node)
+                #     print(policy.cpu().numpy().reshape(3, 3))
+
+                print("\n\n##############\nNode data2")
+                for (node, policy) in boards2:
+                    node: GameNode
+                    print(node)
+                    print(node.mcts.policy.reshape(3, 3))
+                    print(policy.cpu().numpy().reshape(3, 3))
+                    print(node.mcts.value / node.mcts.n_sims, result2)
+                    # asd = np.zeros(9)
+                    # for child in node.children:
+                    #     asd[child.encode()] = child.mcts.n_sims
+                    # print([child.mcts.n_sims for child in node.children])
 
             win = self.get_win(result, perspective)
             wins += win
@@ -183,9 +212,10 @@ class School:
                 tensors, policy_vectors, outcomes = zip(*torch.load(filename))
 
             # Convert to tensors
-            tensors = torch.stack(tensors)
-            policy_vectors = torch.stack(policy_vectors)
-            outcomes = torch.stack(outcomes)
+            if len(tensors) > 0:
+                tensors = torch.stack(tensors)
+                policy_vectors = torch.stack(policy_vectors)
+                outcomes = torch.stack(outcomes)
 
             out_res = defaultdict(int)
             for outcome in outcomes:
@@ -217,7 +247,7 @@ class School:
             # Train model, then check if model is good enough to replace existing model
             ##############################################################################
             self.updating_network.train()
-            trainer = Trainer(accelerator="gpu", devices=1, precision=16, max_epochs=10, amp_backend="apex",
+            trainer = Trainer(accelerator="gpu", devices=1, precision=16, max_epochs=10,
                               default_root_dir="checkpoints")
             trainer.fit(self.updating_network, dataloader)
             self.updating_network.eval()
