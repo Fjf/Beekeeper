@@ -46,7 +46,7 @@ class MCTS:
 
     @staticmethod
     def ucb(child, parent):
-        ef = 1.4  # exploration factor
+        ef = 1  # exploration factor
         prior_score = child.mcts.prior * ef * math.sqrt(parent.mcts.n_sims) / (child.mcts.n_sims + 1)
         if child.mcts.n_sims > 0:
             value_score = -child.mcts.value
@@ -78,7 +78,7 @@ class MCTS:
 
         # Only valid moves should be non-zero
         valid_indices = torch.IntTensor([child.encode() for child in leaf.children])
-        np_policy = np.zeros(policy.shape) + 1e-8
+        np_policy = np.zeros(policy.shape)
         np_policy[valid_indices] = torch.index_select(policy, 0, valid_indices).detach()
 
         leaf.mcts.policy = np_policy / np.sum(np_policy)
@@ -119,6 +119,8 @@ class MCTS:
         self.get_value_and_expand(network, game.node)
         game.node.mcts.value = 0
 
+        reached_terminal_state = False
+
         # Do N iterations of MCTS, building the tree based on the NN output.
         for i in range(self.iterations):
             leaf = self.select_best(game.node)
@@ -126,6 +128,17 @@ class MCTS:
             value = self.get_terminal_value(leaf)
             if value is None:
                 value = self.get_value_and_expand(network, leaf)
+            # else:
+            #     reached_terminal_state = True
+            #
+            # if reached_terminal_state:
+            #     print("############### Reached terminal ################")
+            #     print(game.node)
+            #     print("\n")
+            #     print(leaf)
+            #     print("\n")
+            #     print(self.create_policy_vector(game))
+            #     input()
 
             self.backpropagate(leaf, value, to_play=leaf.to_play)
         # Create a new policy to fill with MCTS updated values

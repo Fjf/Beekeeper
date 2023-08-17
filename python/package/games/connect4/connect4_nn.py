@@ -14,13 +14,13 @@ class Connect4NN(pl.LightningModule):
         super().__init__()
         self.encoder = nn.Sequential(
             ResNetBlock(2, 4),
+            nn.MaxPool2d(2),
             ResNetBlock(4, 8),
-            ResNetBlock(8, 8),
             ResNetBlock(8, 8),
 
             nn.Flatten(),
             nn.ReLU(),
-            nn.Linear(280, output_size + 1)
+            nn.Linear(48, output_size + 1)
         )
         # self.encoder = nn.Sequential(
         #     nn.Flatten(),
@@ -34,11 +34,11 @@ class Connect4NN(pl.LightningModule):
         #     nn.Linear(32, output_size + 1)
         # )
 
-        self.policy_activation = nn.Softmax(dim=1)
+        self.policy_activation = nn.Tanh(dim=1)
         self.value_activation = nn.Tanh()
 
-        # self.value_loss = nn.MSELoss()
-        # self.policy_loss = nn.CrossEntropyLoss()
+        self.value_loss = nn.MSELoss()
+        self.policy_loss = nn.CrossEntropyLoss()
 
         self.output_size = output_size
         self.input_size = input_size
@@ -49,22 +49,28 @@ class Connect4NN(pl.LightningModule):
         x, pi, game_value = batch
 
         # Increase class differences
-        pi = torch.pow(pi, 4)
-        pi /= torch.sum(pi, dim=1).view(pi.shape[0], 1)
+        # pi = torch.pow(pi, 4)
+        # pi /= torch.sum(pi, dim=1).view(pi.shape[0], 1)
 
         policy, value = self(x)
 
-        l2_lambda = 0.001
-        l2_norm = sum(p.pow(2.0).sum() for p in self.encoder.parameters())
-        l2_regularization = l2_norm * l2_lambda
+        # l2_lambda = 0.001
+        # l2_norm = sum(p.pow(2.0).sum() for p in self.encoder.parameters())
+        # l2_regularization = l2_norm * l2_lambda
 
-        value_loss = self.loss_v(game_value, value)
-        policy_loss = self.loss_pi(pi, policy)
+        # value_loss = self.loss_v(game_value, value)
+        # policy_loss = self.loss_pi(pi, policy)
+        #
+        # loss = (value_loss - policy_loss).mean() + l2_regularization
 
-        loss = (value_loss - policy_loss).mean() + l2_regularization
-        return loss
+        value_loss = self.value_loss(value, game_value)
+        policy_loss = self.policy_loss(policy, pi) * 100
+        self.log("v_loss", value_loss, on_step=True, prog_bar=True, logger=True)
+        self.log("p_loss", policy_loss, on_step=True, prog_bar=True, logger=True)
 
-    def test_step(self, batch, batch_idx) -> Optional[STEP_OUTPUT]:
+        return value_loss + policy_loss
+
+    def test_step(self, batch, batch_idx):
         x, pi, game_value = batch
         policy, value = self(x)
 
@@ -99,5 +105,5 @@ class Connect4NN(pl.LightningModule):
         return self.policy_activation(policy), self.value_activation(value)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.05)
-        # return torch.optim.Adam(self.parameters(), lr=0.1)
+        # return torch.optim.SGD(self.parameters(), lr=0.05)
+        return torch.optim.Adam(self.parameters(), lr=0.005)

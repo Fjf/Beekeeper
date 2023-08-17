@@ -12,16 +12,18 @@ from games.utils import GameState, Perspectives
 class Connect4Node(GameNode):
     width = 7
     height = 5
+    INITIAL_STATE = 8
 
     def __init__(self, parent, board: np.array = None, move: int = -1):
         super().__init__(parent)
         self.n_players = 2
 
+        self._finished = None
         self._turn = parent.turn + 1 if parent is not None else 0
         self.children = []
 
         if board is None:
-            self._board = np.zeros((self.width, self.height), dtype=np.byte)
+            self._board = np.zeros((self.width, self.height), dtype=np.byte) + self.INITIAL_STATE
         else:
             self._board = board.copy()
 
@@ -30,8 +32,9 @@ class Connect4Node(GameNode):
         if move != -1:
             self.move = move
             for i in range(self.height):
-                if self._board[move][i] == 0:
-                    self._board[move][i] = ((self.turn - 1) % self.n_players) + 1
+                if self._board[move][i] == self.INITIAL_STATE:
+                    player = (self.turn - 1) % self.n_players
+                    self._board[move][i] = player
                     break
 
     @property
@@ -39,61 +42,66 @@ class Connect4Node(GameNode):
         return self._turn
 
     def to_np(self, perspective) -> np.array:
-        arr = self._board.flatten()
-        if perspective == Perspectives.PLAYER1:
-            arr = arr
+        output_arr = np.zeros((2, *self._board.shape))
+
+        if perspective == 0:
+            output_arr[0, self._board == 0] = 1
+            output_arr[1, self._board == 1] = 1
         else:
-            maskp2 = arr == 2
-            maskp1 = arr == 1
-            arr[maskp2] = 1
-            arr[maskp1] = 2
-        # Set values to 1, -1 instead of 1, 2
-        arr[arr == 2] = -1
+            output_arr[0, self._board == 1] = 1
+            output_arr[1, self._board == 0] = 1
 
-        arr = arr.reshape(1, *self._board.shape)
-
-        arr = np.vstack((arr, np.ones(arr.shape) * [self.turn % self.n_players]))
-        return arr.reshape(-1, *self._board.shape)
+        return output_arr
 
     def encode(self) -> int:
         return self.move
 
-    def get_children(self) -> List[GameNode]:
+    def expand(self):
         if self.finished() != GameState.UNDETERMINED:
-            return []
+            raise Exception("Cannot expand terminal game-state.")
 
         if len(self.children) == 0:
             for i in range(self.width):
-                if self._board[i][self.height - 1] == 0:
+                if self._board[i][self.height - 1] == self.INITIAL_STATE:
                     self.children.append(Connect4Node(self, self._board, i))
 
-        return self.children
-
     def finished(self) -> GameState:
-        horizontal_kernel = np.array([[1, 1, 1, 1]])
-        vertical_kernel = np.transpose(horizontal_kernel)
-        diag1_kernel = np.eye(4, dtype=np.uint8)
-        diag2_kernel = np.fliplr(diag1_kernel)
-        detection_kernels = [horizontal_kernel, vertical_kernel, diag1_kernel, diag2_kernel]
+        def check_finish():
+            horizontal_kernel = np.array([[1, 1, 1, 1]])
+            vertical_kernel = np.transpose(horizontal_kernel)
+            diag1_kernel = np.eye(4, dtype=np.uint8)
+            diag2_kernel = np.fliplr(diag1_kernel)
+            detection_kernels = [horizontal_kernel, vertical_kernel, diag1_kernel, diag2_kernel]
 
-        # Check all connect 4 rules for both player 1 and 2.
-        for kernel in detection_kernels:
-            if (convolve2d(self._board == 1, kernel, mode="valid") == 4).any():
-                return GameState.WHITE_WON
-            if (convolve2d(self._board == 2, kernel, mode="valid") == 4).any():
-                return GameState.BLACK_WON
+            # Check all connect 4 rules for both player 1 and 2.
+            for kernel in detection_kernels:
+                if (convolve2d(self._board == 0, kernel, mode="valid") == 4).any():
+                    return GameState.WHITE_WON
+                if (convolve2d(self._board == 1, kernel, mode="valid") == 4).any():
+                    return GameState.BLACK_WON
 
-        # Check if there are any valid moves left after checking for winning players.
-        for i in range(self.width):
-            if self._board[i][self.height - 1] == 0:
-                return GameState.UNDETERMINED
+            # Check if there are any valid moves left after checking for winning players.
+            for i in range(self.width):
+                if self._board[i][self.height - 1] == self.INITIAL_STATE:
+                    return GameState.UNDETERMINED
 
-        # If there are no moves left, this game is a draw.
-        return GameState.DRAW_TURN_LIMIT
+            # If there are no moves left, this game is a draw.
+            return GameState.DRAW_TURN_LIMIT
+
+        if self._finished is None:
+            self._finished = check_finish()
+
+        return self._finished
+
+    def __repr__(self):
+        return "|" + "|\n|".join(
+            ' '.join(str(self._board[x, y]) for x in range(self.width)) for y in range(self.height)) + "|"
 
     def print(self):
         print(np.rot90(self._board))
 
+    def reset_children(self):
+        self.children = []
 
 class Connect4(Game):
     # Set neural network dimensions
@@ -116,10 +124,10 @@ class Connect4(Game):
 
     def get_inverted(self, boards: List[torch.Tensor]) -> List[torch.Tensor]:
         output = []
-        for board in boards:
-            new_board = -board
-            new_board[-1] += 1  # Last number is [0,1] [-0 + 1 = 1, -1 + 1 = 0]
-            output.append(new_board)
+        # for board in boards:
+        #     new_board = board.clone()
+        #     new_board[[0, 1]] = new_board[[1, 0]]
+        #     output.append(new_board)
         return output
 
     def print(self):
@@ -129,14 +137,20 @@ class Connect4(Game):
         return self.node.finished()
 
     def children(self) -> List[GameNode]:
-        return self.node.get_children()
+        return self.node.children
+
+    def reset_children(self):
+        self.node.mcts.reset()
+        self.node.reset_children()
 
     def select_child(self, child):
         self.history.append(child)
         self.node = child
+        self.node.parent = None
 
     def ai_move(self, algorithm: str):
         if algorithm == "random":
+            self.node.expand()
             children = self.node.children
             self.select_child(random.sample(children, 1)[0])
             return

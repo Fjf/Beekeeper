@@ -99,7 +99,7 @@ class Simulator:
         policy_vectors = []
         # Play game until a terminal state has occurred.
         result = GameState.UNDETERMINED
-        for i in range(10):
+        for i in range(game.turn_limit):
 
             nn = p1 if game.to_play() == Perspectives.PLAYER1 else p2
 

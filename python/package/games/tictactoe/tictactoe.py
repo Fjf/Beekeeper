@@ -117,8 +117,8 @@ class TicTacToe(Game):
     def get_inverted(self, boards: List[torch.Tensor]) -> List[torch.Tensor]:
         output = []
         for board in boards:
-            new_board = -board
-            new_board[-1] += 1  # Last number is [0,1] [-0 + 1 = 1, -1 + 1 = 0]
+            new_board = board.clone()
+            new_board[[0, 1]] = new_board[[1, 0]]
             output.append(new_board)
         return output
 

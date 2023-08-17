@@ -138,8 +138,8 @@ class School:
                 for (node, policy) in boards2:
                     node: GameNode
                     print(node)
-                    print(node.mcts.policy.reshape(3, 3))
-                    print(policy.cpu().numpy().reshape(3, 3))
+                    print(node.mcts.policy)
+                    print(policy.cpu().numpy())
                     print(node.mcts.value / node.mcts.n_sims, result2)
                     # asd = np.zeros(9)
                     # for child in node.children:

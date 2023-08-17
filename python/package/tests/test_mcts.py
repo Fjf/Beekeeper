@@ -5,6 +5,8 @@ import numpy as np
 import torch
 
 from MCTS import MCTS
+from games.connect4.connect4 import Connect4
+from games.connect4.connect4_nn import Connect4NN
 from games.hive.hive import Hive, lib, N_NODES
 from games.hive.hive_nn import HiveNN
 from games.tictactoe.tictactoe import TicTacToe
@@ -14,8 +16,8 @@ from simulator import Simulator
 
 
 class MyTestCase(unittest.TestCase):
-    game = TicTacToe
-    nn = TicTacToeNN
+    game = Connect4
+    nn = Connect4NN
 
     def test_game_outcome(self):
 
@@ -34,7 +36,7 @@ class MyTestCase(unittest.TestCase):
 
         game = self.game()
         network = self.nn(game.input_space, game.action_space)
-        simulator = Simulator(self.game, mcts_iterations=150)
+        simulator = Simulator(self.game, mcts_iterations=15)
 
         while game.finished() == GameState.UNDETERMINED:
             policy = simulator.nn_move(network, game, mcts=True)
@@ -43,8 +45,8 @@ class MyTestCase(unittest.TestCase):
             game.print()
             if game.finished() != GameState.UNDETERMINED:
                 break
-            print(game.node.mcts.policy.reshape((3, 3)))
-            print(policy.reshape(3, 3))
+            print(game.node.mcts.policy)
+            print(policy)
             print("")
 
         print(game.finished())
