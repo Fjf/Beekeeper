@@ -58,16 +58,7 @@ class Simulator:
         if mcts:
             policy = self.mcts_object.process(game, network)
         else:
-            # Fetch array from internal memory and remove the tile number.
-            arr = game.node.to_np(game.node.to_play)
-            arr = arr.reshape(1, *arr.shape)
-
-            # Convert data to tensorflow usable format
-            data = torch.Tensor(arr).to(network.device)
-
-            # Get policy vector
-            policy, _ = network(data)
-            policy = policy.squeeze()
+            policy, _ = network.predict(game.node.to_np(game.node.to_play))
 
         # Convert children to usable format.
         game.node.expand()

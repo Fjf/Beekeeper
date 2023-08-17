@@ -16,17 +16,18 @@ from typing import Tuple, Optional, List
 
 import numpy as np
 import torch
+from torch import nn
 
 from games.Game import Game, GameNode
 from games.utils import GameState, Perspectives
 
 
 class MCTS:
-    def __init__(self, iterations=100, device="cpu", mcts_batch_size=16):
+    def __init__(self, iterations=100, device="cpu", mcts_batch_size=16, exploration_factor=0.6):
         self.iterations = iterations
-        self.mcts_constant = 1
         self.device = torch.device(device)
         self.batch_size = mcts_batch_size
+        self.exploration_factor = exploration_factor
 
     def select_best(self, root: GameNode) -> GameNode:
         parent = root
@@ -44,10 +45,8 @@ class MCTS:
             parent = best
         return parent
 
-    @staticmethod
-    def ucb(child, parent):
-        ef = 1  # exploration factor
-        prior_score = child.mcts.prior * ef * math.sqrt(parent.mcts.n_sims) / (child.mcts.n_sims + 1)
+    def ucb(self, child, parent):
+        prior_score = child.mcts.prior * self.exploration_factor * math.sqrt(parent.mcts.n_sims) / (child.mcts.n_sims + 1)
         if child.mcts.n_sims > 0:
             value_score = -child.mcts.value
         else:
@@ -70,11 +69,8 @@ class MCTS:
     def get_value_and_expand(self, network, leaf: GameNode):
         leaf.expand()
 
-        # Initialize policy vector
-        arr = leaf.to_np(leaf.to_play)
-        tensor = torch.Tensor(arr).unsqueeze(0)
-        policy, value = network(tensor.to(self.device))
-        policy = policy.to("cpu").squeeze()
+        # Predict policy and value
+        policy, value = network.predict(leaf.to_np(leaf.to_play))
 
         # Only valid moves should be non-zero
         valid_indices = torch.IntTensor([child.encode() for child in leaf.children])

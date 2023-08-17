@@ -6,10 +6,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Type
 
-import numpy as np
 import pytorch_lightning
 import torch
-from mpi4py import MPI
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -24,7 +22,7 @@ from simulator import Simulator
 
 class School:
     def __init__(self, game: Type[Game], network: Type[pytorch_lightning.LightningModule], n_sims=100,
-                 n_data_reuse=1, model_dir="model", data_dir="data", device="cuda:0", **kwargs):
+                 n_data_reuse=1, model_dir="model", data_dir="data", device="cuda:0", comm=None, **kwargs):
         self.logger = logging.getLogger("Hive")
         self.network_type = network
 
@@ -50,10 +48,11 @@ class School:
 
         self.n_old_data = n_data_reuse
         self.old_data_storage = []
-        self.comm = MPI.COMM_WORLD
+        self.comm = comm
         self.logger.info("Done initializing trainer.")
 
     def generate_data(self):
+        assert self.comm is not None
         # If you are pretraining, play against the fixed opponent instead.
         if self.pretraining:
             players = (self.updating_network.to("cpu").state_dict(), None)
@@ -109,51 +108,37 @@ class School:
         results = [0, 0, 0]
         wins = 0
         self.simulator.temperature_threshold = 0
-        p1 = p1.to("cuda")
-        p2 = p2.to("cuda")
+        p1 = p1.to("cuda") if p1 is not None else p1
+        p2 = p2.to("cuda") if p2 is not None else p2
         for i in tqdm(range(n_games)):
             perspective = Perspectives.PLAYER1 if i % 2 == 0 else Perspectives.PLAYER2
             game = self.game()
 
             if perspective == Perspectives.PLAYER1:
                 boards, result = self.simulator.play(game, p1, p2, mcts=False)
-
-                if i + 2 >= n_games:
-                    game = self.game()
-                    boards2, result2 = self.simulator.play(game, p1, p2, mcts=True)
             else:
                 boards, result = self.simulator.play(game, p2, p1, mcts=False)
-
-                if i + 2 >= n_games:
-                    game = self.game()
-                    boards2, result2 = self.simulator.play(game, p2, p1, mcts=True)
-
-            if i + 2 >= n_games:
-                # print("Node data")
-                # for (node, policy) in boards:
-                #     print(node)
-                #     print(policy.cpu().numpy().reshape(3, 3))
-
-                print("\n\n##############\nNode data2")
-                for (node, policy) in boards2:
-                    node: GameNode
-                    print(node)
-                    print(node.mcts.policy)
-                    print(policy.cpu().numpy())
-                    print(node.mcts.value / node.mcts.n_sims, result2)
-                    # asd = np.zeros(9)
-                    # for child in node.children:
-                    #     asd[child.encode()] = child.mcts.n_sims
-                    # print([child.mcts.n_sims for child in node.children])
 
             win = self.get_win(result, perspective)
             wins += win
             results[int(win * 2)] += 1
 
-        p1 = p1.to("cpu")
-        p2 = p2.to("cpu")
+        p1 = p1.to("cpu") if p1 is not None else p1
+        p2 = p2.to("cpu") if p2 is not None else p2
 
         return wins / n_games, results
+
+    def show_debug_game(self, p1, p2):
+        game = self.game()
+        boards2, result2 = self.simulator.play(game, p1, p2, mcts=True)
+
+        print("\n\n##############\nNode data2")
+        for (node, policy) in boards2:
+            node: GameNode
+            print(node)
+            print(node.mcts.policy)
+            print(policy.cpu().numpy())
+            print(node.mcts.value / node.mcts.n_sims, result2)
 
     def train(self, updates=100, pretraining=False, stored_model_filename: str = None, batch_size=256, **kwargs):
         """
@@ -255,6 +240,9 @@ class School:
             with torch.no_grad():
                 winrate, results = self.winrate(self.updating_network, self.stable_network, n_games=200)
                 self.logger.info(f"Current performance: {winrate * 100}% wr ({results})")
+
+                random_winrate, _ = self.winrate(self.updating_network, None, n_games=200)
+                self.logger.info(f"Current performance vs random: {random_winrate * 100}")
                 if winrate > 0.6:
                     self.logger.info(f"Updating network, iteration {network_iter}.")
                     torch.save(self.updating_network.state_dict(),
