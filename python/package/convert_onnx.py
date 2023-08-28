@@ -6,7 +6,6 @@ from openvino.runtime import Core
 
 from games.connect4.connect4 import Connect4
 from games.connect4.connect4_nn import Connect4NN
-from games.utils import Perspectives
 
 
 def convert_onnx(pt_path, dummy_input, onnx_path):

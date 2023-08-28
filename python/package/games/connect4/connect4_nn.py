@@ -13,20 +13,19 @@ class Connect4NN(pl.LightningModule):
     def __init__(self, input_size=Connect4.input_space, output_size=Connect4.action_space):
         super().__init__()
         self.encoder = nn.Sequential(
-            ResNetBlock(2, 4),
-            nn.MaxPool2d(2),
-            ResNetBlock(4, 8),
-            ResNetBlock(8, 8),
-
             nn.Flatten(),
+            nn.Linear(70, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 48),
             nn.ReLU(),
         )
 
         self.policy_head = nn.Sequential(
             nn.Linear(48, output_size),
-            nn.ReLU(),
         )
-        self.policy_activation = nn.LogSoftmax(dim=1)
+        self.policy_activation = nn.Softmax(dim=1)
 
         self.value_head = nn.Sequential(
             nn.Linear(48, 1),
@@ -43,14 +42,10 @@ class Connect4NN(pl.LightningModule):
         x, pi, game_value = batch
 
         policy, value = self(x)
-
         policy = self.policy_activation(policy)
 
-        # value_loss = self.value_loss(value, game_value)
-        # policy_loss = self.policy_loss(policy, pi) * 100
-
-        value_loss = self.loss_v(game_value, value)
-        policy_loss = self.loss_pi(pi, policy)
+        value_loss = self.loss_v(game_value, value).mean()
+        policy_loss = self.loss_pi(pi, policy).mean()
 
         self.log("v_loss", value_loss, on_step=True, prog_bar=True, logger=True)
         self.log("p_loss", policy_loss, on_step=True, prog_bar=True, logger=True)
@@ -58,10 +53,11 @@ class Connect4NN(pl.LightningModule):
         return value_loss + policy_loss
 
     def loss_pi(self, targets, outputs):
-        return -torch.mean(targets * outputs)
+        # return (targets - outputs) ** 2
+        return - targets * torch.log(outputs)
 
     def loss_v(self, targets, outputs):
-        return torch.mean((targets - outputs.view(-1)) ** 2)
+        return (targets - outputs) ** 2
 
     def predict(self, board):
         batch = torch.Tensor(board).unsqueeze(0).to(self.device)

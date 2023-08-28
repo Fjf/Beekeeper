@@ -82,4 +82,4 @@ class TicTacToeNN(pl.LightningModule):
 
     def configure_optimizers(self):
         # return torch.optim.SGD(self.parameters(), lr=0.3)
-        return torch.optim.Adam(self.parameters(), lr=0.01)
+        return torch.optim.Adam(self.parameters(), lr=0.01, weight_decay=1e-5)

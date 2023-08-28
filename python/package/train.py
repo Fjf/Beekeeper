@@ -13,9 +13,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from games.Game import Game, GameNode
-from games.hive.hive import GameState
 from games.hive.hive_dataset import HiveDataset
-from games.utils import Perspectives
 from mpi_packet import MPIPacketState, MPIPacket
 from simulator import Simulator
 
@@ -59,14 +57,16 @@ class School:
         else:
             players = (self.updating_network.to("cpu").state_dict(), self.stable_network.to("cpu").state_dict())
 
-        self.logger.info(f"Simulating {self.simulations} games on {self.comm.Get_size()} threads.")
+        self.logger.info(f"Simulating {self.simulations} games on {self.comm.Get_size()} processes.")
         start = datetime.now()
 
+        print("Sending data")
         # Create packet to send.
         packet = MPIPacket(MPIPacketState.PROCESS, players)
 
         # Broadcast latest models' state dicts
         self.comm.bcast(pickle.dumps(packet))
+        print("Done sending data")
 
         # Gather data from all workers
         data = []
@@ -80,20 +80,19 @@ class School:
         return data
 
     @staticmethod
-    def get_win(result: GameState, perspective: Perspectives) -> float:
+    def get_win(result: int, perspective: int) -> float:
         """
         Given a GameState and perspective, it will give a value from 0, 0.5, and 1, for a loss, draw, or win.
         :param result: the final gamestate
         :param perspective: the perspective for which to compute the game value
         :return: the converted game value.
         """
-        if (result == GameState.WHITE_WON and perspective == Perspectives.PLAYER1) \
-                or (result == GameState.BLACK_WON and perspective == Perspectives.PLAYER2):
+        if result == -1:
+            return 0.5  # Draws
+        elif result == perspective:
             return 1
-        if (result == GameState.BLACK_WON and perspective == Perspectives.PLAYER1) \
-                or (result == GameState.WHITE_WON and perspective == Perspectives.PLAYER2):
+        else:
             return 0
-        return 0.5
 
     def winrate(self, p1, p2, n_games=100):
         """
@@ -111,13 +110,13 @@ class School:
         p1 = p1.to("cuda") if p1 is not None else p1
         p2 = p2.to("cuda") if p2 is not None else p2
         for i in tqdm(range(n_games)):
-            perspective = Perspectives.PLAYER1 if i % 2 == 0 else Perspectives.PLAYER2
+            perspective = i % 2
             game = self.game()
 
-            if perspective == Perspectives.PLAYER1:
-                boards, result = self.simulator.play(game, p1, p2, mcts=False)
+            if perspective == 0:
+                boards, result = self.simulator.play(game, [p1, p2], mcts=False)
             else:
-                boards, result = self.simulator.play(game, p2, p1, mcts=False)
+                boards, result = self.simulator.play(game, [p2, p1], mcts=False)
 
             win = self.get_win(result, perspective)
             wins += win
@@ -130,7 +129,7 @@ class School:
 
     def show_debug_game(self, p1, p2):
         game = self.game()
-        boards2, result2 = self.simulator.play(game, p1, p2, mcts=True)
+        boards2, result2 = self.simulator.play(game, [p1, p2], mcts=True)
 
         print("\n\n##############\nNode data2")
         for (node, policy) in boards2:
@@ -138,7 +137,7 @@ class School:
             print(node)
             print(node.mcts.policy)
             print(policy.cpu().numpy())
-            print(node.mcts.value / node.mcts.n_sims, result2)
+            print(f"To play: {node.to_play}, Mcts value: {node.mcts.value / node.mcts.n_sims}, {result2}")
 
     def train(self, updates=100, pretraining=False, stored_model_filename: str = None, batch_size=256, **kwargs):
         """
@@ -226,18 +225,24 @@ class School:
                 aggregated_dataset += old_data
 
             self.logger.info(f"Training on {len(aggregated_dataset)} boards.")
-            dataloader = DataLoader(aggregated_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+            dataloader = DataLoader(
+                aggregated_dataset,
+                batch_size=batch_size,
+                drop_last=True,
+                shuffle=True,
+                num_workers=0)
 
             ##############################################################################
             # Train model, then check if model is good enough to replace existing model
             ##############################################################################
             self.updating_network.train()
-            trainer = Trainer(accelerator="gpu", devices=1, precision=16, max_epochs=10,
+            trainer = Trainer(accelerator="gpu", devices=1, precision=16, max_epochs=2,
                               default_root_dir="checkpoints")
             trainer.fit(self.updating_network, dataloader)
             self.updating_network.eval()
 
             with torch.no_grad():
+                self.show_debug_game(self.updating_network, self.stable_network)
                 winrate, results = self.winrate(self.updating_network, self.stable_network, n_games=200)
                 self.logger.info(f"Current performance: {winrate * 100}% wr ({results})")
 

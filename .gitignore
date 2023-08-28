@@ -1,7 +1,9 @@
 /python/package/lightning_logs/
 /venv/
-
+python/package/models/
+python/package/runs
 
 # For IntelliJ editors
 */cmake-build-debug
 .idea
+

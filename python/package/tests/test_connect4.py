@@ -1,5 +1,4 @@
 from games.connect4.connect4 import Connect4
-from games.utils import GameState
 
 
 def test_trainer():
@@ -8,8 +7,8 @@ def test_trainer():
         children = list(game.children())
         game.select_child(children[0])
         game.print()
-        if game.finished() != GameState.UNDETERMINED:
-            print(game.finished())
+        if game.winner() is not None:
+            print(game.winner())
             break
 
 

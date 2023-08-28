@@ -6,7 +6,6 @@ from ray.rllib.agents.ppo import DEFAULT_CONFIG, PPOTrainer
 from ray.tune import register_env
 
 from games.hive.hive import Hive
-from games.utils import GameState
 
 QUEEN_REWARD_MULTIPLIER = 1
 
@@ -61,23 +60,23 @@ class GymHive(gym.Env):
         tiles = self.hive.count_queen_test() * QUEEN_REWARD_MULTIPLIER
         reward = tiles
 
-        if self.hive.finished() == GameState.UNDETERMINED:
+        if self.hive.winner() == GameState.UNDETERMINED:
             self.hive.ai_move("random")
 
         # # After random move you still get win/loss reward?
-        if self.hive.finished() == GameState.WHITE_WON:
+        if self.hive.winner() == GameState.WHITE_WON:
             if self.is_player1:
                 reward += WON_REWARD
             else:
                 reward += LOST_REWARD
-        elif self.hive.finished() == GameState.BLACK_WON:
+        elif self.hive.winner() == GameState.BLACK_WON:
             if self.is_player1:
                 reward += LOST_REWARD
             else:
                 reward += WON_REWARD
 
         assert (-60 < reward < 60)
-        return self.hive.node.contents.to_np()[0], reward, self.hive.finished() != GameState.UNDETERMINED, {}
+        return self.hive.node.contents.to_np()[0], reward, self.hive.winner() != GameState.UNDETERMINED, {}
 
     def reset(self):
         self.hive.reinitialize()

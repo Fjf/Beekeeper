@@ -11,7 +11,6 @@ from games.hive.hive import Hive, lib, N_NODES
 from games.hive.hive_nn import HiveNN
 from games.tictactoe.tictactoe import TicTacToe
 from games.tictactoe.tictactoe_nn import TicTacToeNN
-from games.utils import GameState
 from simulator import Simulator
 
 
@@ -24,10 +23,10 @@ class MyTestCase(unittest.TestCase):
         results = defaultdict(int)
         for i in range(1000):
             game = self.game()
-            while game.finished() == GameState.UNDETERMINED:
+            while game.winner() == GameState.UNDETERMINED:
                 game.ai_move("random")
 
-            results[game.finished()] += 1
+            results[game.winner()] += 1
 
         print(results)
 
@@ -38,18 +37,18 @@ class MyTestCase(unittest.TestCase):
         network = self.nn(game.input_space, game.action_space)
         simulator = Simulator(self.game, mcts_iterations=15)
 
-        while game.finished() == GameState.UNDETERMINED:
+        while game.winner() == GameState.UNDETERMINED:
             policy = simulator.nn_move(network, game, mcts=True)
 
             print("\n\n")
             game.print()
-            if game.finished() != GameState.UNDETERMINED:
+            if game.winner() != GameState.UNDETERMINED:
                 break
             print(game.node.mcts.policy)
             print(policy)
             print("")
 
-        print(game.finished())
+        print(game.winner())
 
         # assert game.turn == game.turn_limit
 

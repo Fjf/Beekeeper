@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Iterable, List, Union
+from typing import Iterable, List, Optional
 
 import numpy as np
 import torch
-
-from games.utils import GameState, Perspectives
 
 
 class MCTSData(object):
@@ -36,7 +34,7 @@ class GameNode(ABC):
         self.done = False
         self.mcts = MCTSData()
 
-    def to_np(self, perspective: Union[Perspectives, int]) -> np.array:
+    def to_np(self, perspective: int) -> np.array:
         """
         Generates a numpy-representation of this node from the perspective of player
 
@@ -55,9 +53,10 @@ class GameNode(ABC):
         Generates the children in the internal list.
         """
 
-    def finished(self) -> GameState:
+    def winner(self) -> Optional[int]:
         """
-        Gives a GameState with the current state of the game.
+        Gives the winning player ID, or None if no terminal state occurred yet.
+        Returns -1 on draw.
 
         :return:
         """
@@ -122,7 +121,7 @@ class Game(ABC):
         :return:
         """
 
-    def finished(self) -> GameState:
+    def winner(self):
         """
         Returns the game state.
 

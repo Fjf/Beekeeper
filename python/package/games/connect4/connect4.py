@@ -1,12 +1,11 @@
 import random
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import torch
 from scipy.signal import convolve2d
 
 from games.Game import Game, GameNode
-from games.utils import GameState, Perspectives
 
 
 class Connect4Node(GameNode):
@@ -57,7 +56,7 @@ class Connect4Node(GameNode):
         return self.move
 
     def expand(self):
-        if self.finished() != GameState.UNDETERMINED:
+        if self.winner() is not None:
             raise Exception("Cannot expand terminal game-state.")
 
         if len(self.children) == 0:
@@ -65,7 +64,7 @@ class Connect4Node(GameNode):
                 if self._board[i][self.height - 1] == self.INITIAL_STATE:
                     self.children.append(Connect4Node(self, self._board, i))
 
-    def finished(self) -> GameState:
+    def winner(self) -> Optional[int]:
         def check_finish():
             horizontal_kernel = np.array([[1, 1, 1, 1]])
             vertical_kernel = np.transpose(horizontal_kernel)
@@ -76,17 +75,17 @@ class Connect4Node(GameNode):
             # Check all connect 4 rules for both player 1 and 2.
             for kernel in detection_kernels:
                 if (convolve2d(self._board == 0, kernel, mode="valid") == 4).any():
-                    return GameState.WHITE_WON
+                    return 0
                 if (convolve2d(self._board == 1, kernel, mode="valid") == 4).any():
-                    return GameState.BLACK_WON
+                    return 1
 
             # Check if there are any valid moves left after checking for winning players.
             for i in range(self.width):
                 if self._board[i][self.height - 1] == self.INITIAL_STATE:
-                    return GameState.UNDETERMINED
+                    return None
 
             # If there are no moves left, this game is a draw.
-            return GameState.DRAW_TURN_LIMIT
+            return -1
 
         if self._finished is None:
             self._finished = check_finish()
@@ -102,6 +101,7 @@ class Connect4Node(GameNode):
 
     def reset_children(self):
         self.children = []
+
 
 class Connect4(Game):
     # Set neural network dimensions
@@ -133,8 +133,8 @@ class Connect4(Game):
     def print(self):
         print(self.node)
 
-    def finished(self) -> GameState:
-        return self.node.finished()
+    def winner(self) -> Optional[int]:
+        return self.node.winner()
 
     def children(self) -> List[GameNode]:
         return self.node.children

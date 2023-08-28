@@ -19,7 +19,6 @@ import torch
 from torch import nn
 
 from games.Game import Game, GameNode
-from games.utils import GameState, Perspectives
 
 
 class MCTS:
@@ -29,81 +28,72 @@ class MCTS:
         self.batch_size = mcts_batch_size
         self.exploration_factor = exploration_factor
 
-    def select_best(self, root: GameNode) -> GameNode:
-        parent = root
-
-        # While we are not done, and we have expanded the node, search deeper
-        while parent.finished() is not None and len(parent.children) > 0:
-            children = parent.children
-            best_value, best = -float("inf"), None
-            for i, child in enumerate(children):
-                value = self.ucb(child, parent)
-                if best_value < value:
-                    best_value, best = value, child
-
-            assert best is not None
-            parent = best
-        return parent
-
     def ucb(self, child, parent):
-        prior_score = child.mcts.prior * self.exploration_factor * math.sqrt(parent.mcts.n_sims) / (child.mcts.n_sims + 1)
         if child.mcts.n_sims > 0:
-            value_score = -child.mcts.value
+            value = (
+                    (child.mcts.value / child.mcts.n_sims) +
+                    self.exploration_factor *
+                    child.mcts.prior *
+                    math.sqrt(parent.mcts.n_sims) /
+                    (1 + child.mcts.n_sims)
+            )
         else:
-            value_score = 0
-        value = prior_score + value_score
+            value = (
+                    self.exploration_factor *
+                    child.mcts.prior *
+                    math.sqrt(parent.mcts.n_sims + 1e-5)
+            )
+
         return value
 
-    @staticmethod
-    def backpropagate(node: GameNode, value: float, to_play=0):
-        while node is not None:
-            # Scale the values down to probabilities in the range (0, 1) instead of (-1, 1)
-            if node.mcts.value is None:
-                node.mcts.value = 0
+    def search(self, node: GameNode, network):
+        if node.winner() is not None:
+            if node.winner() == node.to_play:
+                win_value = 1.
+            elif node.winner() == -1:
+                win_value = 0.
+            else:
+                win_value = -1.
 
-            node.mcts.value += value if node.to_play == to_play else -value
-            node.mcts.n_sims += 1
+            return -win_value
 
-            node = node.parent
+        if len(node.children) == 0:
+            node.expand()
 
-    def get_value_and_expand(self, network, leaf: GameNode):
-        leaf.expand()
+            # Predict next move
+            policy, value = network.predict(node.to_np(node.to_play))
+            # Only valid moves should be non-zero
+            valid_indices = torch.IntTensor([child.encode() for child in node.children])
+            np_policy = np.zeros(policy.shape)
+            np_policy[valid_indices] = torch.index_select(policy, 0, valid_indices).detach()
 
-        # Predict policy and value
-        policy, value = network.predict(leaf.to_np(leaf.to_play))
+            policy_sum = np.sum(np_policy)
+            if policy_sum != 0:
+                node.mcts.policy = np_policy / policy_sum
+            else:
+                raise ValueError("Valid policy summed to 0.")
 
-        # Only valid moves should be non-zero
-        valid_indices = torch.IntTensor([child.encode() for child in leaf.children])
-        np_policy = np.zeros(policy.shape)
-        np_policy[valid_indices] = torch.index_select(policy, 0, valid_indices).detach()
+            return -value.item()
 
-        leaf.mcts.policy = np_policy / np.sum(np_policy)
+        best, best_value = None, -float("inf")
+        for child in node.children:
+            ucb = self.ucb(child, node)
+            if ucb > best_value:
+                best, best_value = child, ucb
 
-        # Set child prior
-        for child in leaf.children:
-            child.mcts.prior = leaf.mcts.policy[child.encode()].item()
-
-        return value.item()
-
-    @staticmethod
-    def get_terminal_value(node: GameNode):
-        state = node.finished()
-        if state == GameState.UNDETERMINED:
-            return None
-
-        if state == GameState.WHITE_WON:
-            value = 1.
-        elif state == GameState.BLACK_WON:
-            value = -1.
+        value = self.search(best, network)
+        assert type(value) == float
+        if best.mcts.value is None:
+            best.mcts.value = value
+            best.mcts.n_sims = 1
         else:
-            value = 0
+            best.mcts.value += value
+            best.mcts.n_sims += 1
 
-        if node.to_play == 0:
-            return value
-        else:
-            return -value
+        node.mcts.n_sims += 1
+        return -value
 
-    def process(self, game: Game, network):
+    def process(self, game: Game, network, temperature=1.):
         """
         Processes a node with a policy and returns the MCTS-augmented policy.
         :param p1:
@@ -112,38 +102,27 @@ class MCTS:
         :return:
         """
         game.reset_children()
-        self.get_value_and_expand(network, game.node)
         game.node.mcts.value = 0
 
-        reached_terminal_state = False
+        for i in range(self.iterations + 1):
+            game.node.mcts.value += self.search(game.node, network)
+            # print( self.create_policy_vector(game, temperature))
 
-        # Do N iterations of MCTS, building the tree based on the NN output.
-        for i in range(self.iterations):
-            leaf = self.select_best(game.node)
+            game.node.mcts.n_sims += 1
+        return self.create_policy_vector(game, temperature)
 
-            value = self.get_terminal_value(leaf)
-            if value is None:
-                value = self.get_value_and_expand(network, leaf)
-            # else:
-            #     reached_terminal_state = True
-            #
-            # if reached_terminal_state:
-            #     print("############### Reached terminal ################")
-            #     print(game.node)
-            #     print("\n")
-            #     print(leaf)
-            #     print("\n")
-            #     print(self.create_policy_vector(game))
-            #     input()
+    def create_policy_vector(self, game, temperature):
+        counts = torch.zeros(game.node.mcts.policy.shape)
+        for child in game.children():
+            counts[child.encode()] += child.mcts.n_sims
 
-            self.backpropagate(leaf, value, to_play=leaf.to_play)
-        # Create a new policy to fill with MCTS updated values
-        updated_policy = self.create_policy_vector(game)
-        return updated_policy
+        if temperature == 0:
+            best_counts = torch.argwhere(counts == torch.max(counts)).flatten()
+            best = np.random.choice(best_counts)
+            policy_vector = torch.zeros(game.node.mcts.policy.shape)
+            policy_vector[best] = 1
+            return policy_vector
 
-    def create_policy_vector(self, game):
-        updated_policy = torch.zeros(game.node.mcts.policy.shape, device=self.device)
-        for node in game.children():
-            updated_policy[node.encode()] += node.mcts.n_sims
-        updated_policy /= torch.sum(updated_policy)
-        return updated_policy
+        counts = counts ** (1 / temperature)
+        policy_vector = counts / torch.sum(counts)
+        return policy_vector

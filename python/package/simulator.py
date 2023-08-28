@@ -1,13 +1,10 @@
-import logging
-import random
-from typing import Optional, Type
+from typing import Optional, Type, List
 
 import pytorch_lightning
 import torch
 
 from MCTS import MCTS
 from games.Game import Game
-from games.utils import GameState, Perspectives
 
 
 class Simulator:
@@ -16,29 +13,6 @@ class Simulator:
         self.game = game
         self.mcts_object = MCTS(mcts_iterations, device=device)
         self.temperature_threshold = 0.3
-
-    @staticmethod
-    def select_move(policy, filter_idx=None, best=False):
-        """
-        Select a move based on the provided policy vector only selecting moves according to the provided filter vector.
-        The return value is  0 <= return < len(filter_idx)
-
-        :param best:
-        :param policy: a vector with move probabilities
-        :param filter_idx: a vector defining the moves from which to choose
-        :return: the index of the chosen move in the filter vector
-        """
-        if sum(policy[filter_idx]) == 0:  # Select random move if policy sums to 0
-            logging.getLogger("hive") \
-                .warning("Filtered policy summed to 0, selecting random move. Training is probably going wrong.")
-            return random.choice(range(len(filter_idx)))
-
-        # Pick the best move or a random one based on policy probabilities
-        if best:
-            return torch.argmax(policy[filter_idx].flatten())
-        else:
-            probabilities = policy[filter_idx].flatten()
-            return torch.multinomial(probabilities, 1).item()
 
     def nn_move(self, network, game: Game, mcts=True):
         """
@@ -53,29 +27,49 @@ class Simulator:
         :param mcts: use mcts to compute an improvement policy?
         :return: the taken move index in the policy vector
         """
-        perspective = game.to_play()
+
+        # Select only best moves with low enough temperature
+        # temperature = (float(game.turn_limit) - float(game.node.turn)) / float(game.turn_limit)
+        temperature = game.node.turn < 15
 
         if mcts:
-            policy = self.mcts_object.process(game, network)
+            policy = self.mcts_object.process(game, network, temperature=temperature)
         else:
+            game.node.expand()
             policy, _ = network.predict(game.node.to_np(game.node.to_play))
 
-        # Convert children to usable format.
-        game.node.expand()
-        children = game.node.children
-        encodings = [child.encode() for child in children]
+            invalid_mask = torch.ones(policy.shape, dtype=torch.bool)
+            for child in game.node.children:
+                invalid_mask[child.encode()] = False
 
-        # Select only best moves after high enough temperature
-        temperature = float(game.node.turn) / float(game.turn_limit)
+            policy[invalid_mask] = 0
+            p_sum = torch.sum(policy)
+            if p_sum == 0:
+                policy = invalid_mask / torch.sum(invalid_mask)
+            else:
+                policy /= p_sum
 
         # Select a move based on updated_policy's weights out of the valid moves (encodings)
-        best_idx = self.select_move(policy.clone(), filter_idx=encodings, best=temperature > self.temperature_threshold)
-        game.select_child(children[best_idx])
+        best_idx = torch.multinomial(policy, 1).item()
+
+        selected = None
+        for child in game.node.children:
+            if child.encode() == best_idx:
+                selected = child
+                break
+
+        assert selected is not None, f"{best_idx} not " \
+                                     f"in {[child.encode() for child in game.node.children]} " \
+                                     f"(policy: {policy})" \
+                                     f"mcts: {mcts}"
+        game.select_child(selected)
 
         return policy
 
-    def play(self, game: Game, p1: Optional[pytorch_lightning.LightningModule],
-             p2: Optional[pytorch_lightning.LightningModule], mcts=True):
+    def play(self,
+             game: Game,
+             networks: List[Optional[pytorch_lightning.LightningModule]],
+             mcts=True):
         """
         Does a playout of the game with two neural networks, returns all board states and the final result.
         The returned zip contains all boards which were played by player 1 including the policy vector.
@@ -83,28 +77,28 @@ class Simulator:
 
         :param mcts: Use MCTS for policy enhancement
         :param game: the board state from which to choose
-        :param p1: the neural network for player 1
-        :param p2: the neural network for player 2, if None, use random agent instead
+        :param networks: the neural networks for all players
         :return: zip(boards, policies), result
         """
         policy_vectors = []
         # Play game until a terminal state has occurred.
-        result = GameState.UNDETERMINED
+        result = -1
         for i in range(game.turn_limit):
 
-            nn = p1 if game.to_play() == Perspectives.PLAYER1 else p2
+            nn = networks[game.to_play()]
 
             policy_vector = None
             if nn is None:
                 game.ai_move(algorithm="random")
             else:
                 policy_vector = self.nn_move(nn, game, mcts=mcts)
+                policy_vector = policy_vector.to("cpu")
 
             policy_vectors.append(policy_vector)
 
-            result = game.finished()
+            result = game.winner()
 
-            if result != GameState.UNDETERMINED:
+            if result is not None:
                 break
 
         # Return all board states and the final result.
@@ -122,7 +116,7 @@ class Simulator:
 
         game = self.game()
 
-        node_result, result = self.play(game, net1, net2)
+        node_result, result = self.play(game, [net1, net2])
         node_result = list(node_result)
         for board_idx, (node, policy_vector) in enumerate(node_result):
             # Convert all data to be usable
@@ -135,10 +129,8 @@ class Simulator:
 
         # Convert game outcome to numerical value vector
         result_value = (
-            0 if (result in [GameState.UNDETERMINED, GameState.DRAW_TURN_LIMIT, GameState.DRAW_REPETITION])
-            else 1 if (
-                    (result == GameState.WHITE_WON and nn_perspective == 0) or
-                    (result == GameState.BLACK_WON and nn_perspective == 1))
+            0 if (result == -1)
+            else 1 if (result == nn_perspective)
             else -1
         )
         result_values = [torch.Tensor([result_value])] * len(tensors)

@@ -9,7 +9,6 @@ import numpy as np
 import torch
 
 from games.Game import Game, GameNode
-from games.utils import GameState, Perspectives
 
 lib = CDLL(os.path.join(os.path.dirname(os.path.realpath(__file__)), "libhive.so"))
 BOARD_SIZE = c_uint.in_dll(lib, "pboardsize").value
@@ -90,7 +89,7 @@ class Board(Structure):
         TILE_QUEEN | (0 << NUMBER_SHIFT),
     ]
 
-    def to_np(self, perspective: Perspectives):
+    def to_np(self, perspective):
         """
         Convert internal array representation to numpy array
         It will always display the board from white's perspective.
@@ -271,7 +270,7 @@ class HiveNode(GameNode):
     def turn(self):
         return self.cnode.contents.board.contents.turn
 
-    def to_np(self, perspective: Perspectives):
+    def to_np(self, perspective):
         return self.cnode.contents.board.contents.to_np(perspective)
 
     def encode(self):
@@ -315,7 +314,7 @@ class HiveNode(GameNode):
         if len(self.children) != 0:
             return self.children
 
-        if self.finished() != GameState.UNDETERMINED:
+        if self.winner() != GameState.UNDETERMINED:
             return []
 
         if self.cnode.contents.board.contents.move_location_tracker == 0:
@@ -335,9 +334,9 @@ class HiveNode(GameNode):
         lib.node_free_children(self.cnode)
         return self.children
 
-    def finished(self) -> GameState:
+    def winner(self):
         result = lib.finished_board(self.cnode.contents.board)
-        return GameState(result)
+        return result
 
     def print(self):
         lib.print_board(self.cnode.contents.board)
@@ -391,8 +390,8 @@ class Hive(Game):
     def print(self):
         print(self.node)
 
-    def finished(self) -> GameState:
-        return self.node.finished()
+    def winner(self):
+        return self.node.winner()
 
     def children(self) -> Iterable[HiveNode]:
         yield from self.node.children
