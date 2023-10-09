@@ -1,8 +1,0 @@
-matplotlib
-numpy
-pytorch-lightning
-joblib
-mpi4py
-scipy
-torch
-tensorboard
